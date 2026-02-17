@@ -1,0 +1,134 @@
+@import "@fontsource/poppins";
+@import "@fontsource/poppins/300.css";
+@import "@fontsource/poppins/400.css";
+@import "@fontsource/poppins/500.css";
+@import "@fontsource/poppins/600.css";
+@import "@fontsource/poppins/700.css";
+@import "@fontsource/poppins/800.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+    font-family: "Avenir";
+    src: url("/src/assets/Avenir Light.ttf") format("truetype");
+    font-weight: 300;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Avenir";
+    src: url("/src/assets/Avenir Regular.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Avenir";
+    src: url("/src/assets/Avenir Heavy.ttf") format("truetype");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+:root {
+    --background: #ffffff;
+    --color-primary: #24B99E;
+    --color-grayColor: #6B6B6B;
+    --color-borderColor: #00000033;
+    --primary-gray: #47464A;
+    --general-text: #000000;
+}
+
+.dark {
+    --background: #191d23;
+    --general-text: #ffffff;
+}
+
+/* Global font family - Avenir for all text */
+body,
+input,
+select,
+textarea,
+button,
+p,
+span,
+label,
+div,
+a,
+li,
+td,
+th {
+    font-family: "Avenir", sans-serif !important;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: "Avenir", "Avenir-Bold", sans-serif !important;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0px 1000px white inset !important;
+    -webkit-text-fill-color: #000 !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+}
+
+@layer utilities {
+    .text-primary-gray {
+        color: var(--primary-gray);
+    }
+}
+
+/* Exact Match for User Image Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 14px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: #ffffff;
+    /* The white background track in your image */
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #24B99E;
+    /* The grey thumb in your image */
+    border-radius: 20px;
+    border: 3px solid #ffffff;
+    /* This creates the "padding" effect around the thumb */
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #24B99E;
+}
+
+/* Firefox Support matching the image */
+.custom-scrollbar {
+    scrollbar-width: auto;
+    scrollbar-color: #24B99E #ffffff;
+}
