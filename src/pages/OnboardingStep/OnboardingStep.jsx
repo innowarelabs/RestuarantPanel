@@ -1,11 +1,22 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    User, Eye, ChevronRight, Check, MapPin, Menu, Settings, Gift,
-    Phone, Clock, Plus, Trash2, Edit2, GripVertical, Info,
-    ArrowLeft, ChevronDown, ListFilter, Scissors, Coffee, Sandwich, Pizza,
-    CreditCard, Bell, MessageSquare, Link, ChevronLeft, ShieldCheck, Mail, X, Image, Lock
+    User, Eye, Check, MapPin, Menu, Settings, Gift,
+    ChevronDown,
+    CreditCard, Bell, MessageSquare, Link, X, Image
 } from 'lucide-react';
+
+import Step1 from './Step1';
+import Step2 from './Step2';
+import Step3 from './Step3';
+import Step4 from './Step4';
+import Step5 from './Step5';
+import Step6 from './Step6';
+import Step7 from './Step7';
+import Step8 from './Step8';
+import Step9 from './Step9';
+import Step10 from './Step10';
+import Toggle from './Toggle';
 
 const steps = [
     { id: 1, name: 'Account Setup', icon: User },
@@ -19,13 +30,197 @@ const steps = [
     { id: 9, name: 'Connect Integration', icon: Link },
 ];
 
+const WEBSITE_HEADER_REQUIRED_PX = { width: 1440, height: 495 };
+const WEBSITE_FOOTER_LEFT_REQUIRED_PX = { width: 604, height: 425 };
+const WEBSITE_FOOTER_RIGHT_REQUIRED_PX = { width: 604, height: 425 };
+const CATEGORY_IMAGE_REQUIRED_PX = { width: 270, height: 208 };
+
 export default function OnboardingStep() {
     const navigate = useNavigate();
+    const nextCategoryIdRef = useRef(1);
+    const nextItemIdRef = useRef(1);
+
+    const createCategoryId = () => `category-${nextCategoryIdRef.current++}`;
+    const createItemId = () => `item-${nextItemIdRef.current++}`;
     const [currentStep, setCurrentStep] = useState(1);
-    const [passwordVisible, setPasswordVisible] = useState(false);
     const [showPreviewModal, setShowPreviewModal] = useState(false);
     const [showAddRewardModal, setShowAddRewardModal] = useState(false);
     const [editingReward, setEditingReward] = useState(null);
+    const [categoryImage, setCategoryImage] = useState(null);
+    const [categoryImagePreviewUrl, setCategoryImagePreviewUrl] = useState('');
+    const [categories, setCategories] = useState([]);
+    const [items, setItems] = useState([]);
+    const [editingCategoryId, setEditingCategoryId] = useState(null);
+    const [showAddItemModal, setShowAddItemModal] = useState(false);
+    const [itemImage, setItemImage] = useState(null);
+    const [itemImagePreviewUrl, setItemImagePreviewUrl] = useState('');
+    const [itemForm, setItemForm] = useState({
+        categoryId: '',
+        name: '',
+        price: '',
+        description: '',
+        prepTimeMinutes: '15',
+        available: true,
+        tags: [],
+        addOns: [{ name: '', price: '' }],
+    });
+
+    const [brandingFiles, setBrandingFiles] = useState({
+        companyLogo: null,
+        companyLogoPreviewUrl: '',
+        websiteHeader: null,
+        websiteHeaderPreviewUrl: '',
+        websiteFooterLeft: null,
+        websiteFooterLeftPreviewUrl: '',
+        websiteFooterRight: null,
+        websiteFooterRightPreviewUrl: '',
+    });
+
+    const setBrandingFile = (key, file) => {
+        setBrandingFiles((prev) => {
+            const previewKey = `${key}PreviewUrl`;
+            const prevPreviewUrl = prev[previewKey];
+            if (prevPreviewUrl) URL.revokeObjectURL(prevPreviewUrl);
+
+            const nextPreviewUrl = file ? URL.createObjectURL(file) : '';
+            return { ...prev, [key]: file, [previewKey]: nextPreviewUrl };
+        });
+    };
+
+    const setCategoryImageFile = (file) => {
+        if (categoryImagePreviewUrl) URL.revokeObjectURL(categoryImagePreviewUrl);
+        setCategoryImage(file);
+        setCategoryImagePreviewUrl(file ? URL.createObjectURL(file) : '');
+    };
+
+    const setItemImageFile = (file) => {
+        if (itemImagePreviewUrl) URL.revokeObjectURL(itemImagePreviewUrl);
+        setItemImage(file);
+        setItemImagePreviewUrl(file ? URL.createObjectURL(file) : '');
+    };
+
+    const resetCategoryForm = () => {
+        if (categoryImagePreviewUrl) URL.revokeObjectURL(categoryImagePreviewUrl);
+        setEditingCategoryId(null);
+        setCategoryImage(null);
+        setCategoryImagePreviewUrl('');
+        setFormData((prev) => ({
+            ...prev,
+            categoryName: '',
+            categoryDesc: '',
+            categoryVisible: true,
+        }));
+    };
+
+    const saveCategory = () => {
+        const trimmedName = formData.categoryName.trim();
+        if (!trimmedName) return;
+
+        if (!editingCategoryId && !categoryImage) return;
+
+        setCategories((prev) => {
+            const existingIndex = prev.findIndex((c) => c.id === editingCategoryId);
+            const nextId = editingCategoryId || createCategoryId();
+            const previous = existingIndex >= 0 ? prev[existingIndex] : null;
+            const nextCategory = {
+                id: nextId,
+                name: trimmedName,
+                description: formData.categoryDesc.trim(),
+                visible: !!formData.categoryVisible,
+                imageName: categoryImage?.name || previous?.imageName || '',
+            };
+
+            if (existingIndex >= 0) {
+                const copy = [...prev];
+                copy[existingIndex] = nextCategory;
+                return copy;
+            }
+
+            return [nextCategory, ...prev];
+        });
+
+        setFormData((prev) => ({
+            ...prev,
+            categoriesCount: (editingCategoryId ? prev.categoriesCount : prev.categoriesCount + 1),
+        }));
+
+        resetCategoryForm();
+    };
+
+    const startEditCategory = (category) => {
+        if (categoryImagePreviewUrl) URL.revokeObjectURL(categoryImagePreviewUrl);
+        setEditingCategoryId(category.id);
+        setCategoryImage(null);
+        setCategoryImagePreviewUrl('');
+        setFormData((prev) => ({
+            ...prev,
+            categoryName: category.name,
+            categoryDesc: category.description || '',
+            categoryVisible: !!category.visible,
+        }));
+    };
+
+    const deleteCategory = (categoryId) => {
+        setCategories((prev) => prev.filter((c) => c.id !== categoryId));
+        setItems((prev) => {
+            const removedCount = prev.filter((i) => i.categoryId === categoryId).length;
+            const next = prev.filter((i) => i.categoryId !== categoryId);
+            if (removedCount) {
+                setFormData((fd) => ({ ...fd, itemsCount: Math.max(0, fd.itemsCount - removedCount) }));
+            }
+            return next;
+        });
+        setFormData((prev) => ({ ...prev, categoriesCount: Math.max(0, prev.categoriesCount - 1) }));
+
+        if (editingCategoryId === categoryId) resetCategoryForm();
+    };
+
+    const resetItemModal = () => {
+        if (itemImagePreviewUrl) URL.revokeObjectURL(itemImagePreviewUrl);
+        setItemImage(null);
+        setItemImagePreviewUrl('');
+        setItemForm({
+            categoryId: '',
+            name: '',
+            price: '',
+            description: '',
+            prepTimeMinutes: '15',
+            available: true,
+            tags: [],
+            addOns: [{ name: '', price: '' }],
+        });
+    };
+
+    const closeAddItemModal = () => {
+        setShowAddItemModal(false);
+        resetItemModal();
+    };
+
+    const saveItem = () => {
+        const trimmedName = itemForm.name.trim();
+        const trimmedPrice = itemForm.price.trim();
+        if (!trimmedName || !trimmedPrice || !itemForm.categoryId) return;
+
+        const newItem = {
+            id: createItemId(),
+            categoryId: itemForm.categoryId,
+            name: trimmedName,
+            price: trimmedPrice,
+            description: itemForm.description.trim(),
+            prepTimeMinutes: itemForm.prepTimeMinutes.trim(),
+            available: !!itemForm.available,
+            tags: itemForm.tags,
+            addOns: itemForm.addOns
+                .map((a) => ({ name: a.name.trim(), price: a.price.trim() }))
+                .filter((a) => a.name || a.price),
+            imageName: itemImage?.name || '',
+        };
+
+        setItems((prev) => [newItem, ...prev]);
+        setFormData((prev) => ({ ...prev, itemsCount: prev.itemsCount + 1 }));
+        setShowAddItemModal(false);
+        resetItemModal();
+    };
 
     // Form States
     const [formData, setFormData] = useState({
@@ -33,10 +228,12 @@ export default function OnboardingStep() {
         fullName: 'romesa',
         email: 'john@burgerhouse.com',
         twoFactor: false,
+        companyName: '',
         // Step 2
         contact: '69696',
         altPhone: '',
         address: '123 Main Street, New York, NY 10001',
+        companyLocation: '',
         prepTime: '15 minutes',
         enableDelivery: true,
         enablePickup: false,
@@ -45,7 +242,7 @@ export default function OnboardingStep() {
         categoryName: '',
         categoryDesc: '',
         categoryVisible: true,
-        categoriesCount: 3,
+        categoriesCount: 0,
         itemsCount: 0,
         // Step 4
         autoAccept: false,
@@ -53,8 +250,6 @@ export default function OnboardingStep() {
         minOrder: '10.00',
         allowInstructions: true,
         cancelPolicy: '',
-        soundNotify: true,
-        riderInstructions: '',
         // Step 5
         loyaltyEnabled: true,
         pointsPerDollar: '10',
@@ -93,7 +288,7 @@ export default function OnboardingStep() {
         const Icon = currentStep === 10 ? Eye : step.icon;
 
         let title = "Create Your Account";
-        let desc = "Set up your login credentials to access your restaurant dashboard.";
+        let desc = "Add your basic account and brand details to access your restaurant dashboard.";
 
         switch (currentStep) {
             case 2: title = "Restaurant Operational Information"; desc = "Add operational settings so customers know when you're open and how you operate."; break;
@@ -125,867 +320,74 @@ export default function OnboardingStep() {
 
     const renderRightSection = () => {
         switch (currentStep) {
-            case 1: return renderStep1();
-            case 2: return renderStep2();
-            case 3: return renderStep3();
-            case 4: return renderStep4();
-            case 5: return renderStep5();
-            case 6: return renderStep6();
-            case 7: return renderStep7();
-            case 8: return renderStep8();
-            case 9: return renderStep9();
-            case 10: return renderStep10();
+            case 1: return (
+                <Step1
+                    formData={formData}
+                    setFormData={setFormData}
+                    brandingFiles={brandingFiles}
+                    setBrandingFile={setBrandingFile}
+                    handleNext={handleNext}
+                />
+            );
+            case 2: return (
+                <Step2
+                    formData={formData}
+                    setFormData={setFormData}
+                    brandingFiles={brandingFiles}
+                    setBrandingFile={setBrandingFile}
+                    WEBSITE_HEADER_REQUIRED_PX={WEBSITE_HEADER_REQUIRED_PX}
+                    WEBSITE_FOOTER_LEFT_REQUIRED_PX={WEBSITE_FOOTER_LEFT_REQUIRED_PX}
+                    WEBSITE_FOOTER_RIGHT_REQUIRED_PX={WEBSITE_FOOTER_RIGHT_REQUIRED_PX}
+                    handlePrev={handlePrev}
+                    handleNext={handleNext}
+                />
+            );
+            case 3: return (
+                <Step3
+                    categories={categories}
+                    items={items}
+                    editingCategoryId={editingCategoryId}
+                    formData={formData}
+                    setFormData={setFormData}
+                    categoryImage={categoryImage}
+                    categoryImagePreviewUrl={categoryImagePreviewUrl}
+                    setCategoryImageFile={setCategoryImageFile}
+                    CATEGORY_IMAGE_REQUIRED_PX={CATEGORY_IMAGE_REQUIRED_PX}
+                    saveCategory={saveCategory}
+                    resetCategoryForm={resetCategoryForm}
+                    startEditCategory={startEditCategory}
+                    deleteCategory={deleteCategory}
+                    handlePrev={handlePrev}
+                    handleNext={handleNext}
+                    showAddItemModal={showAddItemModal}
+                    setShowAddItemModal={setShowAddItemModal}
+                    closeAddItemModal={closeAddItemModal}
+                    itemForm={itemForm}
+                    setItemForm={setItemForm}
+                    itemImagePreviewUrl={itemImagePreviewUrl}
+                    setItemImageFile={setItemImageFile}
+                    saveItem={saveItem}
+                />
+            );
+            case 4: return <Step4 formData={formData} setFormData={setFormData} handlePrev={handlePrev} handleNext={handleNext} />;
+            case 5: return (
+                <Step5
+                    formData={formData}
+                    setFormData={setFormData}
+                    setEditingReward={setEditingReward}
+                    setShowAddRewardModal={setShowAddRewardModal}
+                    handlePrev={handlePrev}
+                    handleNext={handleNext}
+                />
+            );
+            case 6: return <Step6 formData={formData} setFormData={setFormData} handlePrev={handlePrev} handleNext={handleNext} />;
+            case 7: return <Step7 formData={formData} setFormData={setFormData} handlePrev={handlePrev} handleNext={handleNext} />;
+            case 8: return <Step8 formData={formData} setFormData={setFormData} handlePrev={handlePrev} handleNext={handleNext} />;
+            case 9: return <Step9 handlePrev={handlePrev} handleNext={handleNext} />;
+            case 10: return <Step10 setShowPreviewModal={setShowPreviewModal} navigate={navigate} handlePrev={handlePrev} />;
             default: return null;
         }
     };
-
-    const renderStep1 = () => (
-        <form className="space-y-6">
-            <div>
-                <label className="block text-[14px] font-[500] text-[#1A1A1A] mb-2">Full Name <span className="text-red-500">*</span></label>
-                <input type="text" placeholder="Enter your full name" className="onboarding-input" />
-            </div>
-            <div>
-                <label className="block text-[14px] font-[500] text-[#1A1A1A] mb-2">Email</label>
-                <input type="email" defaultValue={formData.email} className="onboarding-input bg-[#F0FDFA] border-primary/20 text-gray-400" />
-            </div>
-            <div>
-                <label className="block text-[14px] font-[500] text-[#1A1A1A] mb-2">Password <span className="text-red-500">*</span></label>
-                <div className="relative">
-                    <input
-                        type={passwordVisible ? "text" : "password"}
-                        placeholder="Min 8 characters"
-                        className="onboarding-input pr-12 sm:placeholder:text-transparent md:placeholder:text-inherit"
-                    />
-                    <button type="button" onClick={() => setPasswordVisible(!passwordVisible)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"><Eye size={20} /></button>
-                </div>
-            </div>
-            <div>
-                <label className="block text-[14px] font-[500] text-[#1A1A1A] mb-2">Confirm Password <span className="text-red-500">*</span></label>
-                <input type="password" placeholder="Re-enter password" className="onboarding-input" />
-            </div>
-            <div className="flex items-start sm:items-center justify-between py-2 gap-4">
-                <div className="flex-1">
-                    <p className="text-[14px] font-[500] text-[#1A1A1A]">Enable Two-Factor Authentication</p>
-                    <p className="text-[12px] font-[400] mt-2 text-[#6B6B6B]">Add an extra layer of security to your account (optional)</p>
-                </div>
-                <div className="shrink-0">
-                    <Toggle active={formData.twoFactor} onClick={() => setFormData({ ...formData, twoFactor: !formData.twoFactor })} />
-                </div>
-            </div>
-            <div className="pt-4 flex justify-end">
-                <button type="button" onClick={handleNext} className="next-btn bg-[#E5E7EB] ">Next <ChevronRight size={18} /></button>
-            </div>
-        </form>
-    );
-
-    const renderStep2 = () => (
-        <form className="space-y-6">
-            <div>
-                <label className="block text-[14px] font-[500] text-[#1A1A1A] mb-2">Restaurant Contact Number <span className="text-red-500">*</span></label>
-                <input type="text" placeholder="+1 (555) 123-4567" className="onboarding-input" />
-            </div>
-            <div>
-                <label className="block text-[14px] font-[500] text-[#1A1A1A] mb-2">Alternate Phone</label>
-                <input type="text" placeholder="+1 (555) 987-6543" className="onboarding-input" />
-            </div>
-            <div>
-                <label className="block text-[14px] font-[500] text-[#1A1A1A] mb-2">Address <span className="text-red-500">*</span></label>
-                <input type="text" placeholder="123 Main Street, New York, NY 10001" className="onboarding-input" />
-            </div>
-            <div className="space-y-2">
-                <label className="block text-[14px] font-[500] text-[#1A1A1A]">Google Map Location</label>
-                <div className="w-full h-40 bg-[#E5E7EB] rounded-[16px] flex flex-col items-center justify-center  border-gray-300 relative overflow-hidden">
-                    <MapPin size={24} className="text-gray-400 mb-1" />
-                    <p className="text-[11px] text-[#9CA3AF] absolute bottom-3">Drag the pin to set your exact location</p>
-                </div>
-            </div>
-            <div>
-                <label className="block text-[14px] font-[500] text-[#1A1A1A] mb-3">Opening Hours</label>
-                <div className="space-y-3 bg-[#F9FAFB]/50 p-4 rounded-[8px] border border-[#E5E7EB]">
-                    {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
-                        <div key={day} className="grid grid-cols-12 items-center gap-4">
-                            <span className="col-span-6 text-[13px] text-[#1A1A1A] font-[500]">{day}</span>
-                            <div className="col-span-6 flex items-center gap-2">
-                                <input type="text" className="h-9 w-full bg-white border border-gray-200 rounded-lg px-2 text-[12px] text-center" placeholder="--:--" />
-                                <span className="text-gray-400">—</span>
-                                <input type="text" className="h-9 w-full bg-white border border-gray-200 rounded-lg px-2 text-[12px] text-center" placeholder="--:--" />
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-            <div>
-                <label className="block text-[14px] font-[500] text-[#1A1A1A] mb-2">Average Preparation Time <span className="text-red-500">*</span></label>
-                <div className="relative">
-                    <select className="onboarding-input appearance-none">
-                        <option>15 minutes</option>
-                        <option>20-30 min</option>
-                    </select>
-                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
-                </div>
-            </div>
-            <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                    <span className="text-[14px] font-[500] text-[#1A1A1A]">Enable Delivery</span>
-                    <Toggle active={formData.enableDelivery} onClick={() => setFormData({ ...formData, enableDelivery: !formData.enableDelivery })} />
-                </div>
-                <div className="flex items-center justify-between">
-                    <span className="text-[14px] font-[500] text-[#1A1A1A]">Enable Pickup</span>
-                    <Toggle active={formData.enablePickup} onClick={() => setFormData({ ...formData, enablePickup: !formData.enablePickup })} />
-                </div>
-            </div>
-            <div>
-                <label className="block text-[14px] font-[500] text-[#1A1A1A] mb-2">Delivery Notes</label>
-                <textarea placeholder="Any special delivery instructions..." className="onboarding-input h-28 p-4 resize-none rounded-[8px]" />
-            </div>
-            <div className="pt-4 flex justify-between">
-                <button type="button" onClick={handlePrev} className="prev-btn flex items-center gap-2 px-10">
-                    <ChevronLeft size={18} /> Previous
-                </button>
-                <button type="button" onClick={handleNext} className="next-btn bg-primary text-white px-10">
-                    Next <ChevronRight size={18} />
-                </button>
-            </div>
-        </form>
-    );
-
-    const renderStep3 = () => (
-        <div className="space-y-8">
-            <div className="bg-[#F9FAFB]/50  rounded-[20px] border border-gray-100">
-                <h3 className="text-[16px] font-[400] text-[#1A1A1A] mb-4">Add Menu Categories</h3>
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-[14px] font-[500] text-[#1A1A1A] mb-1.5">Category Name</label>
-                        <input type="text" placeholder="e.g., Burgers, Pizzas, Drinks" className="onboarding-input h-11" />
-                    </div>
-                    <div>
-                        <label className="block text-[14px] font-[500] text-[#1A1A1A] mb-1.5">Category Description (Optional)</label>
-                        <input type="text" placeholder="Brief description of this category" className="onboarding-input h-11" />
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <div className="text-[13px]">
-                            <p className="text-[14px] font-[500] text-[#1A1A1A]">Category Visibility</p>
-                            <p className="text-[12px] mt-1 text-[#6B6B6B]">Show this category to customers</p>
-                        </div>
-                        <Toggle active={formData.categoryVisible} onClick={() => setFormData({ ...formData, categoryVisible: !formData.categoryVisible })} />
-                    </div>
-                    <button className="w-full h-11 bg-[#E5E7EB] text-[#6B6B6B] rounded-[8px] text-[16px] flex items-center justify-center gap-2">
-                        <Plus size={18} /> Add Category
-                    </button>
-                </div>
-            </div>
-
-            <div className="space-y-4">
-                <h3 className="text-[16px]  text-[#1A1A1A]">Your Categories (3)</h3>
-
-                <div className="bg-white min-h-[325px] border border-gray-100 rounded-2xl p-4 shadow-sm space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                            <GripVertical size={20} className="text-[#6B7280]" />
-                            <div>
-                                <h4 className="text-[15px]  text-[#1A1A1A]">Burgers</h4>
-                                <p className="text-[13px] text-[#6B7280]">Chicken Burger with extra sauce • 2 items</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2 self-end sm:self-auto">
-                            <ChevronDown size={18} className="text-gray-400" />
-                            <div className="p-1.5 hover:bg-gray-50 rounded-lg cursor-pointer"><Edit2 size={16} className="text-gray-400" /></div>
-                            <div className="p-1.5 hover:bg-red-50 rounded-lg cursor-pointer"><Trash2 size={16} className="text-[#EF4444]" /></div>
-                        </div>
-                    </div>
-                    <button className="h-10 px-4 border border-[#24B99E]  text-primary rounded-[6px]  text-[13px] flex items-center gap-2">
-                        <Plus size={16} /> Add Item to Burgers
-                    </button>
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between p-3 bg-[#F6F8F9]/50 rounded-[8px] border border-[#E5E7EB]">
-                            <div className="flex items-center gap-4">
-                                <img src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=50&q=80" className="w-[48px] h-[48px] rounded-lg object-cover" />
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[14px]  text-[#1A1A1A]">Classic Cheeseburger</span>
-                                        <span className="bg-[#ECFDF5] text-[#10B981] text-[10px] px-3 py-0.5 rounded-[2px] ">Spicy</span>
-                                    </div>
-                                    <p className="text-[13px] font-[500] text-primary mt-0.5">$24</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <Edit2 size={14} className="text-gray-400" />
-                                <Trash2 size={14} className="text-[#EF4444]" />
-                            </div>
-                        </div>
-                    </div>
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between p-3 bg-[#F6F8F9]/50 rounded-[8px] border border-[#E5E7EB]">
-                            <div className="flex items-center gap-4">
-                                <img src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=50&q=80" className="w-[48px] h-[48px] rounded-lg object-cover" />
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[14px]  text-[#1A1A1A]">Classic Cheeseburger</span>
-                                        <span className="bg-[#ECFDF5] text-[#10B981] text-[10px] px-3 py-0.5 rounded-[2px] ">Spicy</span>
-                                    </div>
-                                    <p className="text-[13px] font-[500] text-primary mt-0.5">$24</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <Edit2 size={14} className="text-gray-400" />
-                                <Trash2 size={14} className="text-[#EF4444]" />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="bg-white min-h-[150px] border border-gray-100 rounded-2xl p-4 shadow-sm space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                            <GripVertical size={20} className="text-[#6B7280] -" />
-                            <div>
-                                <h4 className="text-[15px]  text-[#1A1A1A]">Sides</h4>
-                                <p className="text-[13px] text-[#6B7280]">Fries, salads, and more • 0 items</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2 self-end sm:self-auto">
-                            <div className="p-1.5 hover:bg-gray-50 rounded-lg cursor-pointer"><Edit2 size={16} className="text-gray-400" /></div>
-                            <div className="p-1.5 hover:bg-red-50 rounded-lg cursor-pointer"><Trash2 size={16} className="text-[#EF4444]" /></div>
-                        </div>
-                    </div>
-                    <button className="h-10 px-4 border border-[#24B99E]  text-primary rounded-[6px]  text-[13px] flex items-center gap-2">
-                        <Plus size={16} /> Add Item to Sides
-                    </button>
-                </div>
-            </div>
-
-            <div className="flex justify-end pt-4">
-                <button className="text-[13px] text-[#6B7280] font-[400] hover:underline">Skip for now</button>
-            </div>
-            <div className="pt-4 flex justify-between">
-                <button type="button" onClick={handlePrev} className="prev-btn flex items-center gap-2 px-10">
-                    <ChevronLeft size={18} /> Previous
-                </button>
-                <button type="button" onClick={handleNext} className="next-btn bg-primary text-white px-10">
-                    Next <ChevronRight size={18} />
-                </button>
-            </div>
-        </div>
-    );
-
-    const renderStep4 = () => (
-        <form className="space-y-7">
-            <div className="flex items-start sm:items-center justify-between gap-4">
-                <div className="flex-1">
-                    <p className="text-[14px] font-[500] text-[#1A1A1A]">Auto Accept Orders</p>
-                    <p className="text-[12px] text-[#6B6B6B] mt-1">You will manually accept each order</p>
-                </div>
-                <div className="shrink-0">
-                    <Toggle active={formData.autoAccept} onClick={() => setFormData({ ...formData, autoAccept: !formData.autoAccept })} />
-                </div>
-            </div>
-            <div className="bg-[#E6F7F4] p-5 rounded-[8px] border border-[#E6F7F4] space-y-3">
-                <label className="block text-[14px] font-[500] text-[#1A1A1A]">Accept Order Time Limit (minutes)</label>
-                <input type="text" value={formData.timeLimit} onChange={(e) => setFormData({ ...formData, timeLimit: e.target.value })} className="onboarding-input h-11" />
-                <p className="text-[12px] text-[#6B7280]">Orders will be auto-cancelled if not accepted within this time</p>
-            </div>
-            <div>
-                <label className="block text-[14px] font-[500] text-[#1A1A1A] mb-2">Minimum Order Amount <span className="text-red-500">*</span></label>
-                <input type="text" value={formData.minOrder} className="onboarding-input" />
-            </div>
-            <div className="flex items-start sm:items-center justify-between py-2 gap-4">
-                <div className="flex-1">
-                    <p className="text-[14px] font-[500] text-[#1A1A1A]">Allow Special Instructions</p>
-                    <p className="text-[12px] text-[#6B7280] mt-1">Customers can add special requests to their orders</p>
-
-                </div>
-                <div className="shrink-0">
-                    <Toggle active={formData.allowInstructions} onClick={() => setFormData({ ...formData, allowInstructions: !formData.allowInstructions })} />
-                </div>
-
-            </div>
-
-            <div>
-                <label className="block text-[14px] font-[500] text-[#1A1A1A] mb-2">Cancellation Policy</label>
-                <textarea placeholder="e.g., Orders can be cancelled within 5 minutes of placement..." className="onboarding-input h-40 py-3 resize-none" />
-
-            </div>
-            <div className="flex items-start sm:items-center justify-between gap-4">
-                <div className="flex-1">
-                    <p className="text-[14px] font-[500] text-[#1A1A1A]">New Order Sound Notification</p>
-                    <p className="text-[12px] text-[#6B7280] mt-1">Play a sound when new orders arrive  </p>
-
-                </div>
-                <div className="shrink-0">
-                    <Toggle active={formData.soundNotify} onClick={() => setFormData({ ...formData, soundNotify: !formData.soundNotify })} />
-                </div>
-
-            </div>
-            <div>
-                <label className="block text-[14px] font-[500] text-[#1A1A1A] mb-2">Rider Pickup Instructions</label>
-                <textarea placeholder="e.g., Please use the side entrance for pickups..." className="onboarding-input h-40 p-4 resize-none" />
-            </div>
-            <div className="flex justify-end pt-2">
-                <button type="button" onClick={handleNext} className="text-[13px] text-[#6B7280] font-[400] hover:underline">Skip for now</button>
-            </div>
-            <div className="pt-4 flex justify-between">
-                <button type="button" onClick={handlePrev} className="prev-btn flex items-center gap-2 px-10">
-                    <ChevronLeft size={18} /> Previous
-                </button>
-                <button type="button" onClick={handleNext} className="next-btn bg-primary text-white px-10">
-                    Next <ChevronRight size={18} />
-                </button>
-            </div>
-        </form>
-    );
-
-    const renderStep5 = () => (
-        <div className="space-y-10">
-            {/* Enable Loyalty */}
-            <div className="flex items-start sm:items-center justify-between gap-4">
-                <div>
-                    <h3 className="text-[14px] font-[500] text-[#1A1A1A]">Enable Loyalty Points</h3>
-                    <p className="text-[12px] text-[#6B7280] mt-0.5">Turn on to start rewarding customers with points</p>
-                </div>
-                <div className="shrink-0">
-                    <Toggle active={formData.loyaltyEnabled} onClick={() => setFormData({ ...formData, loyaltyEnabled: !formData.loyaltyEnabled })} />
-                </div>
-            </div>
-
-            <div className="space-y-5">
-                <h3 className="text-[16px] font-[800] text-[#1A1A1A]">Points Earning Settings</h3>
-
-                {/* Points Per Dollar */}
-                <div className="space-y-2">
-                    <label className="block text-[14px] font-[500] text-[#1A1A1A]">Points earned per $ spent</label>
-                    <input
-                        type="text"
-                        value={formData.pointsPerDollar}
-                        onChange={(e) => setFormData({ ...formData, pointsPerDollar: e.target.value })}
-                        className="onboarding-input"
-                    />
-                </div>
-
-                {/* First Order Bonus */}
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-[14px] font-[500] text-[#1A1A1A]">Give bonus points on first order?</p>
-                            <p className="text-[12px] text-[#6B7280] mt-0.5">Reward new customers with extra points</p>
-                        </div>
-                        <Toggle active={formData.bonusFirstOrder} onClick={() => setFormData({ ...formData, bonusFirstOrder: !formData.bonusFirstOrder })} />
-                    </div>
-                    {formData.bonusFirstOrder && (
-                        <div className="pl-6 border-l-[3px] border-primary ml-1 space-y-3 animate-in slide-in-from-left-2 duration-300">
-                            <label className="block text-[14px] font-[500] text-[#1A1A1A]">Bonus points amount</label>
-                            <input
-                                type="text"
-                                value={formData.bonusAmount}
-                                onChange={(e) => setFormData({ ...formData, bonusAmount: e.target.value })}
-                                className="onboarding-input"
-                            />
-                        </div>
-                    )}
-                </div>
-
-                {/* Minimum Order */}
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-[14px] font-[500] text-[#1A1A1A]">Minimum order amount to earn points?</p>
-                            <p className="text-[12px] text-[#6B7280] mt-0.5">Set a minimum spend requirement</p>
-                        </div>
-                        <Toggle active={formData.minOrderLoyalty} onClick={() => setFormData({ ...formData, minOrderLoyalty: !formData.minOrderLoyalty })} />
-                    </div>
-                    {formData.minOrderLoyalty && (
-                        <div className="pl-6 border-l-[3px] border-primary ml-1 space-y-3 animate-in slide-in-from-left-2 duration-300">
-                            <label className="block text-[14px] font-[500] text-[#1A1A1A]">Minimum amount ($)</label>
-                            <input
-                                type="text"
-                                value={formData.minOrderAmount}
-                                onChange={(e) => setFormData({ ...formData, minOrderAmount: e.target.value })}
-                                className="onboarding-input"
-                            />
-                        </div>
-                    )}
-                </div>
-
-                {/* Expiry */}
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-[14px] font-[500] text-[#1A1A1A]">Points expire?</p>
-                            <p className="text-[12px] text-[#6B7280] mt-0.5">Set an expiration period for points</p>
-                        </div>
-                        <Toggle active={formData.pointsExpire} onClick={() => setFormData({ ...formData, pointsExpire: !formData.pointsExpire })} />
-                    </div>
-                    {formData.pointsExpire && (
-                        <div className="pl-6 border-l-[3px] border-primary ml-1 space-y-3 animate-in slide-in-from-left-2 duration-300">
-                            <label className="block text-[14px] font-[500] text-[#1A1A1A]">Expiry period</label>
-                            <input
-                                type="text"
-                                placeholder="e.g., 6 months"
-                                value={formData.expiryPeriod}
-                                onChange={(e) => setFormData({ ...formData, expiryPeriod: e.target.value })}
-                                className="onboarding-input"
-                            />
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* Reward Catalog */}
-            <div className="space-y-6 pt-2">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                        <h3 className="text-[16px] font-[800] text-[#1A1A1A]">Reward Catalog</h3>
-                        <p className="text-[13px] text-[#6B7280] mt-0.5">Items customers can redeem with their points</p>
-                    </div>
-                    <button
-                        onClick={() => {
-                            setEditingReward(null);
-                            setShowAddRewardModal(true);
-                        }}
-                        className="h-10 w-full sm:w-auto px-4 bg-primary text-white rounded-[8px] text-[14px] font-[500] flex items-center justify-center gap-2 hover:bg-[#20a38b] transition-colors shadow-sm"
-                    >
-                        <Plus size={16} /> Add Reward Item
-                    </button>
-                </div>
-
-                <div className="space-y-3">
-                    {[
-                        { name: 'Free Ice Cream', desc: 'Ice Cream Cone • Choose any flavour', points: 175, status: 'Active', icon: '🍦' },
-                        { name: 'Free Soft Drink', desc: 'Soft Drink • Any size soft drink', points: 120, status: 'Active', icon: '🥤' },
-                        { name: 'Free Fries', desc: 'French Fries • Regular portion', points: 150, status: 'Active', icon: '🍟' },
-                        { name: 'Free Burger', desc: 'Cheeseburger • Classic cheeseburger', points: 400, status: 'Inactive', icon: '🍔' },
-                    ].map((item, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-4 bg-white border border-[#E5E7EB] rounded-[8px] ">
-                            <div className="flex items-center gap-4">
-                                <div className="w-[64px] h-[64px] bg-[#F6F8F9] rounded-[12px] flex items-center justify-center text-[24px]">
-                                    {item.icon}
-                                </div>
-                                <div className="space-y-1">
-                                    <h4 className="text-[15px] font-[400] text-[#1A1A1A]">{item.name}</h4>
-                                    <p className="text-[13px] text-[#6B7280]">{item.desc}</p>
-                                    <div className="flex items-center gap-2 pt-0.5">
-                                        <span className="text-[12px] font-[500] text-primary bg-[#E6F7F4] px-2 py-0.5 rounded-[4px]">{item.points} points</span>
-                                        <span className={`text-[12px] font-[500] px-2 py-0.5 rounded-[4px] ${item.status === 'Active' ? 'text-[#10B981] bg-[#ECFDF5]' : 'text-gray-400 bg-gray-100'}`}>
-                                            {item.status}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => {
-                                        setEditingReward(item);
-                                        setShowAddRewardModal(true);
-                                    }}
-                                    className="p-2 hover:bg-gray-50 rounded-lg text-gray-400"
-                                >
-                                    <Edit2 size={16} />
-                                </button>
-                                <button className="p-2 hover:bg-red-50 rounded-lg text-red-400"><Trash2 size={16} /></button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* Summary Box */}
-            <div className="bg-[#E6F7F4] border border-[#24B99E] p-5 rounded-[12px] space-y-3">
-                <h4 className="text-[13px] font-[500] text-primary">Loyalty Program Summary</h4>
-                <ul className="space-y-2">
-                    <li className="text-[12px] text-[#475569] flex items-start gap-2">
-                        <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                        <span>Earn {formData.pointsPerDollar || '0'} points per $1 spent</span>
-                    </li>
-                    {formData.bonusFirstOrder && (
-                        <li className="text-[12px] text-[#475569] flex items-start gap-2">
-                            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                            <span>New customers get {formData.bonusAmount || '0'} bonus points on first order</span>
-                        </li>
-                    )}
-                    <li className="text-[12px] text-[#475569] flex items-start gap-2">
-                        <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                        <span>{formData.pointsExpire ? `Points expire after period` : 'Points never expire'}</span>
-                    </li>
-                    <li className="text-[12px] text-[#475569] flex items-start gap-2">
-                        <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                        <span>3 active rewards available</span>
-                    </li>
-                </ul>
-            </div>
-
-            <div className="pt-4 flex justify-between">
-                <button type="button" onClick={handlePrev} className="prev-btn flex items-center gap-2 px-10">
-                    <ChevronLeft size={18} /> Previous
-                </button>
-                <button type="button" onClick={handleNext} className="next-btn bg-primary text-white px-10">
-                    Next <ChevronRight size={18} />
-                </button>
-            </div>
-        </div>
-    );
-
-    const renderStep6 = () => (
-        <form className="space-y-6">
-            {/* Security Note */}
-            <div className="bg-[#FEF3C7] p-5 rounded-[12px] border border-[#F59E0B] flex gap-3">
-                <Lock size={18} className="text-[#92400E] shrink-0 mt-0.5" />
-                <p className="text-[13px] text-[#92400E] leading-relaxed">
-                    Your banking information is encrypted and stored securely. We never share your details with third parties.
-                </p>
-            </div>
-
-            {/* Account Holder Name */}
-            <div className="space-y-2">
-                <label className="block text-[14px] font-[500] text-[#1A1A1A]">Account Holder Name <span className="text-red-500">*</span></label>
-                <input
-                    type="text"
-                    placeholder="John Doe"
-                    value={formData.accHolder}
-                    onChange={(e) => setFormData({ ...formData, accHolder: e.target.value })}
-                    className="onboarding-input"
-                />
-            </div>
-
-            {/* Bank Name */}
-            <div className="space-y-2">
-                <label className="block text-[14px] font-[500] text-[#1A1A1A]">Bank Name <span className="text-red-500">*</span></label>
-                <input
-                    type="text"
-                    placeholder="e.g., Chase Bank, Bank of America"
-                    className="onboarding-input"
-                />
-            </div>
-
-            {/* Account Number / IBAN */}
-            <div className="space-y-2">
-                <label className="block text-[14px] font-[500] text-[#1A1A1A]">Account Number / IBAN <span className="text-red-500">*</span></label>
-                <input
-                    type="text"
-                    placeholder="Enter your account number"
-                    className="onboarding-input"
-                />
-            </div>
-
-            {/* Routing Number */}
-            <div className="space-y-2">
-                <label className="block text-[14px] font-[500] text-[#1A1A1A]">Routing Number</label>
-                <input
-                    type="text"
-                    placeholder="9-digit routing number"
-                    className="onboarding-input"
-                />
-            </div>
-
-            {/* Payout Frequency */}
-            <div className="space-y-2">
-                <label className="block text-[14px] font-[500] text-[#1A1A1A]">Payout Frequency <span className="text-red-500">*</span></label>
-                <div className="relative">
-                    <select
-                        className="onboarding-input appearance-none"
-                        value={formData.payoutFreq}
-                        onChange={(e) => setFormData({ ...formData, payoutFreq: e.target.value })}
-                    >
-                        <option value="">Select frequency...</option>
-                        <option value="Daily">Daily</option>
-                        <option value="Weekly">Weekly</option>
-                        <option value="Monthly">Monthly</option>
-                    </select>
-                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
-                </div>
-            </div>
-
-            {/* Payout Summary */}
-            <div className="bg-[#E6F7F4] p-5 rounded-[12px] mt-4">
-                <p className="text-[13px] text-[#475569]">
-                    <span className="font-[600]">Expected payout:</span> {formData.payoutFreq ? `${formData.payoutFreq} settlement` : 'Select frequency above'}
-                </p>
-            </div>
-
-            <div className="pt-4 flex justify-between">
-                <button type="button" onClick={handlePrev} className="prev-btn flex items-center gap-2 px-10">
-                    <ChevronLeft size={18} /> Previous
-                </button>
-                <button
-                    type="button"
-                    onClick={handleNext}
-                    className={`next-btn ${formData.payoutFreq ? 'bg-primary text-white' : 'bg-[#E5E7EB] text-[#9CA3AF] cursor-not-allowed'} px-10 transition-all`}
-                >
-                    Next <ChevronRight size={18} />
-                </button>
-            </div>
-        </form>
-    );
-
-    const renderStep7 = () => {
-        const enabledChannels = [formData.appNotify, formData.emailNotify, formData.smsNotify].filter(Boolean).length;
-
-        return (
-            <div className="space-y-10">
-                {/* General Notifications */}
-                <div className="space-y-6">
-                    <h3 className="text-[15px] font-[400] text-[#111827]">General Notifications</h3>
-                    <div className="space-y-6">
-                        <NotificationToggle
-                            title="App Notifications"
-                            desc="Receive push notifications in the app"
-                            active={formData.appNotify}
-                            onClick={() => setFormData({ ...formData, appNotify: !formData.appNotify })}
-                        />
-                        <NotificationToggle
-                            title="Email Notifications"
-                            desc="Receive notifications via email"
-                            active={formData.emailNotify}
-                            onClick={() => setFormData({ ...formData, emailNotify: !formData.emailNotify })}
-                        />
-                        <NotificationToggle
-                            title="SMS Notifications"
-                            desc="Receive text messages for critical updates"
-                            active={formData.smsNotify}
-                            onClick={() => setFormData({ ...formData, smsNotify: !formData.smsNotify })}
-                        />
-                    </div>
-                </div>
-
-                <div className="border-t border-gray-100" />
-
-                {/* Alert Preferences */}
-                <div className="space-y-6">
-                    <h3 className="text-[16px] font-[500] text-[#111827]">Alert Preferences</h3>
-                    <div className="space-y-6">
-                        <NotificationToggle
-                            title="New Order Alert"
-                            desc="Get notified when a new order is placed"
-                            active={formData.newOrderAlert}
-                            onClick={() => setFormData({ ...formData, newOrderAlert: !formData.newOrderAlert })}
-                        />
-                        <NotificationToggle
-                            title="Rider Assigned Alert"
-                            desc="Get notified when a delivery rider is assigned"
-                            active={formData.riderAlert}
-                            onClick={() => setFormData({ ...formData, riderAlert: !formData.riderAlert })}
-                        />
-                        <NotificationToggle
-                            title="Complaint Received Alert"
-                            desc="Get notified about customer complaints"
-                            active={formData.complaintAlert}
-                            onClick={() => setFormData({ ...formData, complaintAlert: !formData.complaintAlert })}
-                        />
-                    </div>
-                </div>
-
-                {/* Summary Box */}
-                <div className="bg-[#E6F7F4] p-5 rounded-[8px] mt-2">
-                    <p className="text-[13px] text-[#475569]">
-                        You have {enabledChannels} notification {enabledChannels === 1 ? 'channel' : 'channels'} enabled
-                    </p>
-                </div>
-
-                <div className="pt-4 flex justify-between">
-                    <button type="button" onClick={handlePrev} className="prev-btn flex items-center gap-2 px-10">
-                        <ChevronLeft size={18} /> Previous
-                    </button>
-                    <button type="button" onClick={handleNext} className="next-btn bg-primary text-white px-10">
-                        Next <ChevronRight size={18} />
-                    </button>
-                </div>
-            </div>
-        );
-    };
-
-    const renderStep8 = () => (
-        <form className="space-y-6">
-            {/* Support Email */}
-            <div className="space-y-2">
-                <label className="block text-[14px] font-[500] text-[#111827]">Support Email <span className="text-red-500">*</span></label>
-                <input
-                    type="email"
-                    value={formData.supportEmail}
-                    onChange={(e) => setFormData({ ...formData, supportEmail: e.target.value })}
-                    placeholder="support@burgerhouse.com"
-                    className="onboarding-input"
-                />
-            </div>
-
-            {/* Contact Phone */}
-            <div className="space-y-2">
-                <label className="block text-[14px] font-[500] text-[#111827]">Contact Phone <span className="text-red-500">*</span></label>
-                <input
-                    type="text"
-                    value={formData.supportPhone}
-                    onChange={(e) => setFormData({ ...formData, supportPhone: e.target.value })}
-                    placeholder="+1 (555) 123-4567"
-                    className="onboarding-input"
-                />
-            </div>
-
-            {/* Auto-reply Message */}
-            <div className="space-y-2">
-                <label className="block text-[14px] font-[500] text-[#111827]">Auto-reply Message</label>
-                <textarea
-                    value={formData.autoReply}
-                    onChange={(e) => setFormData({ ...formData, autoReply: e.target.value })}
-                    placeholder="Message sent to customers when they contact you..."
-                    className="onboarding-input h-[100px] py-3 resize-none"
-                />
-            </div>
-
-            {/* Chat Greeting Message */}
-            <div className="space-y-2">
-                <label className="block text-[14px] font-[500] text-[#111827]">Chat Greeting Message</label>
-                <input
-                    type="text"
-                    value={formData.chatGreeting}
-                    onChange={(e) => setFormData({ ...formData, chatGreeting: e.target.value })}
-                    placeholder="First message customers see when they open chat..."
-                    className="onboarding-input"
-                />
-            </div>
-
-            {/* Chat Availability Hours */}
-            <div className="space-y-2">
-                <label className="block text-[14px] font-[500] text-[#111827]">Chat Availability Hours (Optional)</label>
-                <input
-                    type="text"
-                    value={formData.chatHours}
-                    onChange={(e) => setFormData({ ...formData, chatHours: e.target.value })}
-                    placeholder="9:00 AM - 10:00 PM"
-                    className="onboarding-input"
-                />
-            </div>
-
-            {/* Preview Box */}
-            <div className="bg-[#E6F7F4] border border-[#24B99E]/30 p-5 rounded-[12px] mt-4 space-y-3">
-                <h4 className="text-[13px] font-[600] text-primary">Preview: Auto-reply</h4>
-                <div className="bg-white p-4 rounded-[8px] border border-[#24B99E]/10">
-                    <p className="text-[14px] text-[#111827] leading-relaxed">
-                        {formData.autoReply || 'Your auto-reply message will appear here...'}
-                    </p>
-                </div>
-            </div>
-
-            <div className="pt-4 flex justify-between">
-                <button type="button" onClick={handlePrev} className="prev-btn flex items-center gap-2 px-10">
-                    <ChevronLeft size={18} /> Previous
-                </button>
-                <button type="button" onClick={handleNext} className="next-btn bg-primary text-white px-10">
-                    Next <ChevronRight size={18} />
-                </button>
-            </div>
-        </form>
-    );
-
-    const renderStep9 = () => {
-        const integrations = [
-            { title: 'Uber Eats', desc: 'Sync orders and menu items automatically', icon: '🍔' },
-            { title: 'Deliveroo', desc: 'Real-time order management and tracking', icon: '🛵' },
-            { title: 'Just Eat', desc: "Connect to UK's top leading food delivery", icon: '🍕' },
-            { title: 'Marketing', desc: 'Customer relationship management integration', icon: '📊' },
-            { title: 'FoodHub', desc: 'Zero commission food delivery platform', icon: '🥘' },
-            { title: 'POS System', desc: 'Connect your point of sale system', icon: '💳' },
-        ];
-
-        return (
-            <div className="space-y-10">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    {integrations.map((item, idx) => (
-                        <div key={idx} className="bg-white border border-[#E5E7EB] rounded-[12px] p-6 space-y-5 flex flex-col justify-between hover:border-primary/40 transition-all">
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-12 h-12 bg-[#E6F7F4] rounded-[8px] flex items-center justify-center text-[22px]">
-                                            {item.icon}
-                                        </div>
-                                        <h4 className="text-[16px] font-[400] text-[#111111]">{item.title}</h4>
-                                    </div>
-                                    <span className="text-[12px] font-[400] text-[#64748B] bg-[#F3F4F6] px-2.5 py-2 rounded-[8px]">
-                                        Not Connected
-                                    </span>
-                                </div>
-                                <p className="text-[14px] text-[#64748B] leading-[1.5]">
-                                    {item.desc}
-                                </p>
-                            </div>
-                            <button className="w-full h-[45px] bg-[#24B99E] text-white rounded-[8px] font-[500] text-[16px] hover:bg-[#20a38b] transition-all">
-                                Connect
-                            </button>
-                        </div>
-                    ))}
-                </div>
-
-                <div className="flex justify-end pt-4">
-                    <button type="button" onClick={handleNext} className="text-[13px] text-[#6B7280] font-[400] hover:underline">
-                        Skip for now
-                    </button>
-                </div>
-
-                <div className="pt-4 flex justify-between">
-                    <button type="button" onClick={handlePrev} className="prev-btn flex items-center gap-2 px-10">
-                        <ChevronLeft size={18} /> Previous
-                    </button>
-                    <button type="button" onClick={handleNext} className="next-btn bg-primary text-white px-10">
-                        Next <ChevronRight size={18} />
-                    </button>
-                </div>
-            </div>
-        );
-    };
-
-    const renderStep10 = () => (
-        <div className="space-y-10">
-            <div className="space-y-5">
-                <p className="text-[15px] text-[#6B7280] leading-[1.6]">
-                    Please review all the information you've provided. You can click on previous steps in the progress bar above to make changes, or click the button below to preview everything.
-                </p>
-                <button
-                    onClick={() => setShowPreviewModal(true)}
-                    className="w-full h-[56px] bg-[#24B99E] text-white rounded-[8px] font-[500] text-[16px] flex items-center justify-center gap-2 hover:bg-[#20a38b] transition-all shadow-sm"
-                >
-                    <Eye size={20} /> Preview All Information
-                </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {[
-                    'Account Setup', 'Operational Info', 'Menu Setup', 'Order Settings',
-                    'Loyalty Program', 'Bank Details', 'Notifications', 'Support Setup', 'Integrations'
-                ].map((name, idx) => (
-                    <div key={idx} className="bg-white border border-[#E5E7EB] rounded-[12px] p-5">
-                        <h4 className="text-[15px] font-[400] text-[#1A1A1A] mb-1.5">{name}</h4>
-                        <p className="text-[13px] text-[#6B7280] flex items-center gap-1.5 font-[400]">
-                            <Check size={14} className="text-[#24B99E]" strokeWidth={3} /> Completed
-                        </p>
-                    </div>
-                ))}
-            </div>
-
-            <div className="bg-[#E6F7F4] border border-[#24B99E]/20 p-5 rounded-[8px]">
-                <p className="text-[14px] text-[#111827]">
-                    <span className="font-[600]">Ready to go!</span> Click "Complete Setup" below to finish and access your dashboard.
-                </p>
-            </div>
-
-            <button
-                type="button"
-                className="sm:hidden mt-4 h-[52px] w-full bg-[#24B99E] text-white rounded-[10px] font-bold text-[15px] flex items-center justify-center gap-2 hover:bg-[#20a38b] transition-all"
-                onClick={() => navigate('/admin-dashboard')}
-            >
-                Complete Setup <ChevronRight size={18} />
-            </button>
-
-            <div className="flex justify-between items-center pt-4">
-                <button type="button" onClick={handlePrev} className="prev-btn flex items-center gap-2 px-10">
-                    <ChevronLeft size={18} /> Previous
-                </button>
-                <button
-                    type="button"
-                    className="hidden sm:flex h-[52px] min-w-[180px] bg-[#24B99E] text-white rounded-[10px] font-bold text-[15px] items-center justify-center gap-2 hover:bg-[#20a38b] transition-all"
-                    onClick={() => navigate('/admin-dashboard')}
-                >
-                    Complete Setup <ChevronRight size={18} />
-                </button>
-            </div>
-        </div>
-    );
 
     return (
         <div className="min-h-screen bg-[#FDFDFD] flex flex-col font-avenir pb-20">
@@ -1223,6 +625,9 @@ export default function OnboardingStep() {
                 .onboarding-input { width: 100%; height: 52px; padding: 0 20px; background: white; border: 1px solid #E5E7EB; border-radius: 14px; font-size: 14px; font-weight: 500; outline: none; transition: all 0.2s; }
                 @media (min-width: 640px) { .onboarding-input { font-size: 15px; } }
                 .onboarding-input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 4px rgba(36, 185, 158, 0.05); }
+                .onboarding-textarea { width: 100%; height: 100px; padding: 10px 20px; background: white; border: 1px solid #E5E7EB; border-radius: 14px; font-size: 14px; font-weight: 500; outline: none; transition: all 0.2s; }
+                @media (min-width: 640px) { .onboarding-textarea { font-size: 15px; } }
+                .onboarding-textarea:focus { border-color: var(--color-primary); box-shadow: 0 0 0 4px rgba(36, 185, 158, 0.05); }
                 .next-btn { height: 45px; min-width: 103px; padding: 0 32px; background: #E5E7EB; color: #6B7280; font-weight: 500; font-size: 14px; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; border: none; }
                 .prev-btn { height: 42px; min-width: 124px; padding: 0 32px; background: white; border: 1px solid #E5E7EB; color: #6B6B6B; font-weight: 500; font-size: 14px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
                 
@@ -1231,26 +636,6 @@ export default function OnboardingStep() {
                 .custom-scrollbar::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
                 .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
             `}</style>
-        </div>
-    );
-}
-
-function Toggle({ active, onClick }) {
-    return (
-        <button type="button" onClick={onClick} className={`w-[48px] h-[24px] rounded-full p-1 transition-colors ${active ? 'bg-primary' : 'bg-[#D1D5DB]'}`}>
-            <div className={`w-[16px] h-[16px] bg-white rounded-full transition-transform ${active ? 'translate-x-[24px]' : 'translate-x-0'}`} />
-        </button>
-    );
-}
-
-function NotificationToggle({ title, desc, active, onClick }) {
-    return (
-        <div className="flex items-center justify-between group">
-            <div className="space-y-0.5">
-                <p className="text-[15px] font-[500] text-[#111827]">{title}</p>
-                <p className="text-[13px] text-[#6B7280]">{desc}</p>
-            </div>
-            <Toggle active={active} onClick={onClick} />
         </div>
     );
 }
