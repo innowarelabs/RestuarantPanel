@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Search, Plus, Eye, MoreVertical, Edit2, Copy, Trash2, TrendingUp, Upload, Download, FileText, X } from 'lucide-react';
+import { Search, Plus, Eye, MoreVertical, Edit2, Copy, Trash2, TrendingUp, X } from 'lucide-react';
 import EditMenuItemModal from '../../components/MenuManagement/EditMenuItemModal';
 import MenuPreviewModal from '../../components/MenuManagement/MenuPreviewModal';
 import AddCategoryModal from '../../components/MenuManagement/AddCategoryModal';
@@ -67,9 +67,42 @@ const extractCategoriesList = (data) => {
     if (Array.isArray(data)) return data;
     if (typeof data !== 'object') return [];
     if (Array.isArray(data.data)) return data.data;
+    if (data.data && typeof data.data === 'object' && Array.isArray(data.data.data)) return data.data.data;
     if (data.data && typeof data.data === 'object' && Array.isArray(data.data.categories)) return data.data.categories;
     if (Array.isArray(data.categories)) return data.categories;
     return [];
+};
+
+const formatMoney = (value) => {
+    if (typeof value === 'number' && Number.isFinite(value)) return `$${value.toFixed(2)}`;
+    if (typeof value === 'string' && value.trim()) return value.trim();
+    return '$0.00';
+};
+
+const mapDishToMenuItem = (dish) => {
+    if (!dish || typeof dish !== 'object') return null;
+    const id = typeof dish.id === 'string' ? dish.id : typeof dish.id === 'number' ? String(dish.id) : '';
+    const name = typeof dish.name === 'string' ? dish.name : '';
+    if (!id || !name) return null;
+
+    const images = Array.isArray(dish.images) ? dish.images : [];
+    const firstImage = typeof images[0] === 'string' ? normalizeUrl(images[0]) : '';
+    const price = formatMoney(dish.price);
+    const prepTimeMinutes = typeof dish.prep_time_minutes === 'number' ? dish.prep_time_minutes : null;
+    const prepTime = typeof prepTimeMinutes === 'number' ? `${prepTimeMinutes} min` : '';
+    const numberOfOrders = typeof dish.number_of_orders === 'number' ? dish.number_of_orders : 0;
+    const isAvailable = typeof dish.is_available === 'boolean' ? dish.is_available : true;
+
+    return {
+        id,
+        name,
+        sales: '',
+        prepTime,
+        price,
+        orders: { current: numberOfOrders, total: '' },
+        status: isAvailable,
+        image: firstImage || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=100&q=80',
+    };
 };
 
 const mapCategory = (raw) => {
@@ -83,21 +116,31 @@ const mapCategory = (raw) => {
                     ? raw.category_id
                     : typeof raw.category_id === 'number'
                         ? String(raw.category_id)
-                        : '';
+                        : typeof raw.uuid === 'string'
+                            ? raw.uuid
+                            : typeof raw._id === 'string'
+                                ? raw._id
+                                : '';
     const name = typeof raw.name === 'string' ? raw.name : '';
-    if (!id || !name) return null;
+    if (!name) return null;
+    const safeId = id || name;
     const description = typeof raw.description === 'string' ? raw.description : '';
     const imageUrl = typeof raw.image_url === 'string' ? normalizeUrl(raw.image_url) : typeof raw.imageUrl === 'string' ? normalizeUrl(raw.imageUrl) : '';
     const visible = typeof raw.visible === 'boolean' ? raw.visible : true;
     const count =
         typeof raw.count === 'number'
             ? raw.count
+            : typeof raw.dish_count === 'number'
+                ? raw.dish_count
+                : typeof raw.dishes_count === 'number'
+                    ? raw.dishes_count
             : typeof raw.items_count === 'number'
                 ? raw.items_count
                 : typeof raw.itemsCount === 'number'
                     ? raw.itemsCount
                     : 0;
-    return { id, name, description, imageUrl, visible, count };
+    const dishes = Array.isArray(raw.dishes) ? raw.dishes : [];
+    return { id: safeId, name, description, imageUrl, visible, count, dishes };
 };
 
 export default function MenuManagement() {
@@ -179,12 +222,14 @@ export default function MenuManagement() {
             const contentType = res.headers.get('content-type');
             const data = contentType?.includes('application/json') ? await res.json() : await res.text();
 
-            console.log("--------", res);
-            console.log("--------", data);
+            const ok =
+                res.ok &&
+                data &&
+                typeof data === 'object' &&
+                typeof data.code === 'string' &&
+                data.code.trim().toUpperCase().startsWith('SUCCESS_');
 
-            const ok = data.code == "SUCCESS_203";
-
-            if (!ok) {
+            if (!ok || isErrorPayload(data)) {
                 const lines = toValidationErrorLines(data);
                 if (lines.length) {
                     setDeleteCategoryErrorLines(lines);
@@ -253,7 +298,7 @@ export default function MenuManagement() {
             const baseUrl = import.meta.env.VITE_BACKEND_URL;
             if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
 
-            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step3/categories/${restaurantId}`;
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/categories/with-counts?restaurant_id=${restaurantId}`;
             const res = await fetch(url, {
                 method: 'GET',
                 headers: {
@@ -408,58 +453,21 @@ export default function MenuManagement() {
         return categories.find((c) => c.id === categoryMenu.categoryId) || null;
     }, [categories, categoryMenu]);
 
-    const menuItems = [
-        {
-            id: 101,
-            name: 'Zinger Burger',
-            sales: '24 sold this week',
-            prepTime: '15 min',
-            price: '$12.99',
-            orders: { current: 142, total: '528 (30d)' },
-            status: true,
-            image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=100&q=80'
-        },
-        {
-            id: 102,
-            name: 'Classic Beef Burger',
-            sales: '16 sold this week',
-            prepTime: '12 min',
-            price: '$10.99',
-            orders: { current: 98, total: '412 (30d)' },
-            status: true,
-            image: 'https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=100&q=80'
-        },
-        {
-            id: 103,
-            name: 'Veggie Burger',
-            sales: '8 sold this week',
-            prepTime: '10 min',
-            price: '$11.49',
-            orders: { current: 76, total: '298 (30d)' },
-            status: true,
-            image: 'https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=100&q=80'
-        },
-        {
-            id: 104,
-            name: 'Veggie Burger',
-            sales: '12 sold this week',
-            prepTime: '10 min',
-            price: '$11.49',
-            orders: { current: 76, total: '298 (30d)' },
-            status: true,
-            image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=100&q=80'
-        },
-        {
-            id: 105,
-            name: 'Veggie Burger',
-            sales: '20 sold this week',
-            prepTime: '10 min',
-            price: '$11.49',
-            orders: { current: 76, total: '298 (30d)' },
-            status: true,
-            image: 'https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=100&q=80'
-        }
-    ];
+    const activeCategoryData = useMemo(() => {
+        if (!activeCategory) return null;
+        return categories.find((c) => c.name === activeCategory) || null;
+    }, [activeCategory, categories]);
+
+    const itemsLoading = categoriesLoading;
+
+    const menuItems = useMemo(() => {
+        if (categoriesLoading) return [];
+        if (!activeCategoryData) return [];
+        const dishes = Array.isArray(activeCategoryData?.dishes) ? activeCategoryData.dishes : [];
+        if (!dishes.length) return [];
+        const mapped = dishes.map(mapDishToMenuItem).filter(Boolean);
+        return mapped;
+    }, [activeCategoryData, categoriesLoading]);
 
     return (
         <div className="max-w-[1600px] mx-auto animate-in fade-in duration-500">
@@ -495,7 +503,17 @@ export default function MenuManagement() {
                     {/* Categories List */}
                     <div className="space-y-1 overflow-y-auto max-h-[250px] no-scrollbar">
                         {categoriesLoading ? (
-                            <div className="text-[13px] text-gray-500 py-2">Loading categories...</div>
+                            <div className="space-y-2 animate-pulse py-1">
+                                {Array.from({ length: 6 }).map((_, idx) => (
+                                    <div key={`cat-skel-${idx}`} className="flex items-center justify-between p-3 rounded-[8px] border border-transparent bg-white">
+                                        <div className="space-y-2">
+                                            <div className="h-4 w-36 bg-gray-200 rounded" />
+                                            <div className="h-3 w-20 bg-gray-100 rounded" />
+                                        </div>
+                                        <div className="h-4 w-4 bg-gray-200 rounded" />
+                                    </div>
+                                ))}
+                            </div>
                         ) : categoriesErrorLines.length ? (
                             <div className="text-[13px] text-red-600 space-y-1 py-2">
                                 {categoriesErrorLines.map((line, idx) => (
@@ -517,7 +535,7 @@ export default function MenuManagement() {
                                     }`}
                             >
                                 <div>
-                                    <h3 className={`text-[16px] font-[400] ${activeCategory === cat.name ? 'text-[#111827]' : 'text-[#374151]'}`}>
+                                    <h3 className={`text-[16px] font-[400] flex items-center gap-2 ${activeCategory === cat.name ? 'text-[#111827]' : 'text-[#374151]'}`}>
                                         {cat.name}
                                     </h3>
                                     <p className="text-[12px] text-gray-500">{cat.count} items</p>
@@ -568,44 +586,95 @@ export default function MenuManagement() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-[#E5E7EB]">
-                                    {menuItems.map((item) => (
-                                        <tr key={item.id} className="hover:bg-gray-50 group transition-colors">
-                                            <td className="px-4 py-4 whitespace-nowrap">
-                                                <div className="flex items-center gap-4">
-                                                    <img src={item.image} alt={item.name} className="w-[48px] h-[48px] rounded-[10px] object-cover border border-gray-100" />
-                                                    <div>
-                                                        <p className="text-[16px] font-[400] text-[#111827]">{item.name}</p>
-                                                        <p className="text-[12px] text-[#6B7280]">{item.sales}</p>
+                                    {itemsLoading ? (
+                                        Array.from({ length: 5 }).map((_, idx) => (
+                                            <tr key={`item-skel-${idx}`} className="animate-pulse">
+                                                <td className="px-4 py-4 whitespace-nowrap">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-[48px] h-[48px] rounded-[10px] bg-gray-200" />
+                                                        <div className="space-y-2">
+                                                            <div className="h-4 w-40 bg-gray-200 rounded" />
+                                                            <div className="h-3 w-24 bg-gray-100 rounded" />
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="h-4 w-16 bg-gray-200 rounded" />
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="h-4 w-14 bg-gray-200 rounded" />
+                                                </td>
+                                                <td className="px-4 py-4 whitespace-nowrap">
+                                                    <div className="space-y-2">
+                                                        <div className="h-4 w-10 bg-gray-200 rounded" />
+                                                        <div className="h-3 w-16 bg-gray-100 rounded" />
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-4 whitespace-nowrap">
+                                                    <div className="h-[23px] w-[44px] bg-gray-200 rounded-full" />
+                                                </td>
+                                                <td className="px-4 py-4 whitespace-nowrap">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="h-9 w-9 bg-gray-200 rounded-md" />
+                                                        <div className="h-9 w-9 bg-gray-100 rounded-md" />
+                                                        <div className="h-9 w-9 bg-gray-100 rounded-md" />
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : menuItems.length ? (
+                                        menuItems.map((item) => (
+                                            <tr key={item.id} className="hover:bg-gray-50 group transition-colors">
+                                                <td className="px-4 py-4 whitespace-nowrap">
+                                                    <div className="flex items-center gap-4">
+                                                        <img src={item.image} alt={item.name} className="w-[48px] h-[48px] rounded-[10px] object-cover border border-gray-100" />
+                                                        <div>
+                                                            <p className="text-[16px] font-[400] text-[#111827]">{item.name}</p>
+                                                            <p className="text-[12px] text-[#6B7280]">{item.sales}</p>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 text-[14px] text-[#374151] whitespace-nowrap">{item.prepTime}</td>
+                                                <td className="px-6 py-4 text-[14px] font-[500] text-[#111827] whitespace-nowrap">{item.price}</td>
+                                                <td className="px-4 py-4 whitespace-nowrap">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[13px] font-[500] text-[#111827]">{item.orders.current}</span>
+                                                        <span className="text-[11px] text-[#9CA3AF]">{item.orders.total}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-4 whitespace-nowrap">
+                                                    <div className={`w-[44px] h-[23px] rounded-full p-1 cursor-pointer transition-colors ${item.status ? 'bg-[#2BB29C]' : 'bg-gray-300'}`}>
+                                                        <div className={`w-[16px] h-[15px] bg-white rounded-full shadow-sm transform transition-transform ${item.status ? 'translate-x-[20px]' : 'translate-x-0'}`} />
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-4 whitespace-nowrap">
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            onClick={() => handleEditClick(item)}
+                                                            className="text-[#2BB29C] hover:text-[#2BB29C]/80 bg-[#F0FDFA] p-2 rounded-md transition-colors cursor-pointer"
+                                                        >
+                                                            <Edit2 size={16} />
+                                                        </button>
+                                                        <button className="text-[#6B7280] hover:text-[#374151] hover:bg-gray-100 p-2 rounded-md transition-colors cursor-pointer"><Copy size={16} /></button>
+                                                        <button className="text-[#EF4444] hover:text-[#D14343] hover:bg-red-50 p-2 rounded-md transition-colors cursor-pointer"><Trash2 size={16} /></button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={6} className="px-6 py-16">
+                                                <div className="w-full flex items-center justify-center">
+                                                    <div className="flex flex-col items-center justify-center gap-3 border border-dashed border-gray-200 rounded-[12px] bg-gray-50 px-8 py-10 w-full max-w-[520px]">
+                                                        <div className="w-12 h-12 rounded-full bg-white border border-gray-100 flex items-center justify-center">
+                                                            <Search className="w-6 h-6 text-gray-400" />
+                                                        </div>
+                                                        <div className="text-[14px] font-[600] text-[#111827]">No Item Found</div>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-[14px] text-[#374151] whitespace-nowrap">{item.prepTime}</td>
-                                            <td className="px-6 py-4 text-[14px] font-[500] text-[#111827] whitespace-nowrap">{item.price}</td>
-                                            <td className="px-4 py-4 whitespace-nowrap">
-                                                <div className="flex flex-col">
-                                                    <span className="text-[13px] font-[500] text-[#111827]">{item.orders.current}</span>
-                                                    <span className="text-[11px] text-[#9CA3AF]">{item.orders.total}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-4 whitespace-nowrap">
-                                                <div className={`w-[44px] h-[23px] rounded-full p-1 cursor-pointer transition-colors ${item.status ? 'bg-[#2BB29C]' : 'bg-gray-300'}`}>
-                                                    <div className={`w-[16px] h-[15px] bg-white rounded-full shadow-sm transform transition-transform ${item.status ? 'translate-x-[20px]' : 'translate-x-0'}`} />
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-4 whitespace-nowrap">
-                                                <div className="flex items-center gap-2">
-                                                    <button
-                                                        onClick={() => handleEditClick(item)}
-                                                        className="text-[#2BB29C] hover:text-[#2BB29C]/80 bg-[#F0FDFA] p-2 rounded-md transition-colors cursor-pointer"
-                                                    >
-                                                        <Edit2 size={16} />
-                                                    </button>
-                                                    <button className="text-[#6B7280] hover:text-[#374151] hover:bg-gray-100 p-2 rounded-md transition-colors cursor-pointer"><Copy size={16} /></button>
-                                                    <button className="text-[#EF4444] hover:text-[#D14343] hover:bg-red-50 p-2 rounded-md transition-colors cursor-pointer"><Trash2 size={16} /></button>
-                                                </div>
-                                            </td>
                                         </tr>
-                                    ))}
+                                    )}
                                 </tbody>
                             </table>
                         </div>
@@ -668,48 +737,7 @@ export default function MenuManagement() {
                 </div>
             </div>
 
-            {/* Bottom Row: Import & Preview */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-                <div className="lg:col-span-2 bg-white rounded-[12px] border border-[#00000033] p-6">
-                    <div className="flex items-center gap-2 mb-4">
-                        <FileText className="text-[#2BB29C] w-5 h-5" />
-                        <h3 className="text-[16px] font-[800] text-[#111827]">Import / Export</h3>
-                    </div>
-
-                    <div className="flex flex-col md:flex-row gap-6">
-                        <div className="flex-1 flex flex-col gap-4">
-                            <div>
-                                <button className="w-full flex items-center justify-center gap-2 bg-[#F0FDFA] text-[#2BB29C] text-[13px] font-[500] py-3 rounded-[8px] border border-[#24B99E] hover:bg-[#E0F7F4] transition-colors cursor-pointer">
-                                    <Upload size={18} />
-                                    Upload CSV
-                                </button>
-                                <p className="text-center text-[11px] text-[#6B7280] mt-2">Upload a CSV file to bulk import menu items</p>
-                            </div>
-
-                            <div>
-                                <button className="w-full flex items-center justify-center gap-2 bg-white text-[#374151] text-[13px] font-[500] py-3 rounded-[12px] border border-[#E5E7EB] hover:bg-gray-50 transition-colors cursor-pointer">
-                                    <Download size={18} />
-                                    Download Template
-                                </button>
-                                <p className="text-center text-[11px] text-[#6B7280] mt-2">Get csv template guide</p>
-                            </div>
-                        </div>
-
-                        <div className="bg-[#F6F8F9] rounded-[8px] p-5 flex-1 border border-gray-100">
-                            <p className="font-[600] text-[16px] text-[#4B5563] mb-3">Required Columns:</p>
-                            <ul className="text-[12px] text-[#6B7280] space-y-2 list-disc pl-4">
-                                <li>Item Name</li>
-                                <li>Category</li>
-                                <li>Price (Numeric)</li>
-                                <li>Description (Optional)</li>
-                                <li>Prep Time (HH:MM)</li>
-                                <li>Available (Status)</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Preview Menu Card */}
+            <div className="mt-6">
                 <div className="bg-white rounded-[12px] border border-[#00000033] p-6 flex flex-col items-center justify-center text-center">
                     <div className="w-16 h-16 bg-[#F0FDFA] rounded-full flex items-center justify-center mb-4">
                         <Eye size={32} className="text-[#2BB29C]" />
