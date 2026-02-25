@@ -47,10 +47,8 @@ export default function Sidebar({ isCollapsed, onToggleCollapse }) {
         >
             {/* Logo Section */}
             <div className={`h-[70px] flex items-center border-b px-4 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
-                {!isCollapsed ? (
+                {!isCollapsed && (
                     <img src={mainLogo} alt="RekNTek" className="w-[140px] h-[35px] ml-2.5" />
-                ) : (
-                    <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center font-bold text-lg">R</div>
                 )}
 
                 <button
