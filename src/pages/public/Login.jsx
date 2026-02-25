@@ -72,6 +72,12 @@ function Login() {
 
             const sessionData = data.data;
             const onboardingStep = sessionData?.goto || "step1";
+            const restaurantId =
+                typeof sessionData?.user?.restaurant_id === "string"
+                    ? sessionData.user.restaurant_id
+                    : typeof sessionData?.user?.id === "string"
+                        ? sessionData.user.id
+                        : "";
 
             dispatch(
                 setSession({
@@ -82,6 +88,10 @@ function Login() {
                     accessTokenExpiresIn: sessionData?.expires_in,
                 })
             );
+
+            if (restaurantId) {
+                localStorage.setItem("restaurant_id", restaurantId);
+            }
 
             if (onboardingStep === "dashboard") {
                 navigate("/admin-dashboard", { replace: true });

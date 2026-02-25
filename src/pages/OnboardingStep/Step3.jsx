@@ -67,6 +67,50 @@ const extractCategoriesList = (data) => {
     return [];
 };
 
+const extractMenuDishes = (data) => {
+    if (!data || typeof data !== 'object') return [];
+    const categories =
+        Array.isArray(data.data?.data?.categories)
+            ? data.data.data.categories
+            : Array.isArray(data.data?.categories)
+                ? data.data.categories
+                : Array.isArray(data.categories)
+                    ? data.categories
+                    : [];
+    if (!Array.isArray(categories)) return [];
+    return categories.flatMap((category) => {
+        if (!category || typeof category !== 'object') return [];
+        const categoryName = typeof category.name === 'string' ? category.name : '';
+        const dishes = Array.isArray(category.dishes) ? category.dishes : [];
+        return dishes
+            .map((dish) => {
+                if (!dish || typeof dish !== 'object') return null;
+                return { ...dish, __categoryName: categoryName };
+            })
+            .filter(Boolean);
+    });
+};
+
+const mapMenuDish = (raw) => {
+    if (!raw || typeof raw !== 'object') return null;
+    const id = typeof raw.id === 'string' ? raw.id : '';
+    const name = typeof raw.name === 'string' ? raw.name : '';
+    if (!id || !name) return null;
+    const description = typeof raw.description === 'string' ? raw.description : '';
+    const price = typeof raw.price === 'number' ? raw.price : typeof raw.price === 'string' ? Number(raw.price) : 0;
+    const images = Array.isArray(raw.images) ? raw.images.map((img) => normalizeUrl(String(img))) : [];
+    const imageUrl = images.find(Boolean) || '';
+    const categoryName = typeof raw.__categoryName === 'string' ? raw.__categoryName : '';
+    return {
+        id,
+        name,
+        description,
+        price: Number.isFinite(price) ? price : 0,
+        imageUrl,
+        categoryName,
+    };
+};
+
 const mapCategory = (raw) => {
     if (!raw || typeof raw !== 'object') return null;
     const id =
@@ -87,7 +131,6 @@ const mapCategory = (raw) => {
 export default function Step3({
     categories,
     setCategories,
-    items,
     editingCategoryId,
     formData,
     setFormData,
@@ -113,9 +156,12 @@ export default function Step3({
 }) {
     const accessToken = useSelector((state) => state.auth.accessToken);
     const [loadingCategories, setLoadingCategories] = useState(false);
+    const [loadingItems, setLoadingItems] = useState(false);
     const [savingCategory, setSavingCategory] = useState(false);
     const [savingItem, setSavingItem] = useState(false);
     const [errorLines, setErrorLines] = useState([]);
+    const [menuItemsErrorLines, setMenuItemsErrorLines] = useState([]);
+    const [menuItems, setMenuItems] = useState([]);
 
     const restaurantId = formData.restaurantId?.trim();
     const editingCategory = categories.find((c) => c.id === editingCategoryId) || null;
@@ -210,6 +256,45 @@ export default function Step3({
     useEffect(() => {
         void fetchCategories();
     }, [fetchCategories]);
+
+    const fetchMenuItems = useCallback(async () => {
+        if (!restaurantId) return;
+        setLoadingItems(true);
+        setMenuItemsErrorLines([]);
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/${restaurantId}/menu?limit=100`;
+            const res = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                },
+            });
+
+            const contentType = res.headers.get('content-type');
+            const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+            if (!res.ok || isErrorPayload(data)) {
+                const lines = toValidationErrorLines(data);
+                setMenuItemsErrorLines(lines.length ? lines : ['Failed to load items']);
+                return;
+            }
+
+            const list = extractMenuDishes(data).map(mapMenuDish).filter(Boolean);
+            setMenuItems(list);
+        } catch (e) {
+            const message = typeof e?.message === 'string' ? e.message : 'Failed to load items';
+            setMenuItemsErrorLines([message]);
+        } finally {
+            setLoadingItems(false);
+        }
+    }, [accessToken, restaurantId]);
+
+    useEffect(() => {
+        void fetchMenuItems();
+    }, [fetchMenuItems]);
 
     const handleCreateCategory = async () => {
         if (!restaurantId) {
@@ -351,6 +436,7 @@ export default function Step3({
             }
 
             saveItem();
+            void fetchMenuItems();
         } catch (e) {
             const message = typeof e?.message === 'string' ? e.message : 'Failed to create item';
             setErrorLines([message]);
@@ -499,22 +585,32 @@ export default function Step3({
 
             <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
                 <div className="flex items-center justify-between">
-                    <h3 className="text-[16px] text-[#1A1A1A]">Your Items ({items.length})</h3>
+                    <h3 className="text-[16px] text-[#1A1A1A]">Your Items ({loadingItems ? '...' : menuItems.length})</h3>
                 </div>
-                {items.length === 0 ? (
+                {loadingItems ? (
+                    <div className="py-10 text-center text-[#6B7280] text-[13px]">
+                        Loading items...
+                    </div>
+                ) : menuItems.length === 0 ? (
                     <div className="py-10 text-center text-[#6B7280] text-[13px]">
                         No items added yet
                     </div>
                 ) : (
                     <div className="space-y-3">
-                        {items.map((item) => {
-                            const categoryName = categories.find((c) => c.id === item.categoryId)?.name || '—';
+                        {menuItems.map((item) => {
                             return (
                                 <div key={item.id} className="p-4 bg-[#F6F8F9]/50 rounded-[12px] border border-[#E5E7EB]">
-                                    <div className="flex items-start justify-between gap-4">
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-[54px] h-[54px] rounded-[12px] bg-white border border-[#E5E7EB] overflow-hidden shrink-0 flex items-center justify-center text-gray-300">
+                                            {item.imageUrl ? (
+                                                <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <Image size={18} />
+                                            )}
+                                        </div>
                                         <div className="min-w-0">
                                             <p className="text-[14px] font-[600] text-[#1A1A1A] truncate">{item.name}</p>
-                                            <p className="text-[12px] text-[#6B7280] mt-1">{categoryName} • ${item.price}</p>
+                                            <p className="text-[12px] text-[#6B7280] mt-1">{item.categoryName || '—'} • ${item.price}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -523,6 +619,21 @@ export default function Step3({
                     </div>
                 )}
             </div>
+
+            {!!menuItemsErrorLines.length && (
+                <div className="bg-[#F751511F] rounded-[12px] py-[10px] px-[12px]">
+                    <div className="flex items-start gap-2">
+                        <AlertCircle size={18} className="text-[#EB5757] mt-[2px]" />
+                        <div className="space-y-1">
+                            {menuItemsErrorLines.map((line, idx) => (
+                                <p key={idx} className="text-[12px] text-[#47464A] font-normal">
+                                    {line}
+                                </p>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {!!errorLines.length && (
                 <div className="bg-[#F751511F] rounded-[12px] py-[10px] px-[12px]">

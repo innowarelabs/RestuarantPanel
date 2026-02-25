@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import {
     User, Eye, Check, MapPin, Menu, Settings, Gift,
     ChevronDown,
-    CreditCard, Bell, MessageSquare, Link, X, Image, AlertCircle
+    CreditCard, Bell, MessageSquare, X, Image, AlertCircle
 } from 'lucide-react';
 
 import Step1 from './Step1';
@@ -15,7 +15,6 @@ import Step5 from './Step5';
 import Step6 from './Step6';
 import Step7 from './Step7';
 import Step8 from './Step8';
-import Step9 from './Step9';
 import Step10 from './Step10';
 import Toggle from './Toggle';
 import { setOnboardingStep } from '../../redux/store';
@@ -29,7 +28,6 @@ const steps = [
     { id: 6, name: 'Bank Details', icon: CreditCard },
     { id: 7, name: 'Notifications Settings', icon: Bell },
     { id: 8, name: 'Support Setup', icon: MessageSquare },
-    { id: 9, name: 'Connect Integration', icon: Link },
 ];
 
 const WEBSITE_HEADER_REQUIRED_PX = { width: 1440, height: 495 };
@@ -43,13 +41,16 @@ export default function OnboardingStep() {
     const LS_ITEMS = 'onboardingItems';
     const LS_MAX_REACHED = 'onboardingMaxStepReached';
     const LS_CURRENT_STEP = 'onboardingCurrentStep';
+    const FLOW_LAST_STEP = 8;
 
     const navigate = useNavigate();
     const dispatch = useDispatch();
     const onboardingStep = useSelector((state) => state.auth.onboardingStep);
     const accessToken = useSelector((state) => state.auth.accessToken);
+    const user = useSelector((state) => state.auth.user);
     const nextCategoryIdRef = useRef(1);
     const nextItemIdRef = useRef(1);
+    const rewardImageInputRef = useRef(null);
 
     const createCategoryId = () => `category-${nextCategoryIdRef.current++}`;
     const createItemId = () => `item-${nextItemIdRef.current++}`;
@@ -88,12 +89,12 @@ export default function OnboardingStep() {
     const initialCurrentStep = (() => {
         const fromRedux = parseStepNumber(onboardingStep);
         const fromStorage = readStepNumber(LS_CURRENT_STEP);
-        return clampStepNumber(Math.max(fromRedux, fromStorage || 1));
+        return Math.min(FLOW_LAST_STEP, clampStepNumber(Math.max(fromRedux, fromStorage || 1)));
     })();
 
     const initialMaxReachedStep = (() => {
         const fromStorage = readStepNumber(LS_MAX_REACHED);
-        return clampStepNumber(Math.max(initialCurrentStep, fromStorage || 1));
+        return Math.min(FLOW_LAST_STEP, clampStepNumber(Math.max(initialCurrentStep, fromStorage || 1)));
     })();
 
     const [currentStep, setCurrentStep] = useState(initialCurrentStep);
@@ -113,6 +114,8 @@ export default function OnboardingStep() {
         isActive: true,
     };
     const [rewardForm, setRewardForm] = useState(emptyRewardForm);
+    const [rewardImageFile, setRewardImageFile] = useState(null);
+    const [rewardImagePreviewUrl, setRewardImagePreviewUrl] = useState('');
     const [savingReward, setSavingReward] = useState(false);
     const [rewardErrorLines, setRewardErrorLines] = useState([]);
     const [menuItems, setMenuItems] = useState([]);
@@ -172,6 +175,67 @@ export default function OnboardingStep() {
         if (itemImagePreviewUrl) URL.revokeObjectURL(itemImagePreviewUrl);
         setItemImage(file);
         setItemImagePreviewUrl(file ? URL.createObjectURL(file) : '');
+    };
+
+    const setRewardImageUploadFile = (file) => {
+        if (rewardImagePreviewUrl) URL.revokeObjectURL(rewardImagePreviewUrl);
+        setRewardImageFile(file);
+        setRewardImagePreviewUrl(file ? URL.createObjectURL(file) : '');
+    };
+
+    const normalizeUrl = (value) => {
+        if (typeof value !== 'string') return '';
+        return value.trim().replace(/^["'`]+|["'`]+$/g, '').trim();
+    };
+
+    const extractUploadedImageUrl = (data) => {
+        if (!data) return '';
+        if (typeof data === 'string') {
+            const text = data.trim();
+            if (!text) return '';
+            try {
+                const parsed = JSON.parse(text);
+                return extractUploadedImageUrl(parsed);
+            } catch {
+                return normalizeUrl(text);
+            }
+        }
+        if (typeof data !== 'object') return '';
+        const direct = typeof data.url === 'string' ? data.url : '';
+        const nested = typeof data.data?.url === 'string' ? data.data.url : '';
+        const nested2 = typeof data.data?.data?.url === 'string' ? data.data.data.url : '';
+        return normalizeUrl(direct || nested || nested2);
+    };
+
+    const uploadImage = async (file, baseUrl) => {
+        if (!file) throw new Error('Image file is missing');
+        const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/upload/image`;
+        const body = new FormData();
+        body.append('file', file);
+
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+            },
+            body,
+        });
+
+        const contentType = res.headers.get('content-type');
+        const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+        const uploadedUrl = extractUploadedImageUrl(data);
+
+        if (!res.ok) throw new Error('Image upload failed');
+        if (!uploadedUrl) throw new Error('Image upload did not return a link');
+        return uploadedUrl;
+    };
+
+    const closeAddRewardModal = () => {
+        setShowAddRewardModal(false);
+        setEditingReward(null);
+        setRewardErrorLines([]);
+        setRewardForm(emptyRewardForm);
+        setRewardImageUploadFile(null);
     };
 
     const resetCategoryForm = () => {
@@ -350,7 +414,7 @@ export default function OnboardingStep() {
         pointsExpire: true,
         expiryPeriod: '',
         // Step 6
-        accHolder: 'John Doe',
+        accHolder: '',
         bankName: '',
         accNumber: '',
         routing: '',
@@ -363,11 +427,11 @@ export default function OnboardingStep() {
         riderAlert: true,
         complaintAlert: true,
         // Step 8
-        supportEmail: 'support@burgerhouse.com',
-        supportPhone: '+1 (555) 123-4567',
-        autoReply: 'Thank you! Your order is being prepared.',
+        supportEmail: '',
+        supportPhone: '',
+        autoReply: '',
         chatGreeting: '',
-        chatHours: '9:00 AM - 10:00 PM',
+        chatHours: '',
     };
 
     const mergeOpeningHours = (saved) => {
@@ -395,8 +459,34 @@ export default function OnboardingStep() {
         };
     });
 
+    useEffect(() => {
+        const existing = formData.restaurantId?.trim();
+        if (existing) return;
+
+        const fromUser =
+            user && typeof user === 'object'
+                ? typeof user.restaurant_id === 'string'
+                    ? user.restaurant_id
+                    : typeof user.id === 'string'
+                        ? user.id
+                        : ''
+                : '';
+
+        let fromStorage = '';
+        try {
+            fromStorage = localStorage.getItem('restaurant_id') || '';
+        } catch {
+            fromStorage = '';
+        }
+
+        const restaurantId = (fromUser || fromStorage).trim();
+        if (!restaurantId) return;
+
+        setFormData((prev) => ({ ...prev, restaurantId }));
+    }, [formData.restaurantId, user]);
+
     const goToStep = (nextStep) => {
-        const normalized = clampStepNumber(nextStep);
+        const normalized = Math.min(FLOW_LAST_STEP, clampStepNumber(nextStep));
         setCurrentStep(normalized);
         setMaxReachedStep((prev) => Math.max(prev, normalized));
         dispatch(setOnboardingStep(`step${normalized}`));
@@ -411,8 +501,9 @@ export default function OnboardingStep() {
     };
 
     const renderLeftSection = () => {
-        const step = steps[currentStep > 9 ? 8 : currentStep - 1];
-        const Icon = currentStep === 10 ? Eye : step.icon;
+        const stepIndex = Math.max(0, Math.min(steps.length, currentStep) - 1);
+        const step = steps[stepIndex];
+        const Icon = step.icon;
 
         let title = "Create Your Account";
         let desc = "Add your basic account and brand details to access your restaurant dashboard.";
@@ -425,7 +516,6 @@ export default function OnboardingStep() {
             case 6: title = "Bank Information"; desc = "Add your payout details securely."; break;
             case 7: title = "Notification Preferences"; desc = "Choose how you want to be notified about important events."; break;
             case 8: title = "Support & Communication Setup"; desc = "Configure how you communicate with your customers."; break;
-            case 9: title = "Connect Your Integrations"; desc = "Link your delivery platforms and tools to streamline operations."; break;
             case 10: title = "Review Your Information"; desc = "You can review or edit before completing setup."; break;
         }
 
@@ -435,7 +525,7 @@ export default function OnboardingStep() {
                     <Icon size={33} />
                 </div>
                 <div>
-                    <p className="text-[#6B7280] text-[14px] font-[500] mb-1">Step {currentStep > 9 ? 9 : currentStep} of 9</p>
+                    <p className="text-[#6B7280] text-[14px] font-[500] mb-1">Step {Math.min(currentStep, steps.length)} of {steps.length}</p>
                     <h1 className="text-[26px] font-[800] text-[#1A1A1A] leading-tight">{title}</h1>
                     <p className="text-[#6B6B6B] text-[14px] mt-3 leading-relaxed max-w-[400px]">
                         {desc}
@@ -538,6 +628,9 @@ export default function OnboardingStep() {
         if (Array.isArray(data)) return data;
         if (typeof data !== 'object') return [];
         if (Array.isArray(data.data)) return data.data;
+        if (data.data && typeof data.data === 'object' && data.data.data && typeof data.data.data === 'object' && Array.isArray(data.data.data.rewards)) {
+            return data.data.data.rewards;
+        }
         if (data.data && typeof data.data === 'object' && Array.isArray(data.data.rewards)) return data.data.rewards;
         if (Array.isArray(data.rewards)) return data.rewards;
         return [];
@@ -581,9 +674,11 @@ export default function OnboardingStep() {
         const rewardName =
             typeof raw.reward_name === 'string'
                 ? raw.reward_name
-                : typeof raw.name === 'string'
-                    ? raw.name
-                    : '';
+                : typeof raw.title === 'string'
+                    ? raw.title
+                    : typeof raw.name === 'string'
+                        ? raw.name
+                        : '';
         if (!rewardId || !rewardName) return null;
         const menuItemId =
             typeof raw.menu_item_id === 'string'
@@ -641,6 +736,7 @@ export default function OnboardingStep() {
 
             const contentType = res.headers.get('content-type');
             const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+            console.log('Onboarding Step5 rewards response:', { ok: res.ok, status: res.status, data });
             if (!res.ok || isErrorPayload(data)) {
                 const lines = toValidationErrorLines(data);
                 setRewardsErrorLines(lines.length ? lines : ['Failed to load rewards']);
@@ -712,6 +808,8 @@ export default function OnboardingStep() {
     useEffect(() => {
         if (!showAddRewardModal) return;
         setRewardErrorLines([]);
+        setRewardImageFile(null);
+        setRewardImagePreviewUrl('');
         if (editingReward) {
             setRewardForm({
                 rewardName: editingReward.reward_name || '',
@@ -755,12 +853,13 @@ export default function OnboardingStep() {
             if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
 
             const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step5/reward`;
+            const rewardImageUrl = rewardImageFile ? await uploadImage(rewardImageFile, baseUrl) : rewardForm.rewardImage.trim();
             const payload = {
                 restaurant_id: restaurantId,
                 reward_name: rewardForm.rewardName.trim(),
                 menu_item_id: rewardForm.menuItemId,
                 description: rewardForm.description.trim(),
-                reward_image: rewardForm.rewardImage.trim(),
+                reward_image: rewardImageUrl,
                 is_active: !!rewardForm.isActive,
                 points_required: Math.trunc(pointsValue),
             };
@@ -797,8 +896,7 @@ export default function OnboardingStep() {
             }
 
             await fetchRewards(restaurantId);
-            setShowAddRewardModal(false);
-            setEditingReward(null);
+            closeAddRewardModal();
         } catch (e) {
             const message = typeof e?.message === 'string' ? e.message : 'Request failed';
             setRewardErrorLines([message]);
@@ -842,7 +940,6 @@ export default function OnboardingStep() {
                 <Step3
                     categories={categories}
                     setCategories={setCategories}
-                    items={items}
                     editingCategoryId={editingCategoryId}
                     formData={formData}
                     setFormData={setFormData}
@@ -884,8 +981,7 @@ export default function OnboardingStep() {
             );
             case 6: return <Step6 formData={formData} setFormData={setFormData} handlePrev={handlePrev} handleNext={handleNext} />;
             case 7: return <Step7 formData={formData} setFormData={setFormData} handlePrev={handlePrev} handleNext={handleNext} />;
-            case 8: return <Step8 formData={formData} setFormData={setFormData} handlePrev={handlePrev} handleNext={handleNext} />;
-            case 9: return <Step9 handlePrev={handlePrev} handleNext={handleNext} />;
+            case 8: return <Step8 formData={formData} setFormData={setFormData} handlePrev={handlePrev} handleNext={handleCompleteSetup} />;
             case 10: return <Step10 setShowPreviewModal={setShowPreviewModal} onComplete={handleCompleteSetup} handlePrev={handlePrev} />;
             default: return null;
         }
@@ -913,16 +1009,16 @@ export default function OnboardingStep() {
                         {steps.map((step, index) => (
                             <React.Fragment key={step.id}>
                                 <div
-                                    className={`flex flex-col items-center flex-1 group ${step.id <= Math.min(9, maxReachedStep) ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                                    className={`flex flex-col items-center flex-1 group ${step.id <= Math.min(steps.length, maxReachedStep) ? 'cursor-pointer' : 'cursor-not-allowed'}`}
                                     onClick={() => {
-                                        if (step.id <= Math.min(9, maxReachedStep)) goToStep(step.id);
+                                        if (step.id <= Math.min(steps.length, maxReachedStep)) goToStep(step.id);
                                     }}
                                 >
                                     <div className={`w-[40px] h-[40px] rounded-full flex items-center justify-center text-[15px] font-bold transition-all duration-300 border
-                                        ${(currentStep === step.id || (currentStep > 9 && step.id === 9)) ? 'bg-primary text-white border-primary shadow-lg' : (step.id < 9 ? maxReachedStep > step.id : maxReachedStep > 9) ? 'bg-primary text-white border-primary' : 'bg-white text-[#9CA3AF] border-gray-200'}`}>
-                                        {(step.id < 9 ? maxReachedStep > step.id : maxReachedStep > 9) ? <Check size={18} strokeWidth={3} /> : step.id}
+                                        ${currentStep === step.id ? 'bg-primary text-white border-primary shadow-lg' : maxReachedStep > step.id ? 'bg-primary text-white border-primary' : 'bg-white text-[#9CA3AF] border-gray-200'}`}>
+                                        {maxReachedStep > step.id ? <Check size={18} strokeWidth={3} /> : step.id}
                                     </div>
-                                    <span className={`mt-3 text-[12px] font-[500] text-center w-24 leading-tight ${(currentStep === step.id || (currentStep > 9 && step.id === 9)) ? 'text-primary' : 'text-[#9CA3AF]'}`}>{step.name}</span>
+                                    <span className={`mt-3 text-[12px] font-[500] text-center w-24 leading-tight ${currentStep === step.id ? 'text-primary' : 'text-[#9CA3AF]'}`}>{step.name}</span>
                                 </div>
                                 {index < steps.length - 1 && (
                                     <div className="flex-1 h-[2px] bg-gray-300 mt-5 mx-2 min-w-[20px] relative">
@@ -1039,12 +1135,12 @@ export default function OnboardingStep() {
             {/* Add Reward Item Modal */}
             {showAddRewardModal && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={() => setShowAddRewardModal(false)} />
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={closeAddRewardModal} />
                     <div className="bg-white w-full max-w-[500px] rounded-[24px] overflow-hidden shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
                         {/* Modal Header */}
                         <div className="p-5 border-b border-gray-100 flex items-center justify-between">
                             <h2 className="text-[18px] font-bold text-[#1A1A1A]">{editingReward ? 'Edit Reward Item' : 'Add Reward Item'}</h2>
-                            <button onClick={() => setShowAddRewardModal(false)} className="p-1 hover:bg-gray-100 rounded-full transition-colors">
+                            <button onClick={closeAddRewardModal} className="p-1 hover:bg-gray-100 rounded-full transition-colors">
                                 <X size={18} className="text-gray-400" />
                             </button>
                         </div>
@@ -1105,7 +1201,7 @@ export default function OnboardingStep() {
                                     value={rewardForm.description}
                                     onChange={(e) => setRewardForm((prev) => ({ ...prev, description: e.target.value }))}
                                     placeholder="Brief description of the reward"
-                                    className="onboarding-input !h-[70px] !rounded-[8px] !text-[13px] py-2 resize-none"
+                                    className="onboarding-textarea !h-[70px] !rounded-[8px] !text-[13px] py-2 resize-none"
                                 />
                             </div>
 
@@ -1114,20 +1210,44 @@ export default function OnboardingStep() {
                                 <label className="block text-[13px] font-[500] text-[#1A1A1A]">Reward Image (optional)</label>
                                 <div className="flex gap-4">
                                     <div className="w-[56px] h-[56px] bg-[#F6F8F9] rounded-[10px] border border-gray-200 border-dashed flex items-center justify-center text-gray-400 overflow-hidden shrink-0">
-                                        {rewardForm.rewardImage?.trim() ? (
-                                            <img src={rewardForm.rewardImage.trim()} alt="Reward" className="w-full h-full object-cover" />
+                                        {(rewardImagePreviewUrl || rewardForm.rewardImage?.trim()) ? (
+                                            <img src={rewardImagePreviewUrl || rewardForm.rewardImage.trim()} alt="Reward" className="w-full h-full object-cover" />
                                         ) : (
                                             <Image size={20} />
                                         )}
                                     </div>
-                                    <input
-                                        type="text"
-                                        value={rewardForm.rewardImage}
-                                        onChange={(e) => setRewardForm((prev) => ({ ...prev, rewardImage: e.target.value }))}
-                                        placeholder="Image URL"
-                                        className="onboarding-input !h-[56px] flex-1 !rounded-[8px] !text-[13px]"
-                                    />
+                                    <div className="w-full bg-white border border-[#E5E7EB] rounded-[14px] h-[56px] flex items-center px-4 justify-between">
+                                        <label htmlFor="rewardImageUpload" className="flex items-center gap-2 text-[13px] font-[500] text-[#6B7280] cursor-pointer">
+                                            <Image size={18} />
+                                            {rewardImageFile || rewardImagePreviewUrl || rewardForm.rewardImage?.trim() ? 'Change image' : 'Upload image'}
+                                        </label>
+                                        <span className="text-[12px] text-[#9CA3AF] font-[400] max-w-[180px] truncate">
+                                            {rewardImageFile?.name ?? 'No file chosen'}
+                                        </span>
+                                        <input
+                                            id="rewardImageUpload"
+                                            ref={rewardImageInputRef}
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0] ?? null;
+                                                setRewardImageUploadFile(file);
+                                                if (file) setRewardForm((prev) => ({ ...prev, rewardImage: '' }));
+                                                e.target.value = '';
+                                            }}
+                                        />
+                                    </div>
                                 </div>
+                                {(rewardImagePreviewUrl || rewardForm.rewardImage?.trim()) && (
+                                    <div className="w-full h-[140px] rounded-[16px] overflow-hidden border border-[#E5E7EB] bg-white mt-3">
+                                        <img
+                                            src={rewardImagePreviewUrl || rewardForm.rewardImage.trim()}
+                                            alt="Reward Preview"
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                )}
                             </div>
 
                             {/* Make Active Toggle */}

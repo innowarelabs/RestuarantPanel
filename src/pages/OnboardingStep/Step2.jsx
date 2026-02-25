@@ -1,5 +1,5 @@
 import { AlertCircle, ChevronDown, ChevronLeft, ChevronRight, Image } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 
 import Toggle from './Toggle';
@@ -112,9 +112,18 @@ export default function Step2({
     const footerRightOk = !!formData.websiteFooterRightUrl?.trim() || !!brandingFiles.websiteFooterRight;
 
     const restaurantIdFromStep1 = formData.restaurantId?.trim();
+    const restaurantIdFromStorage = (() => {
+        try {
+            const value = localStorage.getItem('restaurant_id');
+            return typeof value === 'string' ? value.trim() : '';
+        } catch {
+            return '';
+        }
+    })();
+    const resolvedRestaurantId = restaurantIdFromStep1 || restaurantIdFromStorage || getRestaurantId(user);
 
     const isValid =
-        !!restaurantIdFromStep1 &&
+        !!resolvedRestaurantId &&
         !!formData.companyLocation?.trim() &&
         !!formData.stateRegion?.trim() &&
         !!formData.postalCode?.trim() &&
@@ -126,6 +135,34 @@ export default function Step2({
         !!formData.prepTime?.trim() &&
         openingHoursValid;
 
+    useEffect(() => {
+        const restaurantId = resolvedRestaurantId;
+        if (!restaurantId) return;
+
+        const loadMenuItems = async () => {
+            try {
+                const baseUrl = import.meta.env.VITE_BACKEND_URL;
+                if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+                const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/${restaurantId}/menu?limit=100`;
+                const res = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    },
+                });
+                const contentType = res.headers.get('content-type');
+                const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+                console.log('Onboarding Step2 menu items response:', { ok: res.ok, status: res.status, data });
+            } catch (e) {
+                const message = typeof e?.message === 'string' ? e.message : 'Failed to load menu items';
+                console.log('Onboarding Step2 menu items error:', message);
+            }
+        };
+
+        loadMenuItems();
+    }, [accessToken, resolvedRestaurantId]);
+
     const handleSubmitStep2 = async () => {
         if (!isValid || submitting) return;
         setSubmitting(true);
@@ -134,10 +171,14 @@ export default function Step2({
             const baseUrl = import.meta.env.VITE_BACKEND_URL;
             if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
 
-            const restaurantId = restaurantIdFromStep1 || getRestaurantId(user);
+            const restaurantId = resolvedRestaurantId;
             if (!restaurantId) {
                 setErrorLines(['Restaurant not found. Please complete Step 1 first.']);
                 return;
+            }
+
+            if (!restaurantIdFromStep1) {
+                setFormData((prev) => ({ ...prev, restaurantId }));
             }
 
             const headerUrl =
