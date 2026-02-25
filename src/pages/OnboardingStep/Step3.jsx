@@ -1,9 +1,92 @@
-import { ChevronDown, ChevronLeft, ChevronRight, Edit2, Image, Plus, Trash2, X } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronLeft, ChevronRight, Edit2, Image, Plus, Trash2, X } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
 
-import Toggle from './Toggle';
+const normalizeUrl = (value) => {
+    if (typeof value !== 'string') return '';
+    return value.trim().replace(/^["'`]+|["'`]+$/g, '').trim();
+};
+
+const toValidationErrorLines = (data) => {
+    if (!data || typeof data !== 'object') return [];
+    if (!Array.isArray(data.detail)) return [];
+    return data.detail
+        .map((item) => {
+            if (!item || typeof item !== 'object') return '';
+            const loc = Array.isArray(item.loc) ? item.loc : [];
+            const field = typeof loc.at(-1) === 'string' ? loc.at(-1) : '';
+            const msg = typeof item.msg === 'string' ? item.msg : '';
+            const label = field ? `${field}: ` : '';
+            return `${label}${msg}`.trim();
+        })
+        .filter(Boolean);
+};
+
+const isErrorPayload = (data) => {
+    if (!data || typeof data !== 'object') return false;
+    if (typeof data.code !== 'string') return false;
+    const code = data.code.trim().toUpperCase();
+    if (!code) return false;
+    if (code.startsWith('ERROR_')) return true;
+    if (code.endsWith('_400') || code.endsWith('_401') || code.endsWith('_403') || code.endsWith('_404') || code.endsWith('_422') || code.endsWith('_500')) return true;
+    if (data.data === null && typeof data.message === 'string' && data.message.trim()) return true;
+    return false;
+};
+
+const extractUploadedImageUrl = (data) => {
+    if (!data) return '';
+    if (typeof data === 'string') {
+        const text = data.trim();
+        if (!text) return '';
+        try {
+            const parsed = JSON.parse(text);
+            return extractUploadedImageUrl(parsed);
+        } catch {
+            return normalizeUrl(text);
+        }
+    }
+    if (data && typeof data === 'object') {
+        if (data.data && typeof data.data === 'object') {
+            const nested = data.data;
+            if (typeof nested.url === 'string') return normalizeUrl(nested.url);
+            if (typeof nested.image_url === 'string') return normalizeUrl(nested.image_url);
+        }
+        if (typeof data.url === 'string') return normalizeUrl(data.url);
+        if (typeof data.image_url === 'string') return normalizeUrl(data.image_url);
+    }
+    return '';
+};
+
+const extractCategoriesList = (data) => {
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    if (typeof data !== 'object') return [];
+    if (Array.isArray(data.data)) return data.data;
+    if (data.data && typeof data.data === 'object' && Array.isArray(data.data.categories)) return data.data.categories;
+    if (Array.isArray(data.categories)) return data.categories;
+    return [];
+};
+
+const mapCategory = (raw) => {
+    if (!raw || typeof raw !== 'object') return null;
+    const id =
+        typeof raw.id === 'string'
+            ? raw.id
+            : typeof raw.category_id === 'string'
+                ? raw.category_id
+                : '';
+    const name = typeof raw.name === 'string' ? raw.name : '';
+    if (!id || !name) return null;
+    const description = typeof raw.description === 'string' ? raw.description : '';
+    const imageUrl = typeof raw.image_url === 'string' ? normalizeUrl(raw.image_url) : typeof raw.imageUrl === 'string' ? normalizeUrl(raw.imageUrl) : '';
+    const visible = typeof raw.visible === 'boolean' ? raw.visible : true;
+    const imageName = imageUrl ? imageUrl.split('/').pop() || '' : '';
+    return { id, name, description, imageUrl, imageName, visible };
+};
 
 export default function Step3({
     categories,
+    setCategories,
     items,
     editingCategoryId,
     formData,
@@ -23,20 +106,262 @@ export default function Step3({
     closeAddItemModal,
     itemForm,
     setItemForm,
+    itemImage,
     itemImagePreviewUrl,
     setItemImageFile,
     saveItem,
 }) {
+    const accessToken = useSelector((state) => state.auth.accessToken);
+    const [loadingCategories, setLoadingCategories] = useState(false);
+    const [savingCategory, setSavingCategory] = useState(false);
+    const [savingItem, setSavingItem] = useState(false);
+    const [errorLines, setErrorLines] = useState([]);
+
+    const restaurantId = formData.restaurantId?.trim();
     const editingCategory = categories.find((c) => c.id === editingCategoryId) || null;
     const categoryOptions = categories.map((c) => ({ id: c.id, name: c.name }));
     const canSaveCategory = formData.categoryName.trim() && (editingCategoryId ? true : !!categoryImage);
     const canOpenAddItem = categories.length > 0;
-    const canSaveItem = itemForm.categoryId && itemForm.name.trim() && itemForm.price.trim();
-    const tagOptions = ['Vegan', 'Spicy', 'Halal', 'Gluten-Free', 'Popular'];
+    const priceText = itemForm.price?.trim() || '';
+    const prepTimeText = itemForm.prepTimeMinutes?.trim() || '';
+    const priceOk = !!priceText && Number.isFinite(Number(priceText));
+    const prepOk = !!prepTimeText && Number.isFinite(Number(prepTimeText));
+    const canSaveItem = !!itemForm.categoryId && !!itemForm.name.trim() && priceOk && prepOk;
+
+    const canProceed = categories.length > 0;
+
+    const uploadImage = async (file, baseUrl) => {
+        if (!file) throw new Error('Image file is missing');
+        const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/upload/image`;
+        const body = new FormData();
+        body.append('file', file);
+
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+            },
+            body,
+        });
+
+        const contentType = res.headers.get('content-type');
+        const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+        const uploadedUrl = extractUploadedImageUrl(data);
+
+        if (!res.ok) throw new Error('Image upload failed');
+        if (!uploadedUrl) throw new Error('Image upload did not return a link');
+        return uploadedUrl;
+    };
+
+    const fetchCategories = useCallback(async () => {
+        if (!restaurantId) {
+            setErrorLines(['Restaurant not found. Please complete Step 1 first.']);
+            return;
+        }
+        setLoadingCategories(true);
+        setErrorLines([]);
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step3/categories/${restaurantId}`;
+            const res = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                },
+            });
+
+            const contentType = res.headers.get('content-type');
+            const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+
+            if (!res.ok || isErrorPayload(data)) {
+                const lines = toValidationErrorLines(data);
+                if (lines.length) {
+                    setErrorLines(lines);
+                } else if (data && typeof data === 'object') {
+                    const message =
+                        typeof data.message === 'string'
+                            ? data.message
+                            : typeof data.error === 'string'
+                                ? data.error
+                                : 'Failed to load categories';
+                    setErrorLines([message]);
+                } else if (typeof data === 'string' && data.trim()) {
+                    setErrorLines([data.trim()]);
+                } else {
+                    setErrorLines(['Failed to load categories']);
+                }
+                return;
+            }
+
+            const list = extractCategoriesList(data).map(mapCategory).filter(Boolean);
+            setCategories(list);
+            setFormData((prev) => ({ ...prev, categoriesCount: list.length }));
+        } catch (e) {
+            const message = typeof e?.message === 'string' ? e.message : 'Failed to load categories';
+            setErrorLines([message]);
+        } finally {
+            setLoadingCategories(false);
+        }
+    }, [accessToken, restaurantId, setCategories, setFormData]);
+
+    useEffect(() => {
+        void fetchCategories();
+    }, [fetchCategories]);
+
+    const handleCreateCategory = async () => {
+        if (!restaurantId) {
+            setErrorLines(['Restaurant not found. Please complete Step 1 first.']);
+            return;
+        }
+
+        if (editingCategoryId) {
+            saveCategory();
+            return;
+        }
+
+        if (!canSaveCategory || savingCategory) return;
+        setSavingCategory(true);
+        setErrorLines([]);
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+
+            const imageUrl = await uploadImage(categoryImage, baseUrl);
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step3/category`;
+
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                },
+                body: JSON.stringify({
+                    restaurant_id: restaurantId,
+                    name: formData.categoryName.trim(),
+                    image_url: imageUrl,
+                    description: formData.categoryDesc?.trim() || '',
+                }),
+            });
+
+            const contentType = res.headers.get('content-type');
+            const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+
+            if (!res.ok || isErrorPayload(data)) {
+                const lines = toValidationErrorLines(data);
+                if (lines.length) {
+                    setErrorLines(lines);
+                } else if (data && typeof data === 'object') {
+                    const message =
+                        typeof data.message === 'string'
+                            ? data.message
+                            : typeof data.error === 'string'
+                                ? data.error
+                                : 'Failed to create category';
+                    setErrorLines([message]);
+                } else if (typeof data === 'string' && data.trim()) {
+                    setErrorLines([data.trim()]);
+                } else {
+                    setErrorLines(['Failed to create category']);
+                }
+                return;
+            }
+
+            resetCategoryForm();
+            await fetchCategories();
+        } catch (e) {
+            const message = typeof e?.message === 'string' ? e.message : 'Failed to create category';
+            setErrorLines([message]);
+        } finally {
+            setSavingCategory(false);
+        }
+    };
+
+    const handleCreateItem = async () => {
+        if (!restaurantId) {
+            setErrorLines(['Restaurant not found. Please complete Step 1 first.']);
+            return;
+        }
+        if (!canSaveItem || savingItem) return;
+
+        setSavingItem(true);
+        setErrorLines([]);
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+
+            const priceValue = Number(priceText);
+            const prepMinutesValue = Number(prepTimeText);
+            if (!Number.isFinite(priceValue)) {
+                setErrorLines(['Price must be a number']);
+                return;
+            }
+            if (!Number.isFinite(prepMinutesValue)) {
+                setErrorLines(['Prep time must be a number']);
+                return;
+            }
+
+            const images = [];
+            if (itemImage) {
+                const uploadedUrl = await uploadImage(itemImage, baseUrl);
+                if (uploadedUrl) images.push(uploadedUrl);
+            }
+
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step3/item`;
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                },
+                body: JSON.stringify({
+                    restaurant_id: restaurantId,
+                    category_id: itemForm.categoryId,
+                    name: itemForm.name.trim(),
+                    images,
+                    description: itemForm.description?.trim() || '',
+                    price: priceValue,
+                    prep_time_minutes: Math.trunc(prepMinutesValue),
+                }),
+            });
+
+            const contentType = res.headers.get('content-type');
+            const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+
+            if (!res.ok || isErrorPayload(data)) {
+                const lines = toValidationErrorLines(data);
+                if (lines.length) {
+                    setErrorLines(lines);
+                } else if (data && typeof data === 'object') {
+                    const message =
+                        typeof data.message === 'string'
+                            ? data.message
+                            : typeof data.error === 'string'
+                                ? data.error
+                                : 'Failed to create item';
+                    setErrorLines([message]);
+                } else if (typeof data === 'string' && data.trim()) {
+                    setErrorLines([data.trim()]);
+                } else {
+                    setErrorLines(['Failed to create item']);
+                }
+                return;
+            }
+
+            saveItem();
+        } catch (e) {
+            const message = typeof e?.message === 'string' ? e.message : 'Failed to create item';
+            setErrorLines([message]);
+        } finally {
+            setSavingItem(false);
+        }
+    };
 
     return (
         <div className="space-y-8">
-            <div className="bg-[#F9FAFB]/50 rounded-[20px] border border-gray-100 p-6">
+            <div className="">
                 <div className="flex items-center justify-between gap-4 mb-4">
                     <h3 className="text-[16px] font-[400] text-[#1A1A1A]">Add Menu Categories</h3>
                     {editingCategoryId && (
@@ -95,29 +420,26 @@ export default function Step3({
                             className="onboarding-input h-11"
                         />
                     </div>
-                    <div className="flex items-center justify-between">
-                        <div className="text-[13px]">
-                            <p className="text-[14px] font-[500] text-[#1A1A1A]">Category Visibility</p>
-                            <p className="text-[12px] mt-1 text-[#6B6B6B]">Show this category to customers</p>
-                        </div>
-                        <Toggle active={formData.categoryVisible} onClick={() => setFormData({ ...formData, categoryVisible: !formData.categoryVisible })} />
-                    </div>
                     <button
                         type="button"
-                        disabled={!canSaveCategory}
-                        onClick={saveCategory}
-                        className={`w-full h-11 rounded-[8px] text-[16px] flex items-center justify-center gap-2 ${canSaveCategory ? 'bg-primary text-white' : 'bg-[#E5E7EB] text-[#6B6B6B]'}`}
+                        disabled={!canSaveCategory || savingCategory}
+                        onClick={handleCreateCategory}
+                        className={`w-full h-11 rounded-[8px] text-[16px] flex items-center justify-center gap-2 ${savingCategory ? 'bg-[#E5E7EB] text-[#6B6B6B]' : canSaveCategory ? 'bg-primary text-white' : 'bg-[#E5E7EB] text-[#6B6B6B]'}`}
                     >
-                        <Plus size={18} /> {editingCategoryId ? 'Update Category' : 'Add Category'}
+                        <Plus size={18} /> {savingCategory ? 'Saving...' : editingCategoryId ? 'Update Category' : 'Add Category'}
                     </button>
                 </div>
             </div>
 
             <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
                 <div className="flex items-center justify-between">
-                    <h3 className="text-[16px] text-[#1A1A1A]">Categories ({categories.length})</h3>
+                    <h3 className="text-[16px] text-[#1A1A1A]">Your Categories ({categories.length})</h3>
                 </div>
-                {categories.length === 0 ? (
+                {loadingCategories ? (
+                    <div className="py-6 text-center text-[#6B7280] text-[13px]">
+                        Loading categories...
+                    </div>
+                ) : categories.length === 0 ? (
                     <div className="py-10 text-center text-[#6B7280] text-[13px]">
                         No categories added yet
                     </div>
@@ -134,6 +456,11 @@ export default function Step3({
                                     </div>
                                     {category.description ? (
                                         <p className="text-[12px] text-[#6B7280] mt-1">{category.description}</p>
+                                    ) : null}
+                                    {category.imageUrl ? (
+                                        <div className="mt-2 w-[120px] h-[70px] rounded-[10px] overflow-hidden border border-[#E5E7EB] bg-white">
+                                            <img src={category.imageUrl} alt={category.name} className="w-full h-full object-cover" />
+                                        </div>
                                     ) : null}
                                     {category.imageName ? (
                                         <p className="text-[11px] text-[#9CA3AF] mt-2 truncate">Image: {category.imageName}</p>
@@ -153,7 +480,7 @@ export default function Step3({
                 )}
             </div>
 
-            <div className="bg-[#F9FAFB]/50 rounded-[20px] border border-gray-100 p-6">
+            <div className="">
                 <div className="flex items-center justify-between gap-4">
                     <h3 className="text-[16px] font-[400] text-[#1A1A1A]">Add Item</h3>
                     <button
@@ -172,7 +499,7 @@ export default function Step3({
 
             <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
                 <div className="flex items-center justify-between">
-                    <h3 className="text-[16px] text-[#1A1A1A]">Items ({items.length})</h3>
+                    <h3 className="text-[16px] text-[#1A1A1A]">Your Items ({items.length})</h3>
                 </div>
                 {items.length === 0 ? (
                     <div className="py-10 text-center text-[#6B7280] text-[13px]">
@@ -188,20 +515,6 @@ export default function Step3({
                                         <div className="min-w-0">
                                             <p className="text-[14px] font-[600] text-[#1A1A1A] truncate">{item.name}</p>
                                             <p className="text-[12px] text-[#6B7280] mt-1">{categoryName} • ${item.price}</p>
-                                            {item.tags?.length ? (
-                                                <div className="flex items-center gap-2 flex-wrap mt-2">
-                                                    {item.tags.map((t) => (
-                                                        <span key={t} className="text-[10px] px-3 py-0.5 rounded-[999px] bg-white border border-gray-200 text-[#6B7280]">
-                                                            {t}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            ) : null}
-                                        </div>
-                                        <div className="shrink-0">
-                                            <span className={`text-[10px] px-3 py-1 rounded-[999px] ${item.available ? 'bg-[#ECFDF5] text-[#10B981]' : 'bg-[#FEF2F2] text-[#EF4444]'}`}>
-                                                {item.available ? 'Available' : 'Unavailable'}
-                                            </span>
                                         </div>
                                     </div>
                                 </div>
@@ -211,11 +524,31 @@ export default function Step3({
                 )}
             </div>
 
+            {!!errorLines.length && (
+                <div className="bg-[#F751511F] rounded-[12px] py-[10px] px-[12px]">
+                    <div className="flex items-start gap-2">
+                        <AlertCircle size={18} className="text-[#EB5757] mt-[2px]" />
+                        <div className="space-y-1">
+                            {errorLines.map((line, idx) => (
+                                <p key={idx} className="text-[12px] text-[#47464A] font-normal">
+                                    {line}
+                                </p>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="pt-4 flex justify-between">
-                <button type="button" onClick={handlePrev} className="prev-btn flex items-center gap-2 px-10">
+                <button type="button" onClick={handlePrev} className="prev-btn flex items-center gap-2">
                     <ChevronLeft size={18} /> Previous
                 </button>
-                <button type="button" onClick={handleNext} className="next-btn bg-primary text-white px-10">
+                <button
+                    type="button"
+                    disabled={!canProceed}
+                    onClick={handleNext}
+                    className="next-btn px-8"
+                >
                     Next <ChevronRight size={18} />
                 </button>
             </div>
@@ -311,77 +644,6 @@ export default function Step3({
                                     />
                                 </div>
 
-                                <div className="space-y-3">
-                                    <div className="flex items-center justify-between gap-4">
-                                        <h3 className="text-[16px] font-[700] text-[#1A1A1A]">Add-ons (Optional)</h3>
-                                        <button
-                                            type="button"
-                                            onClick={() => setItemForm((prev) => ({ ...prev, addOns: [...prev.addOns, { name: '', price: '' }] }))}
-                                            className="h-[40px] px-4 border border-[#24B99E] text-primary rounded-[10px] text-[14px] flex items-center gap-2"
-                                        >
-                                            <Plus size={16} /> Add Add-on
-                                        </button>
-                                    </div>
-                                    <div className="space-y-3">
-                                        {itemForm.addOns.map((addOn, idx) => (
-                                            <div key={idx} className="grid grid-cols-12 gap-3 items-center">
-                                                <input
-                                                    type="text"
-                                                    placeholder="Add-on name"
-                                                    value={addOn.name}
-                                                    onChange={(e) => setItemForm((prev) => ({
-                                                        ...prev,
-                                                        addOns: prev.addOns.map((a, i) => (i === idx ? { ...a, name: e.target.value } : a)),
-                                                    }))}
-                                                    className="onboarding-input !h-[52px] !rounded-[12px] col-span-7"
-                                                />
-                                                <input
-                                                    type="text"
-                                                    placeholder="Price"
-                                                    value={addOn.price}
-                                                    onChange={(e) => setItemForm((prev) => ({
-                                                        ...prev,
-                                                        addOns: prev.addOns.map((a, i) => (i === idx ? { ...a, price: e.target.value } : a)),
-                                                    }))}
-                                                    className="onboarding-input !h-[52px] !rounded-[12px] col-span-4"
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setItemForm((prev) => ({
-                                                        ...prev,
-                                                        addOns: prev.addOns.length === 1 ? prev.addOns : prev.addOns.filter((_, i) => i !== idx),
-                                                    }))}
-                                                    className="col-span-1 flex items-center justify-center h-[52px] rounded-[12px] hover:bg-red-50"
-                                                >
-                                                    <Trash2 size={18} className="text-[#EF4444]" />
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="space-y-3">
-                                    <h3 className="text-[16px] font-[700] text-[#1A1A1A]">Tags</h3>
-                                    <div className="flex items-center gap-3 flex-wrap">
-                                        {tagOptions.map((tag) => {
-                                            const active = itemForm.tags.includes(tag);
-                                            return (
-                                                <button
-                                                    key={tag}
-                                                    type="button"
-                                                    onClick={() => setItemForm((prev) => ({
-                                                        ...prev,
-                                                        tags: active ? prev.tags.filter((t) => t !== tag) : [...prev.tags, tag],
-                                                    }))}
-                                                    className={`h-[40px] px-4 rounded-[999px] border text-[14px] ${active ? 'bg-[#E6F7F4] border-primary text-primary' : 'bg-white border-gray-200 text-[#6B7280]'}`}
-                                                >
-                                                    {tag}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
                                     <div className="space-y-2">
                                         <label className="block text-[14px] font-[600] text-[#1A1A1A]">Prep Time (minutes)</label>
@@ -391,13 +653,6 @@ export default function Step3({
                                             onChange={(e) => setItemForm((prev) => ({ ...prev, prepTimeMinutes: e.target.value }))}
                                             className="onboarding-input !h-[56px] !rounded-[12px]"
                                         />
-                                    </div>
-                                    <div className="flex items-center justify-between md:justify-end gap-6 pt-6">
-                                        <div>
-                                            <p className="text-[14px] font-[600] text-[#1A1A1A]">Availability</p>
-                                            <p className="text-[12px] text-[#6B7280] mt-1">{itemForm.available ? 'Available' : 'Unavailable'}</p>
-                                        </div>
-                                        <Toggle active={itemForm.available} onClick={() => setItemForm((prev) => ({ ...prev, available: !prev.available }))} />
                                     </div>
                                 </div>
                             </div>
@@ -412,11 +667,11 @@ export default function Step3({
                                 </button>
                                 <button
                                     type="button"
-                                    disabled={!canSaveItem}
-                                    onClick={saveItem}
-                                    className={`h-[52px] px-8 font-[600] rounded-[12px] transition-colors ${canSaveItem ? 'bg-primary text-white hover:bg-[#1da88f]' : 'bg-[#E5E7EB] text-[#9CA3AF]'}`}
+                                    disabled={!canSaveItem || savingItem}
+                                    onClick={handleCreateItem}
+                                    className={`h-[52px] px-8 font-[600] rounded-[12px] transition-colors ${savingItem ? 'bg-[#E5E7EB] text-[#9CA3AF]' : canSaveItem ? 'bg-primary text-white hover:bg-[#1da88f]' : 'bg-[#E5E7EB] text-[#9CA3AF]'}`}
                                 >
-                                    Save Item
+                                    {savingItem ? 'Saving...' : 'Save Item'}
                                 </button>
                             </div>
                         </div>

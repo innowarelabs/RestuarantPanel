@@ -1,6 +1,6 @@
 import { Check, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 
-export default function Step10({ setShowPreviewModal, navigate, handlePrev }) {
+export default function Step10({ setShowPreviewModal, onComplete, handlePrev }) {
     return (
         <div className="space-y-10">
             <div className="space-y-5">
@@ -38,7 +38,7 @@ export default function Step10({ setShowPreviewModal, navigate, handlePrev }) {
             <button
                 type="button"
                 className="sm:hidden mt-4 h-[52px] w-full bg-[#24B99E] text-white rounded-[10px] font-bold text-[15px] flex items-center justify-center gap-2 hover:bg-[#20a38b] transition-all"
-                onClick={() => navigate('/admin-dashboard')}
+                onClick={onComplete}
             >
                 Complete Setup <ChevronRight size={18} />
             </button>
@@ -50,7 +50,7 @@ export default function Step10({ setShowPreviewModal, navigate, handlePrev }) {
                 <button
                     type="button"
                     className="hidden sm:flex h-[52px] min-w-[180px] bg-[#24B99E] text-white rounded-[10px] font-bold text-[15px] items-center justify-center gap-2 hover:bg-[#20a38b] transition-all"
-                    onClick={() => navigate('/admin-dashboard')}
+                    onClick={onComplete}
                 >
                     Complete Setup <ChevronRight size={18} />
                 </button>

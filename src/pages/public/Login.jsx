@@ -1,16 +1,17 @@
 import { useState } from "react";
 import { useDispatch } from "react-redux";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { AlertCircle } from "lucide-react";
 import Button from "../../elements/Button";
 import PasswordInput from "../../elements/PasswordInput";
 import TextInput from "../../elements/TextInput";
 import restaurantLogo from "../../assets/restaurant_logo.png";
 import AuthSidebar from "../../components/Auth/AuthSidebar";
-import { login } from "../../redux/store";
+import { setSession } from "../../redux/store";
 
 function Login() {
     const dispatch = useDispatch();
+    const navigate = useNavigate();
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -43,14 +44,54 @@ function Login() {
         setLoading(true);
 
         try {
-            console.log("Logging in with:", { email, password });
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error("VITE_BACKEND_URL is missing");
 
-            // Dispatch to store - Redux now handles localStorage
-            dispatch(login({ name: "John's Burger House", email }));
+            const url = `${baseUrl.replace(/\/$/, "")}/api/v1/auth/login`;
+            const res = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, password }),
+            });
 
-            // App.jsx will automatically redirect to dashboard when user state changes
+            const contentType = res.headers.get("content-type");
+            const data = contentType?.includes("application/json") ? await res.json() : await res.text();
+
+            console.log("Login API response:", { ok: res.ok, status: res.status, data });
+
+            if (!res.ok) {
+                const message =
+                    typeof data === "string"
+                        ? data
+                        : data?.message || data?.error || "Login failed. Please try again.";
+                throw new Error(message);
+            }
+
+            if (typeof data !== "object" || !data) throw new Error("Invalid login response");
+            if (data.code !== "AUTH_200") throw new Error(data.message || "Login failed. Please try again.");
+
+            const sessionData = data.data;
+            // const onboardingStep = sessionData?.goto || "step1";
+            const onboardingStep = "step1";
+
+            dispatch(
+                setSession({
+                    user: sessionData?.user || null,
+                    accessToken: sessionData?.access_token || null,
+                    refreshToken: sessionData?.refresh_token || null,
+                    onboardingStep,
+                    accessTokenExpiresIn: sessionData?.expires_in,
+                })
+            );
+
+            if (onboardingStep === "dashboard") {
+                navigate("/admin-dashboard", { replace: true });
+            } else {
+                navigate("/onboarding", { replace: true });
+            }
         } catch (error) {
             setError(error?.error || error?.message || "Login failed. Please try again.");
+        } finally {
             setLoading(false);
         }
     };

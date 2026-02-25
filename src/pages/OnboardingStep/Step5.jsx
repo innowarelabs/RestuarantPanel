@@ -1,4 +1,6 @@
-import { ChevronLeft, ChevronRight, Edit2, Plus, Trash2 } from 'lucide-react';
+import { AlertCircle, ChevronLeft, ChevronRight, Edit2, Plus, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { useSelector } from 'react-redux';
 
 import Toggle from './Toggle';
 
@@ -7,9 +9,115 @@ export default function Step5({
     setFormData,
     setEditingReward,
     setShowAddRewardModal,
+    rewards,
+    loadingRewards,
+    rewardsErrorLines,
+    refreshRewards,
     handlePrev,
     handleNext,
 }) {
+    const accessToken = useSelector((state) => state.auth.accessToken);
+    const [submitting, setSubmitting] = useState(false);
+    const [errorLines, setErrorLines] = useState([]);
+
+    const toValidationErrorLines = (data) => {
+        if (!data || typeof data !== 'object') return [];
+        if (!Array.isArray(data.detail)) return [];
+        return data.detail
+            .map((item) => {
+                if (!item || typeof item !== 'object') return '';
+                const loc = Array.isArray(item.loc) ? item.loc : [];
+                const field = typeof loc.at(-1) === 'string' ? loc.at(-1) : '';
+                const msg = typeof item.msg === 'string' ? item.msg : '';
+                const label = field ? `${field}: ` : '';
+                return `${label}${msg}`.trim();
+            })
+            .filter(Boolean);
+    };
+
+    const isSuccessCode = (code) => {
+        if (typeof code !== 'string') return true;
+        const normalized = code.trim().toUpperCase();
+        return normalized.endsWith('_200') || normalized.endsWith('_201');
+    };
+
+    const handleSubmitStep5 = async () => {
+        const restaurantId = formData.restaurantId?.trim();
+        if (submitting) return;
+        if (!restaurantId) {
+            setErrorLines(['Restaurant not found. Please complete Step 1 first.']);
+            return;
+        }
+
+        setSubmitting(true);
+        setErrorLines([]);
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+
+            const pointsPerDollarValue = Number(formData.pointsPerDollar?.trim());
+            const bonusFirstOrderPointsValue = Number(formData.bonusFirstOrder ? formData.bonusAmount?.trim() : 0);
+            const minOrderToEarnPointsValue = Number(formData.minOrderLoyalty ? formData.minOrderAmount?.trim() : 0);
+            const expiryDaysRaw = Number(formData.expiryPeriod?.trim());
+            const pointsExpiryDaysValue = formData.pointsExpire ? (Number.isFinite(expiryDaysRaw) ? Math.trunc(expiryDaysRaw) : 365) : 0;
+
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step5/settings`;
+            const res = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                },
+                body: JSON.stringify({
+                    restaurant_id: restaurantId,
+                    points_per_dollar: Number.isFinite(pointsPerDollarValue) ? Math.trunc(pointsPerDollarValue) : 1,
+                    bonus_first_order_points: Number.isFinite(bonusFirstOrderPointsValue) ? Math.trunc(bonusFirstOrderPointsValue) : 0,
+                    min_order_to_earn_points: Number.isFinite(minOrderToEarnPointsValue) ? minOrderToEarnPointsValue : 0,
+                    points_expiry_days: pointsExpiryDaysValue,
+                }),
+            });
+
+            const contentType = res.headers.get('content-type');
+            const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+
+            if (!res.ok) {
+                const lines = toValidationErrorLines(data);
+                if (lines.length) {
+                    setErrorLines(lines);
+                } else if (typeof data === 'string' && data.trim()) {
+                    setErrorLines([data.trim()]);
+                } else if (data && typeof data === 'object') {
+                    const message =
+                        typeof data.message === 'string'
+                            ? data.message
+                            : typeof data.error === 'string'
+                                ? data.error
+                                : 'Request failed';
+                    setErrorLines([message]);
+                } else {
+                    setErrorLines(['Request failed']);
+                }
+                return;
+            }
+
+            if (data && typeof data === 'object' && typeof data.code === 'string' && !isSuccessCode(data.code)) {
+                const message =
+                    typeof data.message === 'string' && data.message.trim()
+                        ? data.message.trim()
+                        : data.code.trim() || 'Request failed';
+                setErrorLines([message]);
+                return;
+            }
+
+            handleNext?.();
+        } catch (e) {
+            const message = typeof e?.message === 'string' ? e.message : 'Request failed';
+            setErrorLines([message]);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     return (
         <div className="space-y-10">
             <div className="flex items-start sm:items-center justify-between gap-4">
@@ -90,7 +198,7 @@ export default function Step5({
                             <label className="block text-[14px] font-[500] text-[#1A1A1A]">Expiry period</label>
                             <input
                                 type="text"
-                                placeholder="e.g., 6 months"
+                                placeholder="365"
                                 value={formData.expiryPeriod}
                                 onChange={(e) => setFormData({ ...formData, expiryPeriod: e.target.value })}
                                 className="onboarding-input"
@@ -118,42 +226,50 @@ export default function Step5({
                 </div>
 
                 <div className="space-y-3">
-                    {[
-                        { name: 'Free Ice Cream', desc: 'Ice Cream Cone • Choose any flavour', points: 175, status: 'Active', icon: '🍦' },
-                        { name: 'Free Soft Drink', desc: 'Soft Drink • Any size soft drink', points: 120, status: 'Active', icon: '🥤' },
-                        { name: 'Free Fries', desc: 'French Fries • Regular portion', points: 150, status: 'Active', icon: '🍟' },
-                        { name: 'Free Burger', desc: 'Cheeseburger • Classic cheeseburger', points: 400, status: 'Inactive', icon: '🍔' },
-                    ].map((item, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-4 bg-white border border-[#E5E7EB] rounded-[8px] ">
-                            <div className="flex items-center gap-4">
-                                <div className="w-[64px] h-[64px] bg-[#F6F8F9] rounded-[12px] flex items-center justify-center text-[24px]">
-                                    {item.icon}
-                                </div>
-                                <div className="space-y-1">
-                                    <h4 className="text-[15px] font-[400] text-[#1A1A1A]">{item.name}</h4>
-                                    <p className="text-[13px] text-[#6B7280]">{item.desc}</p>
-                                    <div className="flex items-center gap-2 pt-0.5">
-                                        <span className="text-[12px] font-[500] text-primary bg-[#E6F7F4] px-2 py-0.5 rounded-[4px]">{item.points} points</span>
-                                        <span className={`text-[12px] font-[500] px-2 py-0.5 rounded-[4px] ${item.status === 'Active' ? 'text-[#10B981] bg-[#ECFDF5]' : 'text-gray-400 bg-gray-100'}`}>
-                                            {item.status}
-                                        </span>
+                    {loadingRewards ? (
+                        <div className="py-8 text-center text-[#6B7280] text-[13px]">
+                            Loading rewards...
+                        </div>
+                    ) : rewards.length === 0 ? (
+                        <div className="py-8 text-center text-[#6B7280] text-[13px]">
+                            No rewards added yet
+                        </div>
+                    ) : (
+                        rewards.map((reward) => (
+                            <div key={reward.reward_id} className="flex items-center justify-between p-4 bg-white border border-[#E5E7EB] rounded-[8px]">
+                                <div className="flex items-center gap-4 min-w-0">
+                                    <div className="w-[64px] h-[64px] bg-[#F6F8F9] rounded-[12px] overflow-hidden border border-[#E5E7EB] shrink-0">
+                                        {reward.reward_image ? (
+                                            <img src={reward.reward_image} alt={reward.reward_name} className="w-full h-full object-cover" />
+                                        ) : null}
+                                    </div>
+                                    <div className="space-y-1 min-w-0">
+                                        <h4 className="text-[15px] font-[400] text-[#1A1A1A] truncate">{reward.reward_name}</h4>
+                                        <p className="text-[13px] text-[#6B7280] truncate">{reward.description || '—'}</p>
+                                        <div className="flex items-center gap-2 pt-0.5">
+                                            <span className="text-[12px] font-[500] text-primary bg-[#E6F7F4] px-2 py-0.5 rounded-[4px]">{reward.points_required} points</span>
+                                            <span className={`text-[12px] font-[500] px-2 py-0.5 rounded-[4px] ${reward.is_active ? 'text-[#10B981] bg-[#ECFDF5]' : 'text-gray-400 bg-gray-100'}`}>
+                                                {reward.is_active ? 'Active' : 'Inactive'}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setEditingReward(reward);
+                                            setShowAddRewardModal(true);
+                                        }}
+                                        className="p-2 hover:bg-gray-50 rounded-lg text-gray-400"
+                                    >
+                                        <Edit2 size={16} />
+                                    </button>
+                                    <button type="button" className="p-2 hover:bg-red-50 rounded-lg text-red-400"><Trash2 size={16} /></button>
+                                </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => {
-                                        setEditingReward(item);
-                                        setShowAddRewardModal(true);
-                                    }}
-                                    className="p-2 hover:bg-gray-50 rounded-lg text-gray-400"
-                                >
-                                    <Edit2 size={16} />
-                                </button>
-                                <button className="p-2 hover:bg-red-50 rounded-lg text-red-400"><Trash2 size={16} /></button>
-                            </div>
-                        </div>
-                    ))}
+                        ))
+                    )}
                 </div>
             </div>
 
@@ -181,12 +297,54 @@ export default function Step5({
                 </ul>
             </div>
 
+            {!!rewardsErrorLines?.length && (
+                <div className="bg-[#F751511F] rounded-[12px] py-[10px] px-[12px]">
+                    <div className="flex items-start gap-2">
+                        <AlertCircle size={18} className="text-[#EB5757] mt-[2px]" />
+                        <div className="space-y-1">
+                            {rewardsErrorLines.map((line, idx) => (
+                                <p key={idx} className="text-[12px] text-[#47464A] font-normal">
+                                    {line}
+                                </p>
+                            ))}
+                            <button
+                                type="button"
+                                onClick={() => refreshRewards?.(formData.restaurantId?.trim())}
+                                className="text-[12px] text-primary font-[500] underline"
+                            >
+                                Retry
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {!!errorLines.length && (
+                <div className="bg-[#F751511F] rounded-[12px] py-[10px] px-[12px]">
+                    <div className="flex items-start gap-2">
+                        <AlertCircle size={18} className="text-[#EB5757] mt-[2px]" />
+                        <div className="space-y-1">
+                            {errorLines.map((line, idx) => (
+                                <p key={idx} className="text-[12px] text-[#47464A] font-normal">
+                                    {line}
+                                </p>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="pt-4 flex justify-between">
                 <button type="button" onClick={handlePrev} className="prev-btn flex items-center gap-2 px-10">
                     <ChevronLeft size={18} /> Previous
                 </button>
-                <button type="button" onClick={handleNext} className="next-btn bg-primary text-white px-10">
-                    Next <ChevronRight size={18} />
+                <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={handleSubmitStep5}
+                    className={`next-btn px-10 ${submitting ? 'bg-[#E5E7EB] text-[#6B6B6B]' : 'bg-primary text-white'}`}
+                >
+                    {submitting ? 'Saving...' : 'Next'} <ChevronRight size={18} />
                 </button>
             </div>
         </div>

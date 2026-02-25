@@ -44,16 +44,18 @@ function App() {
   const handleToggleSidebar = () => dispatch(toggleSidebar());
 
   const isOnboarding = location.pathname === '/onboarding';
-  const user = useSelector((state) => state.auth.user);
+  const accessToken = useSelector((state) => state.auth.accessToken);
+  const onboardingStep = useSelector((state) => state.auth.onboardingStep);
+  const isAuthenticated = !!accessToken;
 
 
   // Redirect to login if not authenticated
-  if (!user && !['/login', '/forgot-password', '/verify-account', '/reset-password', '/password-reset-success'].includes(location.pathname)) {
+  if (!isAuthenticated && !['/login', '/forgot-password', '/verify-account', '/reset-password', '/password-reset-success'].includes(location.pathname)) {
     return <Navigate to="/login" replace />;
   }
 
   // Auth Routes (Public)
-  if (!user) {
+  if (!isAuthenticated) {
     return (
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -67,13 +69,14 @@ function App() {
   }
 
   // Handle redirects for authenticated users on auth pages
-  if (user && ['/login', '/forgot-password', '/verify-account', '/reset-password', '/password-reset-success'].includes(location.pathname)) {
-    // Take them to onboarding after sign in
+  if (isAuthenticated && ['/login', '/forgot-password', '/verify-account', '/reset-password', '/password-reset-success'].includes(location.pathname)) {
+    if (onboardingStep === 'dashboard') return <Navigate to="/admin-dashboard" replace />;
     return <Navigate to="/onboarding" replace />;
   }
 
   // Onboarding Page (Fullscreen)
   if (isOnboarding) {
+    if (onboardingStep === 'dashboard') return <Navigate to="/admin-dashboard" replace />;
     return (
       <Routes>
         <Route path="/onboarding" element={<OnboardingStep />} />

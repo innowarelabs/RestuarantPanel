@@ -1,9 +1,10 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
     User, Eye, Check, MapPin, Menu, Settings, Gift,
     ChevronDown,
-    CreditCard, Bell, MessageSquare, Link, X, Image
+    CreditCard, Bell, MessageSquare, Link, X, Image, AlertCircle
 } from 'lucide-react';
 
 import Step1 from './Step1';
@@ -17,6 +18,7 @@ import Step8 from './Step8';
 import Step9 from './Step9';
 import Step10 from './Step10';
 import Toggle from './Toggle';
+import { setOnboardingStep } from '../../redux/store';
 
 const steps = [
     { id: 1, name: 'Account Setup', icon: User },
@@ -36,20 +38,96 @@ const WEBSITE_FOOTER_RIGHT_REQUIRED_PX = { width: 604, height: 425 };
 const CATEGORY_IMAGE_REQUIRED_PX = { width: 270, height: 208 };
 
 export default function OnboardingStep() {
+    const LS_FORM_DATA = 'onboardingFormData';
+    const LS_CATEGORIES = 'onboardingCategories';
+    const LS_ITEMS = 'onboardingItems';
+    const LS_MAX_REACHED = 'onboardingMaxStepReached';
+    const LS_CURRENT_STEP = 'onboardingCurrentStep';
+
     const navigate = useNavigate();
+    const dispatch = useDispatch();
+    const onboardingStep = useSelector((state) => state.auth.onboardingStep);
+    const accessToken = useSelector((state) => state.auth.accessToken);
     const nextCategoryIdRef = useRef(1);
     const nextItemIdRef = useRef(1);
 
     const createCategoryId = () => `category-${nextCategoryIdRef.current++}`;
     const createItemId = () => `item-${nextItemIdRef.current++}`;
-    const [currentStep, setCurrentStep] = useState(1);
+    const parseStepNumber = (value) => {
+        if (typeof value !== 'string') return 1;
+        const match = value.match(/^step(\d+)$/);
+        if (!match) return 1;
+        const n = Number(match[1]);
+        if (!Number.isFinite(n)) return 1;
+        return Math.min(10, Math.max(1, n));
+    };
+
+    const clampStepNumber = (value) => Math.min(10, Math.max(1, Number(value) || 1));
+
+    const readJson = (key) => {
+        try {
+            const raw = localStorage.getItem(key);
+            if (!raw) return null;
+            return JSON.parse(raw);
+        } catch {
+            return null;
+        }
+    };
+
+    const readStepNumber = (key) => {
+        try {
+            const raw = localStorage.getItem(key);
+            const n = Number(raw);
+            if (!Number.isFinite(n)) return null;
+            return clampStepNumber(n);
+        } catch {
+            return null;
+        }
+    };
+
+    const initialCurrentStep = (() => {
+        const fromRedux = parseStepNumber(onboardingStep);
+        const fromStorage = readStepNumber(LS_CURRENT_STEP);
+        return clampStepNumber(Math.max(fromRedux, fromStorage || 1));
+    })();
+
+    const initialMaxReachedStep = (() => {
+        const fromStorage = readStepNumber(LS_MAX_REACHED);
+        return clampStepNumber(Math.max(initialCurrentStep, fromStorage || 1));
+    })();
+
+    const [currentStep, setCurrentStep] = useState(initialCurrentStep);
+    const [maxReachedStep, setMaxReachedStep] = useState(initialMaxReachedStep);
     const [showPreviewModal, setShowPreviewModal] = useState(false);
     const [showAddRewardModal, setShowAddRewardModal] = useState(false);
     const [editingReward, setEditingReward] = useState(null);
+    const [rewards, setRewards] = useState([]);
+    const [loadingRewards, setLoadingRewards] = useState(false);
+    const [rewardsErrorLines, setRewardsErrorLines] = useState([]);
+    const emptyRewardForm = {
+        rewardName: '',
+        pointsRequired: '',
+        menuItemId: '',
+        description: '',
+        rewardImage: '',
+        isActive: true,
+    };
+    const [rewardForm, setRewardForm] = useState(emptyRewardForm);
+    const [savingReward, setSavingReward] = useState(false);
+    const [rewardErrorLines, setRewardErrorLines] = useState([]);
+    const [menuItems, setMenuItems] = useState([]);
+    const [loadingMenuItems, setLoadingMenuItems] = useState(false);
+    const [menuItemsErrorLines, setMenuItemsErrorLines] = useState([]);
     const [categoryImage, setCategoryImage] = useState(null);
     const [categoryImagePreviewUrl, setCategoryImagePreviewUrl] = useState('');
-    const [categories, setCategories] = useState([]);
-    const [items, setItems] = useState([]);
+    const [categories, setCategories] = useState(() => {
+        const saved = readJson(LS_CATEGORIES);
+        return Array.isArray(saved) ? saved : [];
+    });
+    const [items, setItems] = useState(() => {
+        const saved = readJson(LS_ITEMS);
+        return Array.isArray(saved) ? saved : [];
+    });
     const [editingCategoryId, setEditingCategoryId] = useState(null);
     const [showAddItemModal, setShowAddItemModal] = useState(false);
     const [itemImage, setItemImage] = useState(null);
@@ -60,9 +138,6 @@ export default function OnboardingStep() {
         price: '',
         description: '',
         prepTimeMinutes: '15',
-        available: true,
-        tags: [],
-        addOns: [{ name: '', price: '' }],
     });
 
     const [brandingFiles, setBrandingFiles] = useState({
@@ -185,9 +260,6 @@ export default function OnboardingStep() {
             price: '',
             description: '',
             prepTimeMinutes: '15',
-            available: true,
-            tags: [],
-            addOns: [{ name: '', price: '' }],
         });
     };
 
@@ -201,18 +273,19 @@ export default function OnboardingStep() {
         const trimmedPrice = itemForm.price.trim();
         if (!trimmedName || !trimmedPrice || !itemForm.categoryId) return;
 
+        const priceValue = Number(trimmedPrice);
+        if (!Number.isFinite(priceValue)) return;
+
+        const prepMinutesValue = Number(itemForm.prepTimeMinutes.trim());
+        if (!Number.isFinite(prepMinutesValue)) return;
+
         const newItem = {
             id: createItemId(),
             categoryId: itemForm.categoryId,
             name: trimmedName,
-            price: trimmedPrice,
+            price: priceValue,
             description: itemForm.description.trim(),
-            prepTimeMinutes: itemForm.prepTimeMinutes.trim(),
-            available: !!itemForm.available,
-            tags: itemForm.tags,
-            addOns: itemForm.addOns
-                .map((a) => ({ name: a.name.trim(), price: a.price.trim() }))
-                .filter((a) => a.name || a.price),
+            prepTimeMinutes: prepMinutesValue,
             imageName: itemImage?.name || '',
         };
 
@@ -223,17 +296,34 @@ export default function OnboardingStep() {
     };
 
     // Form States
-    const [formData, setFormData] = useState({
+    const defaultFormData = {
         // Step 1
-        fullName: 'romesa',
-        email: 'john@burgerhouse.com',
+        fullName: '',
+        email: '',
         twoFactor: false,
         companyName: '',
+        companyLogoUrl: '',
+        restaurantId: '',
         // Step 2
-        contact: '69696',
+        websiteHeaderUrl: '',
+        websiteFooterLeftUrl: '',
+        websiteFooterRightUrl: '',
+        contact: '',
         altPhone: '',
-        address: '123 Main Street, New York, NY 10001',
+        address: '',
         companyLocation: '',
+        stateRegion: '',
+        postalCode: '',
+        country: 'USA',
+        openingHours: {
+            monday: { open: '', close: '' },
+            tuesday: { open: '', close: '' },
+            wednesday: { open: '', close: '' },
+            thursday: { open: '', close: '' },
+            friday: { open: '', close: '' },
+            saturday: { open: '', close: '' },
+            sunday: { open: '', close: '' },
+        },
         prepTime: '15 minutes',
         enableDelivery: true,
         enablePickup: false,
@@ -247,7 +337,7 @@ export default function OnboardingStep() {
         // Step 4
         autoAccept: false,
         timeLimit: '5',
-        minOrder: '10.00',
+        minOrder: '',
         allowInstructions: true,
         cancelPolicy: '',
         // Step 5
@@ -278,10 +368,47 @@ export default function OnboardingStep() {
         autoReply: 'Thank you! Your order is being prepared.',
         chatGreeting: '',
         chatHours: '9:00 AM - 10:00 PM',
+    };
+
+    const mergeOpeningHours = (saved) => {
+        const merged = { ...defaultFormData.openingHours };
+        const source = saved && typeof saved === 'object' ? saved : {};
+        for (const key of Object.keys(merged)) {
+            const day = source[key];
+            if (day && typeof day === 'object') {
+                merged[key] = {
+                    open: typeof day.open === 'string' ? day.open : merged[key].open,
+                    close: typeof day.close === 'string' ? day.close : merged[key].close,
+                };
+            }
+        }
+        return merged;
+    };
+
+    const [formData, setFormData] = useState(() => {
+        const saved = readJson(LS_FORM_DATA);
+        if (!saved || typeof saved !== 'object') return defaultFormData;
+        return {
+            ...defaultFormData,
+            ...saved,
+            openingHours: mergeOpeningHours(saved.openingHours),
+        };
     });
 
-    const handleNext = () => setCurrentStep(prev => Math.min(prev + 1, 10));
-    const handlePrev = () => setCurrentStep(prev => Math.max(prev - 1, 1));
+    const goToStep = (nextStep) => {
+        const normalized = clampStepNumber(nextStep);
+        setCurrentStep(normalized);
+        setMaxReachedStep((prev) => Math.max(prev, normalized));
+        dispatch(setOnboardingStep(`step${normalized}`));
+    };
+
+    const handleNext = () => goToStep(currentStep + 1);
+    const handlePrev = () => goToStep(currentStep - 1);
+
+    const handleCompleteSetup = () => {
+        dispatch(setOnboardingStep('dashboard'));
+        navigate('/admin-dashboard');
+    };
 
     const renderLeftSection = () => {
         const step = steps[currentStep > 9 ? 8 : currentStep - 1];
@@ -318,6 +445,375 @@ export default function OnboardingStep() {
         );
     };
 
+    useEffect(() => {
+        try {
+            localStorage.setItem(LS_FORM_DATA, JSON.stringify(formData));
+        } catch {
+            void 0;
+        }
+    }, [formData]);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(LS_CATEGORIES, JSON.stringify(categories));
+        } catch {
+            void 0;
+        }
+    }, [categories]);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(LS_ITEMS, JSON.stringify(items));
+        } catch {
+            void 0;
+        }
+    }, [items]);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(LS_MAX_REACHED, String(maxReachedStep));
+        } catch {
+            void 0;
+        }
+    }, [maxReachedStep]);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(LS_CURRENT_STEP, String(currentStep));
+        } catch {
+            void 0;
+        }
+    }, [currentStep]);
+
+    useEffect(() => {
+        const parseSuffixInt = (value, prefix) => {
+            if (typeof value !== 'string') return null;
+            if (!value.startsWith(prefix)) return null;
+            const n = Number(value.slice(prefix.length));
+            return Number.isFinite(n) ? n : null;
+        };
+
+        const maxCategoryId = categories.reduce((acc, c) => {
+            const n = parseSuffixInt(c?.id, 'category-');
+            return n ? Math.max(acc, n) : acc;
+        }, 0);
+
+        const maxItemId = items.reduce((acc, i) => {
+            const n = parseSuffixInt(i?.id, 'item-');
+            return n ? Math.max(acc, n) : acc;
+        }, 0);
+
+        nextCategoryIdRef.current = Math.max(nextCategoryIdRef.current, maxCategoryId + 1);
+        nextItemIdRef.current = Math.max(nextItemIdRef.current, maxItemId + 1);
+    }, [categories, items]);
+
+    const toValidationErrorLines = (data) => {
+        if (!data || typeof data !== 'object') return [];
+        if (!Array.isArray(data.detail)) return [];
+        return data.detail
+            .map((item) => {
+                if (!item || typeof item !== 'object') return '';
+                const loc = Array.isArray(item.loc) ? item.loc : [];
+                const field = typeof loc.at(-1) === 'string' ? loc.at(-1) : '';
+                const msg = typeof item.msg === 'string' ? item.msg : '';
+                const label = field ? `${field}: ` : '';
+                return `${label}${msg}`.trim();
+            })
+            .filter(Boolean);
+    };
+
+    const isErrorPayload = (data) => {
+        if (!data || typeof data !== 'object') return false;
+        if (typeof data.code !== 'string') return false;
+        const code = data.code.trim().toUpperCase();
+        if (!code) return false;
+        if (code.startsWith('ERROR_')) return true;
+        if (code.endsWith('_400') || code.endsWith('_401') || code.endsWith('_403') || code.endsWith('_404') || code.endsWith('_422') || code.endsWith('_500')) return true;
+        if (data.data === null && typeof data.message === 'string' && data.message.trim()) return true;
+        return false;
+    };
+
+    const extractRewardsList = (data) => {
+        if (!data) return [];
+        if (Array.isArray(data)) return data;
+        if (typeof data !== 'object') return [];
+        if (Array.isArray(data.data)) return data.data;
+        if (data.data && typeof data.data === 'object' && Array.isArray(data.data.rewards)) return data.data.rewards;
+        if (Array.isArray(data.rewards)) return data.rewards;
+        return [];
+    };
+
+    const extractMenuItemsList = (data) => {
+        if (!data || typeof data !== 'object') return [];
+
+        const categories =
+            Array.isArray(data.data?.data?.categories)
+                ? data.data.data.categories
+                : Array.isArray(data.data?.categories)
+                    ? data.data.categories
+                    : Array.isArray(data.categories)
+                        ? data.categories
+                        : [];
+
+        if (!Array.isArray(categories)) return [];
+
+        return categories.flatMap((category) => {
+            if (!category || typeof category !== 'object') return [];
+            const categoryName = typeof category.name === 'string' ? category.name : '';
+            const dishes = Array.isArray(category.dishes) ? category.dishes : [];
+            return dishes
+                .map((dish) => {
+                    if (!dish || typeof dish !== 'object') return null;
+                    return { ...dish, __categoryName: categoryName };
+                })
+                .filter(Boolean);
+        });
+    };
+
+    const mapReward = (raw) => {
+        if (!raw || typeof raw !== 'object') return null;
+        const rewardId =
+            typeof raw.reward_id === 'string'
+                ? raw.reward_id
+                : typeof raw.id === 'string'
+                    ? raw.id
+                    : '';
+        const rewardName =
+            typeof raw.reward_name === 'string'
+                ? raw.reward_name
+                : typeof raw.name === 'string'
+                    ? raw.name
+                    : '';
+        if (!rewardId || !rewardName) return null;
+        const menuItemId =
+            typeof raw.menu_item_id === 'string'
+                ? raw.menu_item_id
+                : typeof raw.menuItemId === 'string'
+                    ? raw.menuItemId
+                    : '';
+        const description = typeof raw.description === 'string' ? raw.description : '';
+        const rewardImage = typeof raw.reward_image === 'string' ? raw.reward_image.trim() : '';
+        const isActive = typeof raw.is_active === 'boolean' ? raw.is_active : true;
+        const pointsRequired =
+            typeof raw.points_required === 'number'
+                ? raw.points_required
+                : typeof raw.points_required === 'string'
+                    ? Number(raw.points_required)
+                    : typeof raw.pointsRequired === 'number'
+                        ? raw.pointsRequired
+                        : 0;
+        return {
+            reward_id: rewardId,
+            reward_name: rewardName,
+            menu_item_id: menuItemId,
+            description,
+            reward_image: rewardImage,
+            is_active: isActive,
+            points_required: Number.isFinite(pointsRequired) ? pointsRequired : 0,
+        };
+    };
+
+    const mapMenuItem = (raw) => {
+        if (!raw || typeof raw !== 'object') return null;
+        const id = typeof raw.id === 'string' ? raw.id : '';
+        const name = typeof raw.name === 'string' ? raw.name : '';
+        const categoryName = typeof raw.__categoryName === 'string' ? raw.__categoryName : '';
+        if (!id || !name) return null;
+        return { id, name, categoryName, raw };
+    };
+
+    const fetchRewards = useCallback(async (restaurantId) => {
+        if (!restaurantId) return;
+        setLoadingRewards(true);
+        setRewardsErrorLines([]);
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step5/rewards/${restaurantId}`;
+            const res = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                },
+            });
+
+            const contentType = res.headers.get('content-type');
+            const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+            if (!res.ok || isErrorPayload(data)) {
+                const lines = toValidationErrorLines(data);
+                setRewardsErrorLines(lines.length ? lines : ['Failed to load rewards']);
+                return;
+            }
+
+            const list = extractRewardsList(data).map(mapReward).filter(Boolean);
+            setRewards(list);
+        } catch (e) {
+            const message = typeof e?.message === 'string' ? e.message : 'Failed to load rewards';
+            setRewardsErrorLines([message]);
+        } finally {
+            setLoadingRewards(false);
+        }
+    }, [accessToken]);
+
+    const fetchMenuItems = useCallback(async (restaurantId) => {
+        if (!restaurantId) return;
+        setLoadingMenuItems(true);
+        setMenuItemsErrorLines([]);
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/${restaurantId}/menu?limit=100`;
+            const res = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                },
+            });
+
+            const contentType = res.headers.get('content-type');
+            const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+            console.log('Onboarding Step5 menu items response:', { ok: res.ok, status: res.status, data });
+
+            if (!res.ok || isErrorPayload(data)) {
+                const lines = toValidationErrorLines(data);
+                setMenuItemsErrorLines(lines.length ? lines : ['Failed to load menu items']);
+                return;
+            }
+
+            const list = extractMenuItemsList(data).map(mapMenuItem).filter(Boolean);
+            setMenuItems(list);
+        } catch (e) {
+            const message = typeof e?.message === 'string' ? e.message : 'Failed to load menu items';
+            setMenuItemsErrorLines([message]);
+        } finally {
+            setLoadingMenuItems(false);
+        }
+    }, [accessToken]);
+
+    useEffect(() => {
+        if (currentStep !== 5) return;
+        const restaurantId = formData.restaurantId?.trim();
+        if (!restaurantId) return;
+        fetchRewards(restaurantId);
+    }, [currentStep, fetchRewards, formData.restaurantId]);
+
+    useEffect(() => {
+        if (!showAddRewardModal) return;
+        const restaurantId = formData.restaurantId?.trim();
+        if (!restaurantId) return;
+        if (menuItems.length) return;
+        fetchMenuItems(restaurantId);
+    }, [fetchMenuItems, formData.restaurantId, menuItems.length, showAddRewardModal]);
+
+    useEffect(() => {
+        if (!showAddRewardModal) return;
+        setRewardErrorLines([]);
+        if (editingReward) {
+            setRewardForm({
+                rewardName: editingReward.reward_name || '',
+                pointsRequired: String(editingReward.points_required ?? ''),
+                menuItemId: editingReward.menu_item_id || '',
+                description: editingReward.description || '',
+                rewardImage: editingReward.reward_image || '',
+                isActive: typeof editingReward.is_active === 'boolean' ? editingReward.is_active : true,
+            });
+            return;
+        }
+        setRewardForm({
+            rewardName: '',
+            pointsRequired: '',
+            menuItemId: '',
+            description: '',
+            rewardImage: '',
+            isActive: true,
+        });
+    }, [editingReward, showAddRewardModal]);
+
+    const handleSaveReward = async () => {
+        const restaurantId = formData.restaurantId?.trim();
+        if (!restaurantId) {
+            setRewardErrorLines(['Restaurant not found. Please complete Step 1 first.']);
+            return;
+        }
+        if (savingReward) return;
+
+        const pointsText = rewardForm.pointsRequired.trim();
+        const pointsValue = Number(pointsText);
+        if (!rewardForm.rewardName.trim() || !rewardForm.menuItemId || !pointsText || !Number.isFinite(pointsValue)) {
+            setRewardErrorLines(['Please fill required fields']);
+            return;
+        }
+
+        setSavingReward(true);
+        setRewardErrorLines([]);
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step5/reward`;
+            const payload = {
+                restaurant_id: restaurantId,
+                reward_name: rewardForm.rewardName.trim(),
+                menu_item_id: rewardForm.menuItemId,
+                description: rewardForm.description.trim(),
+                reward_image: rewardForm.rewardImage.trim(),
+                is_active: !!rewardForm.isActive,
+                points_required: Math.trunc(pointsValue),
+            };
+            if (editingReward?.reward_id) payload.reward_id = editingReward.reward_id;
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                },
+                body: JSON.stringify(payload),
+            });
+
+            const contentType = res.headers.get('content-type');
+            const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+            if (!res.ok || isErrorPayload(data)) {
+                const lines = toValidationErrorLines(data);
+                if (lines.length) {
+                    setRewardErrorLines(lines);
+                } else if (typeof data === 'string' && data.trim()) {
+                    setRewardErrorLines([data.trim()]);
+                } else if (data && typeof data === 'object') {
+                    const message =
+                        typeof data.message === 'string'
+                            ? data.message
+                            : typeof data.error === 'string'
+                                ? data.error
+                                : 'Request failed';
+                    setRewardErrorLines([message]);
+                } else {
+                    setRewardErrorLines(['Request failed']);
+                }
+                return;
+            }
+
+            await fetchRewards(restaurantId);
+            setShowAddRewardModal(false);
+            setEditingReward(null);
+        } catch (e) {
+            const message = typeof e?.message === 'string' ? e.message : 'Request failed';
+            setRewardErrorLines([message]);
+        } finally {
+            setSavingReward(false);
+        }
+    };
+
+    const rewardPointsText = rewardForm.pointsRequired.trim();
+    const canSaveReward =
+        !!rewardForm.rewardName.trim() &&
+        !!rewardForm.menuItemId &&
+        !!rewardPointsText &&
+        Number.isFinite(Number(rewardPointsText));
+
     const renderRightSection = () => {
         switch (currentStep) {
             case 1: return (
@@ -345,6 +841,7 @@ export default function OnboardingStep() {
             case 3: return (
                 <Step3
                     categories={categories}
+                    setCategories={setCategories}
                     items={items}
                     editingCategoryId={editingCategoryId}
                     formData={formData}
@@ -364,6 +861,7 @@ export default function OnboardingStep() {
                     closeAddItemModal={closeAddItemModal}
                     itemForm={itemForm}
                     setItemForm={setItemForm}
+                    itemImage={itemImage}
                     itemImagePreviewUrl={itemImagePreviewUrl}
                     setItemImageFile={setItemImageFile}
                     saveItem={saveItem}
@@ -376,6 +874,10 @@ export default function OnboardingStep() {
                     setFormData={setFormData}
                     setEditingReward={setEditingReward}
                     setShowAddRewardModal={setShowAddRewardModal}
+                    rewards={rewards}
+                    loadingRewards={loadingRewards}
+                    rewardsErrorLines={rewardsErrorLines}
+                    refreshRewards={fetchRewards}
                     handlePrev={handlePrev}
                     handleNext={handleNext}
                 />
@@ -384,7 +886,7 @@ export default function OnboardingStep() {
             case 7: return <Step7 formData={formData} setFormData={setFormData} handlePrev={handlePrev} handleNext={handleNext} />;
             case 8: return <Step8 formData={formData} setFormData={setFormData} handlePrev={handlePrev} handleNext={handleNext} />;
             case 9: return <Step9 handlePrev={handlePrev} handleNext={handleNext} />;
-            case 10: return <Step10 setShowPreviewModal={setShowPreviewModal} navigate={navigate} handlePrev={handlePrev} />;
+            case 10: return <Step10 setShowPreviewModal={setShowPreviewModal} onComplete={handleCompleteSetup} handlePrev={handlePrev} />;
             default: return null;
         }
     };
@@ -410,16 +912,21 @@ export default function OnboardingStep() {
                     <div className="flex items-start justify-between min-w-[1000px] px-4">
                         {steps.map((step, index) => (
                             <React.Fragment key={step.id}>
-                                <div className="flex flex-col items-center flex-1 cursor-pointer group" onClick={() => setCurrentStep(step.id)}>
+                                <div
+                                    className={`flex flex-col items-center flex-1 group ${step.id <= Math.min(9, maxReachedStep) ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                                    onClick={() => {
+                                        if (step.id <= Math.min(9, maxReachedStep)) goToStep(step.id);
+                                    }}
+                                >
                                     <div className={`w-[40px] h-[40px] rounded-full flex items-center justify-center text-[15px] font-bold transition-all duration-300 border
-                                        ${(currentStep === step.id || (currentStep > 9 && step.id === 9)) ? 'bg-primary text-white border-primary shadow-lg' : currentStep > step.id ? 'bg-primary text-white border-primary' : 'bg-white text-[#9CA3AF] border-gray-200'}`}>
-                                        {(currentStep > step.id && step.id < 9) || (currentStep > 9 && step.id === 9) ? <Check size={18} strokeWidth={3} /> : step.id}
+                                        ${(currentStep === step.id || (currentStep > 9 && step.id === 9)) ? 'bg-primary text-white border-primary shadow-lg' : (step.id < 9 ? maxReachedStep > step.id : maxReachedStep > 9) ? 'bg-primary text-white border-primary' : 'bg-white text-[#9CA3AF] border-gray-200'}`}>
+                                        {(step.id < 9 ? maxReachedStep > step.id : maxReachedStep > 9) ? <Check size={18} strokeWidth={3} /> : step.id}
                                     </div>
                                     <span className={`mt-3 text-[12px] font-[500] text-center w-24 leading-tight ${(currentStep === step.id || (currentStep > 9 && step.id === 9)) ? 'text-primary' : 'text-[#9CA3AF]'}`}>{step.name}</span>
                                 </div>
                                 {index < steps.length - 1 && (
                                     <div className="flex-1 h-[2px] bg-gray-300 mt-5 mx-2 min-w-[20px] relative">
-                                        <div className={`absolute left-0 top-0 h-full bg-primary transition-all duration-500 ${currentStep > index + 1 ? 'w-full' : 'w-0'}`} />
+                                        <div className={`absolute left-0 top-0 h-full bg-primary transition-all duration-500 ${maxReachedStep > index + 1 ? 'w-full' : 'w-0'}`} />
                                     </div>
                                 )}
                             </React.Fragment>
@@ -547,24 +1054,44 @@ export default function OnboardingStep() {
                             {/* Reward Name */}
                             <div className="space-y-1">
                                 <label className="block text-[13px] font-[500] text-[#1A1A1A]">Reward Name</label>
-                                <input type="text" defaultValue={editingReward?.name || ''} placeholder="e.g., Free Ice Cream" className="onboarding-input !h-[44px] !rounded-[8px] !text-[13px]" />
+                                <input
+                                    type="text"
+                                    value={rewardForm.rewardName}
+                                    onChange={(e) => setRewardForm((prev) => ({ ...prev, rewardName: e.target.value }))}
+                                    placeholder="e.g., Free Ice Cream"
+                                    className="onboarding-input !h-[44px] !rounded-[8px] !text-[13px]"
+                                />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 {/* Points Required */}
                                 <div className="space-y-1">
                                     <label className="block text-[13px] font-[500] text-[#1A1A1A]">Points Required</label>
-                                    <input type="text" defaultValue={editingReward?.points || ''} placeholder="e.g., 175" className="onboarding-input !h-[44px] !rounded-[8px] !text-[13px]" />
+                                    <input
+                                        type="text"
+                                        value={rewardForm.pointsRequired}
+                                        onChange={(e) => setRewardForm((prev) => ({ ...prev, pointsRequired: e.target.value }))}
+                                        placeholder="e.g., 175"
+                                        className="onboarding-input !h-[44px] !rounded-[8px] !text-[13px]"
+                                    />
                                 </div>
 
                                 {/* Choose Menu Item */}
                                 <div className="space-y-1">
                                     <label className="block text-[13px] font-[500] text-[#1A1A1A]">Choose Menu Item</label>
                                     <div className="relative">
-                                        <select className="onboarding-input !h-[44px] !rounded-[8px] !text-[13px] appearance-none">
-                                            <option value="">Select an item...</option>
-                                            <option value="1">Burger</option>
-                                            <option value="2">Fries</option>
+                                        <select
+                                            value={rewardForm.menuItemId}
+                                            onChange={(e) => setRewardForm((prev) => ({ ...prev, menuItemId: e.target.value }))}
+                                            disabled={loadingMenuItems}
+                                            className="onboarding-input !h-[44px] !rounded-[8px] !text-[13px] appearance-none"
+                                        >
+                                            <option value="">{loadingMenuItems ? 'Loading items...' : 'Select an item...'}</option>
+                                            {menuItems.map((item) => (
+                                                <option key={item.id} value={item.id}>
+                                                    {item.categoryName ? `${item.name} • ${item.categoryName}` : item.name}
+                                                </option>
+                                            ))}
                                         </select>
                                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
                                     </div>
@@ -574,21 +1101,32 @@ export default function OnboardingStep() {
                             {/* Description */}
                             <div className="space-y-1">
                                 <label className="block text-[13px] font-[500] text-[#1A1A1A]">Description</label>
-                                <textarea defaultValue={editingReward?.desc || ''} placeholder="Brief description of the reward" className="onboarding-input !h-[70px] !rounded-[8px] !text-[13px] py-2 resize-none" />
+                                <textarea
+                                    value={rewardForm.description}
+                                    onChange={(e) => setRewardForm((prev) => ({ ...prev, description: e.target.value }))}
+                                    placeholder="Brief description of the reward"
+                                    className="onboarding-input !h-[70px] !rounded-[8px] !text-[13px] py-2 resize-none"
+                                />
                             </div>
 
                             {/* Reward Image */}
                             <div className="space-y-1">
                                 <label className="block text-[13px] font-[500] text-[#1A1A1A]">Reward Image (optional)</label>
                                 <div className="flex gap-4">
-                                    <div className="w-[56px] h-[56px] bg-[#F6F8F9] rounded-[10px] border border-gray-200 border-dashed flex items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-50 transition-colors shrink-0">
-                                        {editingReward?.icon ? (
-                                            <span className="text-[24px]">{editingReward.icon}</span>
+                                    <div className="w-[56px] h-[56px] bg-[#F6F8F9] rounded-[10px] border border-gray-200 border-dashed flex items-center justify-center text-gray-400 overflow-hidden shrink-0">
+                                        {rewardForm.rewardImage?.trim() ? (
+                                            <img src={rewardForm.rewardImage.trim()} alt="Reward" className="w-full h-full object-cover" />
                                         ) : (
                                             <Image size={20} />
                                         )}
                                     </div>
-                                    <input type="text" placeholder="Image URL" className="onboarding-input !h-[56px] flex-1 !rounded-[8px] !text-[13px]" />
+                                    <input
+                                        type="text"
+                                        value={rewardForm.rewardImage}
+                                        onChange={(e) => setRewardForm((prev) => ({ ...prev, rewardImage: e.target.value }))}
+                                        placeholder="Image URL"
+                                        className="onboarding-input !h-[56px] flex-1 !rounded-[8px] !text-[13px]"
+                                    />
                                 </div>
                             </div>
 
@@ -598,9 +1136,50 @@ export default function OnboardingStep() {
                                     <p className="text-[13px] font-[500] text-[#1A1A1A]">Make this reward active</p>
                                     <p className="text-[11px] text-[#6B7280]">Customers can immediately redeem this reward</p>
                                 </div>
-                                <Toggle active={true} onClick={() => { }} />
+                                <Toggle active={rewardForm.isActive} onClick={() => setRewardForm((prev) => ({ ...prev, isActive: !prev.isActive }))} />
                             </div>
                         </div>
+
+                        {!!rewardErrorLines.length && (
+                            <div className="px-5 pb-3">
+                                <div className="bg-[#F751511F] rounded-[12px] py-[10px] px-[12px]">
+                                    <div className="flex items-start gap-2">
+                                        <AlertCircle size={18} className="text-[#EB5757] mt-[2px]" />
+                                        <div className="space-y-1">
+                                            {rewardErrorLines.map((line, idx) => (
+                                                <p key={idx} className="text-[12px] text-[#47464A] font-normal">
+                                                    {line}
+                                                </p>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {!!menuItemsErrorLines.length && (
+                            <div className="px-5 pb-3">
+                                <div className="bg-[#F751511F] rounded-[12px] py-[10px] px-[12px]">
+                                    <div className="flex items-start gap-2">
+                                        <AlertCircle size={18} className="text-[#EB5757] mt-[2px]" />
+                                        <div className="space-y-1">
+                                            {menuItemsErrorLines.map((line, idx) => (
+                                                <p key={idx} className="text-[12px] text-[#47464A] font-normal">
+                                                    {line}
+                                                </p>
+                                            ))}
+                                            <button
+                                                type="button"
+                                                onClick={() => fetchMenuItems(formData.restaurantId?.trim())}
+                                                className="text-[12px] text-primary font-[500] underline"
+                                            >
+                                                Retry
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Modal Footer */}
                         <div className="p-5 pt-0 grid grid-cols-2 gap-3 mt-1">
@@ -611,10 +1190,11 @@ export default function OnboardingStep() {
                                 Cancel
                             </button>
                             <button
-                                onClick={() => setShowAddRewardModal(false)}
-                                className="h-[44px] bg-[#99E5D9] text-white font-[500] rounded-[10px] hover:bg-primary transition-colors text-[13px]"
+                                disabled={!canSaveReward || savingReward}
+                                onClick={handleSaveReward}
+                                className={`h-[44px] font-[500] rounded-[10px] transition-colors text-[13px] ${(!canSaveReward || savingReward) ? 'bg-[#E5E7EB] text-[#6B6B6B]' : 'bg-primary text-white hover:bg-[#20a38b]'}`}
                             >
-                                {editingReward ? 'Update Reward' : 'Save Reward'}
+                                {savingReward ? 'Saving...' : editingReward ? 'Update Reward' : 'Save Reward'}
                             </button>
                         </div>
                     </div>
@@ -628,8 +1208,10 @@ export default function OnboardingStep() {
                 .onboarding-textarea { width: 100%; height: 100px; padding: 10px 20px; background: white; border: 1px solid #E5E7EB; border-radius: 14px; font-size: 14px; font-weight: 500; outline: none; transition: all 0.2s; }
                 @media (min-width: 640px) { .onboarding-textarea { font-size: 15px; } }
                 .onboarding-textarea:focus { border-color: var(--color-primary); box-shadow: 0 0 0 4px rgba(36, 185, 158, 0.05); }
-                .next-btn { height: 45px; min-width: 103px; padding: 0 32px; background: #E5E7EB; color: #6B7280; font-weight: 500; font-size: 14px; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; border: none; }
-                .prev-btn { height: 42px; min-width: 124px; padding: 0 32px; background: white; border: 1px solid #E5E7EB; color: #6B6B6B; font-weight: 500; font-size: 14px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+                .next-btn { height: 45px; min-width: 103px; padding: 0px 16px 0px 20px; font-weight: 500; font-size: 14px; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 10px; border: none; }
+                .next-btn:disabled { background: #E5E7EB; color: #6B7280; cursor: not-allowed; }
+                .next-btn:not(:disabled) { background: #24B99E; color: white; cursor: pointer; }
+                .prev-btn { height: 45px; min-width: 20px; padding: 0px 20px 0px 12px; background: white; border: 1px solid #E5E7EB; color: #6B6B6B; font-weight: 500; font-size: 14px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
                 
                 .custom-scrollbar::-webkit-scrollbar { width: 6px; }
                 .custom-scrollbar::-webkit-scrollbar-track { background: #F1F5F9; border-radius: 10px; }
