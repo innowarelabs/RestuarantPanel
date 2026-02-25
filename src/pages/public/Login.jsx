@@ -71,8 +71,7 @@ function Login() {
             if (data.code !== "AUTH_200") throw new Error(data.message || "Login failed. Please try again.");
 
             const sessionData = data.data;
-            // const onboardingStep = sessionData?.goto || "step1";
-            const onboardingStep = "step1";
+            const onboardingStep = sessionData?.goto || "step1";
 
             dispatch(
                 setSession({
