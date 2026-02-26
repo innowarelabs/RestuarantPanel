@@ -553,12 +553,12 @@ export default function Step3({
                                     ) : null}
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
-                                    <button type="button" onClick={() => startEditCategory(category)} className="p-2 hover:bg-gray-100 rounded-lg">
+                                    {/* <button type="button" onClick={() => startEditCategory(category)} className="p-2 hover:bg-gray-100 rounded-lg">
                                         <Edit2 size={16} className="text-gray-400" />
-                                    </button>
-                                    <button type="button" onClick={() => deleteCategory(category.id)} className="p-2 hover:bg-red-50 rounded-lg">
+                                    </button> */}
+                                    {/* <button type="button" onClick={() => deleteCategory(category.id)} className="p-2 hover:bg-red-50 rounded-lg">
                                         <Trash2 size={16} className="text-[#EF4444]" />
-                                    </button>
+                                    </button> */}
                                 </div>
                             </div>
                         ))}
@@ -751,7 +751,7 @@ export default function Step3({
                                         placeholder="Describe your item..."
                                         value={itemForm.description}
                                         onChange={(e) => setItemForm((prev) => ({ ...prev, description: e.target.value }))}
-                                        className="onboarding-input !h-[120px] !rounded-[12px] py-4 resize-none"
+                                        className="onboarding-textarea !h-[120px] !rounded-[12px] py-4 resize-none"
                                     />
                                 </div>
 

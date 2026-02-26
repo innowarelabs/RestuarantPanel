@@ -130,7 +130,6 @@ export default function Step2({
         headerOk &&
         footerLeftOk &&
         footerRightOk &&
-        !!formData.contact?.trim() &&
         !!formData.address?.trim() &&
         !!formData.prepTime?.trim() &&
         openingHoursValid;
@@ -212,7 +211,6 @@ export default function Step2({
                     country: formData.country || 'USA',
                     website_header_images: [headerUrl],
                     website_footer_images: [footerLeftUrl, footerRightUrl],
-                    phone_number: formData.contact,
                     alternate_contact: formData.altPhone,
                     opening_hours: openingHours,
                     average_preparation_time: formData.prepTime,
@@ -400,16 +398,6 @@ export default function Step2({
                         )}
                     </div>
                 </div>
-            </div>
-            <div>
-                <label className="block text-[14px] font-[500] text-[#1A1A1A] mb-2">Restaurant Contact Number <span className="text-red-500">*</span></label>
-                <input
-                    type="text"
-                    value={formData.contact}
-                    onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
-                    placeholder="+1 (555) 123-4567"
-                    className="onboarding-input"
-                />
             </div>
             <div>
                 <label className="block text-[14px] font-[500] text-[#1A1A1A] mb-2">Alternate Phone</label>

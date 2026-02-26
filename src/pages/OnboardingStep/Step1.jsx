@@ -1,5 +1,5 @@
 import { AlertCircle, ChevronRight, Image } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 
 export default function Step1({
@@ -12,17 +12,98 @@ export default function Step1({
     const accessToken = useSelector((state) => state.auth.accessToken);
     const [submitting, setSubmitting] = useState(false);
     const [errorLines, setErrorLines] = useState([]);
-
-    const logoOk = !!formData.companyLogoUrl?.trim() || !!brandingFiles.companyLogo;
-    const isValid =
-        !!formData.fullName?.trim() &&
-        !!formData.companyName?.trim() &&
-        logoOk;
+    const initialStep1Ref = useRef(null);
+    const prefilledRef = useRef(false);
 
     const normalizeUrl = (value) => {
         if (typeof value !== 'string') return '';
         return value.trim().replace(/^["'`]+|["'`]+$/g, '').trim();
     };
+
+    useEffect(() => {
+        if (!accessToken) return;
+
+        const fetchStep1 = async () => {
+            try {
+                const baseUrl = import.meta.env.VITE_BACKEND_URL;
+                if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+
+                const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step1`;
+                const res = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${accessToken}`,
+                    },
+                });
+
+                const contentType = res.headers.get('content-type');
+                const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+                console.log('Onboarding Step1 GET response:', { ok: res.ok, status: res.status, data });
+
+                const extractStep1Payload = (raw) => {
+                    if (!raw) return null;
+                    if (typeof raw === 'string') {
+                        const text = raw.trim();
+                        if (!text) return null;
+                        try {
+                            const parsed = JSON.parse(text);
+                            return extractStep1Payload(parsed);
+                        } catch {
+                            return null;
+                        }
+                    }
+
+                    if (typeof raw !== 'object') return null;
+                    const nested = raw?.data?.data && typeof raw.data.data === 'object' ? raw.data.data : null;
+                    const top = raw?.data && typeof raw.data === 'object' ? raw.data : null;
+                    return nested || top || raw;
+                };
+
+                const step1 = extractStep1Payload(data);
+                if (step1 && typeof step1 === 'object') {
+                    const nextRestaurantId = typeof step1.id === 'string' ? step1.id.trim() : '';
+                    const nextOwnerFullNameRaw = typeof step1.owner_full_name === 'string' ? step1.owner_full_name : null;
+                    const nextOwnerPhoneRaw = typeof step1.owner_phone === 'string' ? step1.owner_phone : null;
+                    const nextCompanyName = typeof step1.company_name === 'string' ? step1.company_name : '';
+                    const nextEmail = typeof step1.email === 'string' ? step1.email : '';
+                    const nextCompanyLogoUrl = normalizeUrl(step1.company_logo);
+
+                    if (!prefilledRef.current) {
+                        prefilledRef.current = true;
+                        initialStep1Ref.current = {
+                            companyName: nextCompanyName.trim(),
+                            companyLogoUrl: nextCompanyLogoUrl,
+                            ownerFullNameRaw: nextOwnerFullNameRaw,
+                            ownerPhone: typeof nextOwnerPhoneRaw === 'string' ? nextOwnerPhoneRaw.trim() : '',
+                        };
+                    }
+
+                    setFormData((prev) => ({
+                        ...prev,
+                        restaurantId: nextRestaurantId || prev.restaurantId,
+                        fullName: typeof nextOwnerFullNameRaw === 'string' ? nextOwnerFullNameRaw : prev.fullName,
+                        contact: typeof nextOwnerPhoneRaw === 'string' ? nextOwnerPhoneRaw : prev.contact,
+                        companyName: nextCompanyName || prev.companyName,
+                        email: nextEmail || prev.email,
+                        companyLogoUrl: nextCompanyLogoUrl || prev.companyLogoUrl,
+                    }));
+                }
+            } catch (e) {
+                const message = typeof e?.message === 'string' ? e.message : 'Request failed';
+                console.log('Onboarding Step1 GET error:', message);
+            }
+        };
+
+        fetchStep1();
+    }, [accessToken, setFormData]);
+
+    const logoOk = !!formData.companyLogoUrl?.trim() || !!brandingFiles.companyLogo;
+    const isValid =
+        !!formData.companyName?.trim() &&
+        !!formData.email?.trim() &&
+        !!formData.contact?.trim() &&
+        logoOk;
 
     const companyLogoPreviewUrl = brandingFiles.companyLogoPreviewUrl || normalizeUrl(formData.companyLogoUrl);
 
@@ -65,33 +146,6 @@ export default function Step1({
             }
         }
         return normalizeUrl(data.url);
-    };
-
-    const extractRestaurantIdFromStep1 = (data) => {
-        if (!data) return '';
-        if (typeof data === 'string') {
-            const text = data.trim();
-            if (!text) return '';
-            try {
-                const parsed = JSON.parse(text);
-                return extractRestaurantIdFromStep1(parsed);
-            } catch {
-                return '';
-            }
-        }
-
-        if (data && typeof data === 'object') {
-            if (data.data && typeof data.data === 'object') {
-                if (typeof data.data.id === 'string') return data.data.id.trim();
-                if (typeof data.data.restaurant_id === 'string') return data.data.restaurant_id.trim();
-                if (typeof data.data.restaurantId === 'string') return data.data.restaurantId.trim();
-            }
-            if (typeof data.id === 'string') return data.id.trim();
-            if (typeof data.restaurant_id === 'string') return data.restaurant_id.trim();
-            if (typeof data.restaurantId === 'string') return data.restaurantId.trim();
-        }
-
-        return '';
     };
 
     const uploadCompanyLogo = async (file, baseUrl) => {
@@ -139,18 +193,42 @@ export default function Step1({
                 setFormData((prev) => ({ ...prev, companyLogoUrl }));
             }
 
+            const baseline = initialStep1Ref.current || { companyName: '', companyLogoUrl: '', ownerFullNameRaw: null, ownerPhone: '' };
+            const nextCompanyName = formData.companyName.trim();
+            const nextCompanyLogoUrl = normalizeUrl(companyLogoUrl);
+            const nextOwnerPhone = typeof formData.contact === 'string' ? formData.contact.trim() : '';
+
+            const hasCompanyNameChanged = !baseline.companyName || nextCompanyName !== baseline.companyName;
+            const hasLogoChanged = !baseline.companyLogoUrl || nextCompanyLogoUrl !== baseline.companyLogoUrl;
+            const hasOwnerPhoneChanged = !baseline.ownerPhone || nextOwnerPhone !== baseline.ownerPhone;
+            const hasUpdates = hasCompanyNameChanged || hasLogoChanged || hasOwnerPhoneChanged;
+
+            if (!hasUpdates) {
+                handleNext?.();
+                return;
+            }
+
+            const ownerFullNameToSend =
+                typeof baseline.ownerFullNameRaw === 'string'
+                    ? baseline.ownerFullNameRaw
+                    : typeof formData.fullName === 'string' && formData.fullName.trim()
+                        ? formData.fullName.trim()
+                        : null;
+
+            const updates = {
+                company_name: nextCompanyName,
+                owner_full_name: ownerFullNameToSend,
+                ...(hasLogoChanged ? { company_logo: nextCompanyLogoUrl } : {}),
+                ...(hasOwnerPhoneChanged ? { owner_phone: nextOwnerPhone } : {}),
+            };
+
             const res = await fetch(url, {
-                method: 'POST',
+                method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                     ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
                 },
-                body: JSON.stringify({
-                    owner_full_name: formData.fullName,
-                    company_name: formData.companyName,
-                    company_logo: companyLogoUrl,
-                    goto: 'step2',
-                }),
+                body: JSON.stringify(updates),
             });
 
             const contentType = res.headers.get('content-type');
@@ -189,10 +267,6 @@ export default function Step1({
             }
 
             if (res.ok) {
-                const restaurantId = extractRestaurantIdFromStep1(data);
-                if (restaurantId) {
-                    setFormData((prev) => ({ ...prev, restaurantId }));
-                }
                 handleNext?.();
             }
         } catch (e) {
@@ -207,22 +281,32 @@ export default function Step1({
     return (
         <form className="space-y-6">
             <div>
-                <label className="block text-[14px] font-[500] text-[#1A1A1A] mb-2">Full Name <span className="text-red-500">*</span></label>
-                <input
-                    type="text"
-                    value={formData.fullName}
-                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                    placeholder="Enter your full name"
-                    className="onboarding-input"
-                />
-            </div>
-            <div>
                 <label className="block text-[14px] font-[500] text-[#1A1A1A] mb-2">Company Name <span className="text-red-500">*</span></label>
                 <input
                     type="text"
                     value={formData.companyName}
                     onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
                     placeholder="Enter company name"
+                    className="onboarding-input"
+                />
+            </div>
+            <div>
+                <label className="block text-[14px] font-[500] text-[#1A1A1A] mb-2">Company Email <span className="text-red-500">*</span></label>
+                <input
+                    type="email"
+                    value={formData.email}
+                    disabled
+                    placeholder="Enter company email"
+                    className="onboarding-input"
+                />
+            </div>
+            <div>
+                <label className="block text-[14px] font-[500] text-[#1A1A1A] mb-2">Restaurant Contact Number <span className="text-red-500">*</span></label>
+                <input
+                    type="text"
+                    value={formData.contact}
+                    onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
+                    placeholder="+1 (555) 123-4567"
                     className="onboarding-input"
                 />
             </div>
