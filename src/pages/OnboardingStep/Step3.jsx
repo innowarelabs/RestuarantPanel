@@ -140,8 +140,8 @@ export default function Step3({
     CATEGORY_IMAGE_REQUIRED_PX,
     saveCategory,
     resetCategoryForm,
-    startEditCategory,
-    deleteCategory,
+    startEditCategory: _startEditCategory,
+    deleteCategory: _deleteCategory,
     handlePrev,
     handleNext,
     showAddItemModal,
@@ -175,6 +175,8 @@ export default function Step3({
     const canSaveItem = !!itemForm.categoryId && !!itemForm.name.trim() && priceOk && prepOk;
 
     const canProceed = categories.length > 0;
+    void _startEditCategory;
+    void _deleteCategory;
 
     const uploadImage = async (file, baseUrl) => {
         if (!file) throw new Error('Image file is missing');

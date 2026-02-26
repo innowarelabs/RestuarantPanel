@@ -48,6 +48,7 @@ export default function OnboardingStep() {
     const onboardingStep = useSelector((state) => state.auth.onboardingStep);
     const accessToken = useSelector((state) => state.auth.accessToken);
     const user = useSelector((state) => state.auth.user);
+    const restaurantNameFromStore = useSelector((state) => state.auth.restaurantName);
     const nextCategoryIdRef = useRef(1);
     const nextItemIdRef = useRef(1);
     const rewardImageInputRef = useRef(null);
@@ -987,6 +988,15 @@ export default function OnboardingStep() {
         }
     };
 
+    const headerRestaurantName = restaurantNameFromStore?.trim() || formData.companyName?.trim() || 'Restaurant';
+    const headerInitials = headerRestaurantName
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((p) => p[0])
+        .join('')
+        .toUpperCase();
+
     return (
         <div className="min-h-screen bg-[#FDFDFD] flex flex-col font-avenir pb-20">
             <header className="h-[96px] bg-white border-b border-gray-400 px-6 sm:px-10 flex items-center justify-between sticky top-0 z-50">
@@ -996,10 +1006,10 @@ export default function OnboardingStep() {
                 </div>
                 <div className="flex items-center gap-3">
                     <div className="text-right hidden sm:block">
-                        <p className="text-[14px] font-[500] text-[#0F1724] leading-tight">John's Burger House</p>
+                        <p className="text-[14px] font-[500] text-[#0F1724] leading-tight">{headerRestaurantName}</p>
                         <p className="text-[12px] text-[#6B7280]">Restaurant Owner</p>
                     </div>
-                    <div className="w-[44px] h-[44px] bg-primary rounded-full flex items-center justify-center text-white font-[600] text-[16px]">JB</div>
+                    <div className="w-[44px] h-[44px] bg-primary rounded-full flex items-center justify-center text-white font-[600] text-[16px]">{headerInitials || 'R'}</div>
                 </div>
             </header>
 

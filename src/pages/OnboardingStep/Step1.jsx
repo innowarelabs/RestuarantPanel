@@ -1,6 +1,7 @@
 import { AlertCircle, ChevronRight, Image } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import { setRestaurantName } from '../../redux/store';
 
 export default function Step1({
     formData,
@@ -9,6 +10,7 @@ export default function Step1({
     setBrandingFile,
     handleNext,
 }) {
+    const dispatch = useDispatch();
     const accessToken = useSelector((state) => state.auth.accessToken);
     const [submitting, setSubmitting] = useState(false);
     const [errorLines, setErrorLines] = useState([]);
@@ -88,6 +90,10 @@ export default function Step1({
                         email: nextEmail || prev.email,
                         companyLogoUrl: nextCompanyLogoUrl || prev.companyLogoUrl,
                     }));
+
+                    if (nextCompanyName?.trim()) {
+                        dispatch(setRestaurantName(nextCompanyName));
+                    }
                 }
             } catch (e) {
                 const message = typeof e?.message === 'string' ? e.message : 'Request failed';
@@ -96,7 +102,7 @@ export default function Step1({
         };
 
         fetchStep1();
-    }, [accessToken, setFormData]);
+    }, [accessToken, dispatch, setFormData]);
 
     const logoOk = !!formData.companyLogoUrl?.trim() || !!brandingFiles.companyLogo;
     const isValid =
@@ -285,7 +291,11 @@ export default function Step1({
                 <input
                     type="text"
                     value={formData.companyName}
-                    onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                    onChange={(e) => {
+                        const value = e.target.value;
+                        setFormData({ ...formData, companyName: value });
+                        dispatch(setRestaurantName(value));
+                    }}
                     placeholder="Enter company name"
                     className="onboarding-input"
                 />

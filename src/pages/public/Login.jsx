@@ -72,6 +72,18 @@ function Login() {
 
             const sessionData = data.data;
             const onboardingStep = sessionData?.goto || "step1";
+            const restaurantNameCandidates = [
+                sessionData?.restaurant?.company_name,
+                sessionData?.restaurant?.name,
+                sessionData?.company_name,
+                sessionData?.companyName,
+                sessionData?.user?.restaurant?.company_name,
+                sessionData?.user?.company_name,
+                sessionData?.user?.companyName,
+                sessionData?.user?.restaurant_name,
+                sessionData?.user?.restaurantName,
+            ];
+            const restaurantName = restaurantNameCandidates.find((v) => typeof v === "string" && v.trim())?.trim() || "";
             const restaurantId =
                 typeof sessionData?.user?.restaurant_id === "string"
                     ? sessionData.user.restaurant_id
@@ -86,6 +98,7 @@ function Login() {
                     refreshToken: sessionData?.refresh_token || null,
                     onboardingStep,
                     accessTokenExpiresIn: sessionData?.expires_in,
+                    ...(restaurantName ? { restaurantName } : {}),
                 })
             );
 

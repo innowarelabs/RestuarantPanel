@@ -12,11 +12,12 @@ export default function Header({ onMobileMenuClick }) {
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const user = useSelector((state) => state.auth?.user);
+    const restaurantName = useSelector((state) => state.auth?.restaurantName);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isAddMenuItemModalOpen, setIsAddMenuItemModalOpen] = useState(false);
     const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
 
-    const displayName = user?.name || "John's Burger House";
+    const displayName = restaurantName?.trim() || "Restaurant";
     const displayEmail = user?.email || "john@example.com";
     const initials = displayName
         .split(" ")

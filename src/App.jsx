@@ -1,9 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import Sidebar from './components/Sidebar/Sidebar';
 import Header from './components/Header/Header';
-import { toggleSidebar, setCollapsed } from './redux/store';
+import { toggleSidebar, setCollapsed, setRestaurantName } from './redux/store';
 
 // Page Imports
 import Dashboard from './pages/Dashboard/Dashboard';
@@ -45,8 +45,64 @@ function App() {
 
   const isOnboarding = location.pathname === '/onboarding';
   const accessToken = useSelector((state) => state.auth.accessToken);
+  const restaurantName = useSelector((state) => state.auth.restaurantName);
   const onboardingStep = useSelector((state) => state.auth.onboardingStep);
   const isAuthenticated = !!accessToken;
+  const fetchedRestaurantNameRef = useRef(false);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    if (!accessToken) return;
+    if (restaurantName?.trim()) return;
+    if (fetchedRestaurantNameRef.current) return;
+    fetchedRestaurantNameRef.current = true;
+
+    const fetchRestaurantName = async () => {
+      try {
+        const baseUrl = import.meta.env.VITE_BACKEND_URL;
+        if (!baseUrl) return;
+
+        const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step1`;
+        const res = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+
+        const contentType = res.headers.get('content-type');
+        const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+
+        const extractStep1Payload = (raw) => {
+          if (!raw) return null;
+          if (typeof raw === 'string') {
+            const text = raw.trim();
+            if (!text) return null;
+            try {
+              const parsed = JSON.parse(text);
+              return extractStep1Payload(parsed);
+            } catch {
+              return null;
+            }
+          }
+
+          if (typeof raw !== 'object') return null;
+          const nested = raw?.data?.data && typeof raw.data.data === 'object' ? raw.data.data : null;
+          const top = raw?.data && typeof raw.data === 'object' ? raw.data : null;
+          return nested || top || raw;
+        };
+
+        const step1 = extractStep1Payload(data);
+        const companyName = typeof step1?.company_name === 'string' ? step1.company_name.trim() : '';
+        if (companyName) dispatch(setRestaurantName(companyName));
+      } catch {
+        fetchedRestaurantNameRef.current = false;
+      }
+    };
+
+    fetchRestaurantName();
+  }, [accessToken, dispatch, isAuthenticated, restaurantName]);
 
 
   // Redirect to login if not authenticated
