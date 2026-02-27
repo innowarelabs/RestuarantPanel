@@ -366,6 +366,7 @@ export default function OnboardingStep() {
         fullName: '',
         email: '',
         twoFactor: false,
+        is_2fa_enabled: false,
         companyName: '',
         companyLogoUrl: '',
         restaurantId: '',
@@ -1062,7 +1063,7 @@ export default function OnboardingStep() {
                                 <div className="grid grid-cols-2 gap-y-6 text-[14px]">
                                     <div><p className="text-[#9CA3AF] font-[500] mb-1">Name</p><p className="font-semibold text-[#111827]">{formData.fullName}</p></div>
                                     <div><p className="text-[#9CA3AF] font-[500] mb-1">Email</p><p className="font-semibold text-[#111827]">{formData.email}</p></div>
-                                    <div><p className="text-[#9CA3AF] font-[500] mb-1">Two-Factor Auth</p><p className="font-semibold text-[#111827]">{formData.twoFactor ? 'Enabled' : 'Disabled'}</p></div>
+                                    <div><p className="text-[#9CA3AF] font-[500] mb-1">Two-Factor Auth</p><p className="font-semibold text-[#111827]">{(typeof formData.is_2fa_enabled === 'boolean' ? formData.is_2fa_enabled : formData.twoFactor) ? 'Enabled' : 'Disabled'}</p></div>
                                 </div>
                             </section>
 

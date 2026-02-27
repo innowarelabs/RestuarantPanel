@@ -2,6 +2,7 @@ import { AlertCircle, ChevronRight, Image } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { setRestaurantName } from '../../redux/store';
+import NotificationToggle from './NotificationToggle';
 
 export default function Step1({
     formData,
@@ -20,6 +21,17 @@ export default function Step1({
     const normalizeUrl = (value) => {
         if (typeof value !== 'string') return '';
         return value.trim().replace(/^["'`]+|["'`]+$/g, '').trim();
+    };
+
+    const normalizeBool = (value) => {
+        if (typeof value === 'boolean') return value;
+        if (typeof value === 'number') return value === 1;
+        if (typeof value === 'string') {
+            const v = value.trim().toLowerCase();
+            if (v === 'true' || v === '1' || v === 'yes') return true;
+            if (v === 'false' || v === '0' || v === 'no') return false;
+        }
+        return null;
     };
 
     useEffect(() => {
@@ -70,6 +82,7 @@ export default function Step1({
                     const nextCompanyName = typeof step1.company_name === 'string' ? step1.company_name : '';
                     const nextEmail = typeof step1.email === 'string' ? step1.email : '';
                     const nextCompanyLogoUrl = normalizeUrl(step1.company_logo);
+                    const next2FAEnabled = normalizeBool(step1.is_2fa_enabled);
 
                     if (!prefilledRef.current) {
                         prefilledRef.current = true;
@@ -78,6 +91,7 @@ export default function Step1({
                             companyLogoUrl: nextCompanyLogoUrl,
                             ownerFullNameRaw: nextOwnerFullNameRaw,
                             ownerPhone: typeof nextOwnerPhoneRaw === 'string' ? nextOwnerPhoneRaw.trim() : '',
+                            is2faEnabled: typeof next2FAEnabled === 'boolean' ? next2FAEnabled : null,
                         };
                     }
 
@@ -89,6 +103,9 @@ export default function Step1({
                         companyName: nextCompanyName || prev.companyName,
                         email: nextEmail || prev.email,
                         companyLogoUrl: nextCompanyLogoUrl || prev.companyLogoUrl,
+                        ...(typeof next2FAEnabled === 'boolean'
+                            ? { is_2fa_enabled: next2FAEnabled, twoFactor: next2FAEnabled }
+                            : {}),
                     }));
 
                     if (nextCompanyName?.trim()) {
@@ -203,11 +220,14 @@ export default function Step1({
             const nextCompanyName = formData.companyName.trim();
             const nextCompanyLogoUrl = normalizeUrl(companyLogoUrl);
             const nextOwnerPhone = typeof formData.contact === 'string' ? formData.contact.trim() : '';
+            const next2FAEnabled = !!formData.is_2fa_enabled;
 
             const hasCompanyNameChanged = !baseline.companyName || nextCompanyName !== baseline.companyName;
             const hasLogoChanged = !baseline.companyLogoUrl || nextCompanyLogoUrl !== baseline.companyLogoUrl;
             const hasOwnerPhoneChanged = !baseline.ownerPhone || nextOwnerPhone !== baseline.ownerPhone;
-            const hasUpdates = hasCompanyNameChanged || hasLogoChanged || hasOwnerPhoneChanged;
+            const baseline2fa = typeof baseline.is2faEnabled === 'boolean' ? baseline.is2faEnabled : null;
+            const has2faChanged = baseline2fa === null ? true : next2FAEnabled !== baseline2fa;
+            const hasUpdates = hasCompanyNameChanged || hasLogoChanged || hasOwnerPhoneChanged || has2faChanged;
 
             if (!hasUpdates) {
                 handleNext?.();
@@ -226,6 +246,7 @@ export default function Step1({
                 owner_full_name: ownerFullNameToSend,
                 ...(hasLogoChanged ? { company_logo: nextCompanyLogoUrl } : {}),
                 ...(hasOwnerPhoneChanged ? { owner_phone: nextOwnerPhone } : {}),
+                ...(has2faChanged ? { is_2fa_enabled: next2FAEnabled } : {}),
             };
 
             const res = await fetch(url, {
@@ -355,6 +376,17 @@ export default function Step1({
                     </div>
                 )}
             </div>
+            <NotificationToggle
+                title="Enable Two-Factor Authentication"
+                desc="Add an extra layer of security to your account (optional)"
+                active={!!formData.is_2fa_enabled}
+                onClick={() =>
+                    setFormData((prev) => {
+                        const next = !prev.is_2fa_enabled;
+                        return { ...prev, is_2fa_enabled: next, twoFactor: next };
+                    })
+                }
+            />
             {!!errorLines.length && (
                 <div className="bg-[#F751511F] rounded-[12px] py-[10px] px-[12px]">
                     <div className="flex items-start gap-2">
