@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { setRestaurantName } from '../../redux/store';
 import NotificationToggle from './NotificationToggle';
+import QRCode from 'qrcode';
+import OTPInput from '../../elements/OTPInput';
 
 export default function Step1({
     formData,
@@ -13,10 +15,17 @@ export default function Step1({
 }) {
     const dispatch = useDispatch();
     const accessToken = useSelector((state) => state.auth.accessToken);
+    const authUser = useSelector((state) => state.auth.user);
     const [submitting, setSubmitting] = useState(false);
     const [errorLines, setErrorLines] = useState([]);
     const initialStep1Ref = useRef(null);
     const prefilledRef = useRef(false);
+    const [is2FAModalOpen, setIs2FAModalOpen] = useState(false);
+    const [setupOtp, setSetupOtp] = useState(['', '', '', '', '', '']);
+    const [setupQrCodeUrl, setSetupQrCodeUrl] = useState(null);
+    const [setupLoadingQR, setSetupLoadingQR] = useState(false);
+    const [setupLoading, setSetupLoading] = useState(false);
+    const [setupError, setSetupError] = useState('');
 
     const normalizeUrl = (value) => {
         if (typeof value !== 'string') return '';
@@ -200,6 +209,194 @@ export default function Step1({
         return uploadedUrl;
     };
 
+    const extractPayload = (raw) => {
+        if (!raw) return null;
+        if (typeof raw === 'string') {
+            const text = raw.trim();
+            if (!text) return null;
+            try {
+                return extractPayload(JSON.parse(text));
+            } catch {
+                return null;
+            }
+        }
+        if (typeof raw !== 'object') return null;
+        const nested = raw?.data?.data && typeof raw.data.data === 'object' ? raw.data.data : null;
+        const top = raw?.data && typeof raw.data === 'object' ? raw.data : null;
+        return nested || top || raw;
+    };
+
+    const open2FAModal = async (baseUrl) => {
+        const userId = typeof authUser?.id === 'string' && authUser.id.trim() ? authUser.id.trim() : '';
+        setIs2FAModalOpen(true);
+        setSetupError('');
+        setSetupOtp(['', '', '', '', '', '']);
+        setSetupQrCodeUrl(null);
+        setSetupLoadingQR(true);
+        try {
+            const setupUrl = userId
+                ? `${baseUrl.replace(/\/$/, '')}/api/v1/2fa/setup/${userId}`
+                : `${baseUrl.replace(/\/$/, '')}/api/v1/2fa/setup`;
+
+            const res = await fetch(setupUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                },
+            });
+
+            const contentType = res.headers.get('content-type');
+            const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+            if (!res.ok) {
+                const message =
+                    typeof data === 'string'
+                        ? data
+                        : data?.message || data?.error || 'Failed to load QR code. Please try again.';
+                throw new Error(message);
+            }
+
+            const payload = extractPayload(data);
+            const otpAuthUrl = payload?.qr_code_url || payload?.qrCodeUrl || payload?.qr_code;
+            if (!otpAuthUrl) throw new Error('QR code URL not found in response');
+            const dataUrl = await QRCode.toDataURL(otpAuthUrl);
+            setSetupQrCodeUrl(dataUrl);
+        } catch (e) {
+            setSetupError(e?.message || 'Failed to load QR code. Please try again.');
+        } finally {
+            setSetupLoadingQR(false);
+        }
+    };
+
+    const handle2FAVerify = async () => {
+        if (setupLoading) return;
+        const baseUrl = import.meta.env.VITE_BACKEND_URL;
+        if (!baseUrl) {
+            setSetupError('VITE_BACKEND_URL is missing');
+            return;
+        }
+        const userId = typeof authUser?.id === 'string' && authUser.id.trim() ? authUser.id.trim() : '';
+        if (!userId) {
+            setSetupError('User not found. Please login again.');
+            return;
+        }
+
+        setSetupLoading(true);
+        setSetupError('');
+        try {
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/2fa/verify/${userId}`;
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                },
+                body: JSON.stringify({ totp_code: setupOtp.join('') }),
+            });
+
+            const contentType = res.headers.get('content-type');
+            const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+            const payload = extractPayload(data);
+            if (!res.ok) {
+                const message =
+                    typeof data === 'string' ? data : data?.message || data?.error || 'Invalid Code';
+                throw new Error(message);
+            }
+
+            if (payload?.access_token || payload?.refresh_token) {
+                setSetupError('');
+            }
+
+            setFormData((prev) => ({
+                ...prev,
+                is_2fa_enabled: true,
+                twoFactor: true,
+            }));
+
+            setIs2FAModalOpen(false);
+            handleNext?.();
+        } catch (e) {
+            setSetupError(e?.message || 'Invalid Code');
+        } finally {
+            setSetupLoading(false);
+        }
+    };
+
+    const getUserIdForAccountUpdate = async (baseUrl) => {
+        const fromState = typeof authUser?.id === 'string' ? authUser.id.trim() : '';
+        if (fromState) return fromState;
+        if (!accessToken) return '';
+
+        const meUrl = `${baseUrl.replace(/\/$/, '')}/api/v1/users/me`;
+        const res = await fetch(meUrl, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${accessToken}`,
+            },
+        });
+
+        const contentType = res.headers.get('content-type');
+        const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+        if (!res.ok) return '';
+        const payload = extractPayload(data);
+        return typeof payload?.id === 'string' ? payload.id.trim() : '';
+    };
+
+    const updateAccount2FAFlag = async (baseUrl, is2faEnabled) => {
+        const userId = await getUserIdForAccountUpdate(baseUrl);
+        if (!userId) {
+            setErrorLines(['User ID not found for 2FA update']);
+            return false;
+        }
+
+        const patchUrl = `${baseUrl.replace(/\/$/, '')}/api/v1/users/${userId}`;
+        const res = await fetch(patchUrl, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+            },
+            body: JSON.stringify({ is_2fa_enabled: !!is2faEnabled }),
+        });
+
+        const contentType = res.headers.get('content-type');
+        const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+
+        if (!res.ok) {
+            const lines = toValidationErrorLines(data);
+            if (lines.length) {
+                setErrorLines(lines);
+            } else if (typeof data === 'string' && data.trim()) {
+                setErrorLines([data.trim()]);
+            } else if (data && typeof data === 'object') {
+                const message =
+                    typeof data.message === 'string'
+                        ? data.message
+                        : typeof data.error === 'string'
+                            ? data.error
+                            : 'Request failed';
+                setErrorLines([message]);
+            } else {
+                setErrorLines(['Request failed']);
+            }
+            return false;
+        }
+
+        if (isErrorPayload(data)) {
+            const message =
+                typeof data.message === 'string' && data.message.trim()
+                    ? data.message.trim()
+                    : typeof data.code === 'string' && data.code.trim()
+                        ? data.code.trim()
+                        : 'Request failed';
+            setErrorLines([message]);
+            return false;
+        }
+
+        return true;
+    };
+
     const handleSubmitStep1 = async () => {
         if (!isValid || submitting) return;
         setSubmitting(true);
@@ -294,6 +491,12 @@ export default function Step1({
             }
 
             if (res.ok) {
+                const updated = await updateAccount2FAFlag(baseUrl, next2FAEnabled);
+                if (!updated) return;
+                if (has2faChanged && next2FAEnabled) {
+                    await open2FAModal(baseUrl);
+                    return;
+                }
                 handleNext?.();
             }
         } catch (e) {
@@ -411,6 +614,74 @@ export default function Step1({
                     {submitting ? 'Saving...' : 'Next'} <ChevronRight size={18} />
                 </button>
             </div>
+
+            {is2FAModalOpen && (
+                <div
+                    className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 animate-in fade-in duration-200"
+                    onClick={() => {
+                        if (setupLoading || setupLoadingQR) return;
+                        setIs2FAModalOpen(false);
+                    }}
+                >
+                    <div
+                        className="relative bg-white w-full max-w-[680px] rounded-2xl shadow-xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-black/10"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="px-6 py-5 border-b border-gray-100 flex items-start justify-between shrink-0">
+                            <div>
+                                <h2 className="text-[20px] font-bold text-[#111827]">Set Up Two-Factor Authentication</h2>
+                                <p className="text-[13px] text-gray-500 mt-1">
+                                    Scan QR and enter the 6-digit code from Google Authenticator.
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    if (setupLoading || setupLoadingQR) return;
+                                    setIs2FAModalOpen(false);
+                                }}
+                                className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-600"
+                                type="button"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-6">
+                            {setupError && (
+                                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                                    <p className="text-red-600 text-sm">{setupError}</p>
+                                </div>
+                            )}
+
+                            <div className="flex flex-col items-center gap-6">
+                                <div className="p-1 shadow-md bg-white rounded-2xl border border-gray-200">
+                                    {setupLoadingQR ? (
+                                        <div className="w-48 h-48 bg-gray-100 rounded-2xl flex items-center justify-center">
+                                            <span className="text-gray-500 text-sm">Loading QR code...</span>
+                                        </div>
+                                    ) : setupQrCodeUrl ? (
+                                        <img src={setupQrCodeUrl} alt="2FA QR Code" className="w-48 h-48 rounded-2xl" />
+                                    ) : (
+                                        <div className="w-48 h-48 bg-gray-100 rounded-2xl flex items-center justify-center">
+                                            <span className="text-red-500 text-sm text-center px-2">Failed to load QR code</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="w-full max-w-[420px]">
+                                    <OTPInput
+                                        otp={setupOtp}
+                                        setOtp={setSetupOtp}
+                                        onSubmit={handle2FAVerify}
+                                        loading={setupLoading}
+                                        error={setupError}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </form>
     );
 }

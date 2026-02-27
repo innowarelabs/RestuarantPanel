@@ -44,6 +44,13 @@ function Login() {
         setLoading(true);
 
         try {
+            localStorage.removeItem("twoFAStatus");
+            localStorage.removeItem("twoFANextRoute");
+            localStorage.removeItem("twoFAUserId");
+            localStorage.removeItem("twoFAGoto");
+            sessionStorage.removeItem("twoFAEmail");
+            sessionStorage.removeItem("twoFAPassword");
+
             const baseUrl = import.meta.env.VITE_BACKEND_URL;
             if (!baseUrl) throw new Error("VITE_BACKEND_URL is missing");
 
@@ -68,10 +75,16 @@ function Login() {
             }
 
             if (typeof data !== "object" || !data) throw new Error("Invalid login response");
-            if (data.code !== "AUTH_200") throw new Error(data.message || "Login failed. Please try again.");
+            if (data.code !== "AUTH_200" && data.code !== "AUTH_202_2FA") {
+                throw new Error(data.message || "Login failed. Please try again.");
+            }
 
             const sessionData = data.data;
-            const onboardingStep = sessionData?.goto || "step1";
+            console.log(sessionData);
+            const onboardingStep = sessionData?.goto;
+            const user = sessionData?.user || null;
+            const is2FAEnabled = user?.is_2fa_enabled === true;
+            const is2FASetup = user?.is_2fa_setup === true;
             const restaurantNameCandidates = [
                 sessionData?.restaurant?.company_name,
                 sessionData?.restaurant?.name,
@@ -93,7 +106,7 @@ function Login() {
 
             dispatch(
                 setSession({
-                    user: sessionData?.user || null,
+                    user,
                     accessToken: sessionData?.access_token || null,
                     refreshToken: sessionData?.refresh_token || null,
                     onboardingStep,
@@ -104,6 +117,20 @@ function Login() {
 
             if (restaurantId) {
                 localStorage.setItem("restaurant_id", restaurantId);
+            }
+
+            if (is2FAEnabled) {
+                const nextRoute = is2FASetup ? "/verify-2fa-otp" : "/setup-2fa-qr";
+                localStorage.setItem("twoFAStatus", "pending");
+                localStorage.setItem("twoFANextRoute", nextRoute);
+                localStorage.setItem("twoFAGoto", onboardingStep);
+                if (typeof user?.id === "string" && user.id.trim()) {
+                    localStorage.setItem("twoFAUserId", user.id);
+                }
+                sessionStorage.setItem("twoFAEmail", email);
+                sessionStorage.setItem("twoFAPassword", password);
+                navigate(nextRoute, { state: { userId: user?.id, email, password, goto: onboardingStep }, replace: true });
+                return;
             }
 
             if (onboardingStep === "dashboard") {

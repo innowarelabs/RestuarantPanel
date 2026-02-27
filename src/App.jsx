@@ -21,6 +21,8 @@ import ForgotPassword from './pages/public/ForgotPassword';
 import VerifyAccount from './pages/public/VerifyAccount';
 import ResetPassword from './pages/public/ResetPassword';
 import PasswordResetSuccess from './pages/public/PasswordResetSuccess';
+import Setup2FAQR from './pages/comman/Setup2FAQR';
+import Verify2FAOTP from './pages/comman/Verify2FAOTP';
 
 function App() {
   const isCollapsed = useSelector((state) => state.sidebar.isCollapsed);
@@ -45,10 +47,28 @@ function App() {
 
   const isOnboarding = location.pathname === '/onboarding';
   const accessToken = useSelector((state) => state.auth.accessToken);
+  const user = useSelector((state) => state.auth.user);
   const restaurantName = useSelector((state) => state.auth.restaurantName);
   const onboardingStep = useSelector((state) => state.auth.onboardingStep);
   const isAuthenticated = !!accessToken;
   const fetchedRestaurantNameRef = useRef(false);
+  const isTwoFAPending = localStorage.getItem('twoFAStatus') === 'pending';
+  const is2FAEnabled = user?.is_2fa_enabled === true;
+  const is2FASetup = user?.is_2fa_setup === true;
+  const twoFANextRoute = is2FASetup ? '/verify-2fa-otp' : '/setup-2fa-qr';
+  const is2FARoute = ['/setup-2fa-qr', '/verify-2fa-otp'].includes(location.pathname);
+
+  useEffect(() => {
+    if (!isTwoFAPending) return;
+    if (!is2FAEnabled) {
+      localStorage.removeItem('twoFAStatus');
+      localStorage.removeItem('twoFANextRoute');
+      localStorage.removeItem('twoFAUserId');
+      localStorage.removeItem('twoFAGoto');
+      return;
+    }
+    localStorage.setItem('twoFANextRoute', twoFANextRoute);
+  }, [is2FAEnabled, isTwoFAPending, twoFANextRoute]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -104,6 +124,30 @@ function App() {
     fetchRestaurantName();
   }, [accessToken, dispatch, isAuthenticated, restaurantName]);
 
+  if (isTwoFAPending && is2FAEnabled) {
+    if (!is2FARoute) return <Navigate to={twoFANextRoute} replace />;
+
+    return (
+      <Routes>
+        <Route path="/setup-2fa-qr" element={<Setup2FAQR />} />
+        <Route path="/verify-2fa-otp" element={<Verify2FAOTP />} />
+        <Route path="*" element={<Navigate to={twoFANextRoute} replace />} />
+      </Routes>
+    );
+  }
+
+  if (is2FARoute && !isTwoFAPending) {
+    const storedOnboardingStep = localStorage.getItem('onboardingStep');
+    const storedTwoFAGoto = localStorage.getItem('twoFAGoto');
+    const resolvedGoto =
+      typeof storedOnboardingStep === 'string' && storedOnboardingStep.trim()
+        ? storedOnboardingStep.trim()
+        : typeof storedTwoFAGoto === 'string' && storedTwoFAGoto.trim()
+          ? storedTwoFAGoto.trim()
+          : onboardingStep;
+    if (resolvedGoto === 'dashboard') return <Navigate to="/admin-dashboard" replace />;
+    return <Navigate to="/onboarding" replace />;
+  }
 
   // Redirect to login if not authenticated
   if (!isAuthenticated && !['/login', '/forgot-password', '/verify-account', '/reset-password', '/password-reset-success'].includes(location.pathname)) {
