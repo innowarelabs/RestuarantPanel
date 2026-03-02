@@ -4,10 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 0.0.0.0 --port 6901",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview --host 0.0.0.0 --port 4175"
+    "preview": "vite preview--host 0.0.0.0 --port 6901"
   },
   "dependencies": {
     "@fontsource/poppins": "^5.2.7",

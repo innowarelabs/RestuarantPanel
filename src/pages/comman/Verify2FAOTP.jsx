@@ -102,9 +102,6 @@ function Verify2FAOTP() {
       const contentType = res.headers.get("content-type");
       const data = contentType?.includes("application/json") ? await res.json() : await res.text();
 
-      console.log("---res---", res);
-      console.log("---data---", data);
-
       if (!res.ok) {
         const message =
           typeof data === "string" ? data : data?.message || data?.error || "Verification failed. Please try again.";
@@ -117,7 +114,6 @@ function Verify2FAOTP() {
       const sessionData = data.data || extractPayload(data);
       const access_token = sessionData?.access_token;
       const refresh_token = sessionData?.refresh_token;
-      console.log('---goto---', sessionData?.goto);
       const nextGoto = sessionData?.goto || onboardingStep || "step1";
       const nextExpiresIn = sessionData?.expires_in;
       const updatedUser = sessionData?.user
