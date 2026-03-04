@@ -4,6 +4,8 @@ import EditMenuItemModal from '../../components/MenuManagement/EditMenuItemModal
 import MenuPreviewModal from '../../components/MenuManagement/MenuPreviewModal';
 import AddCategoryModal from '../../components/MenuManagement/AddCategoryModal';
 import EditCategoryModal from '../../components/MenuManagement/EditCategoryModal';
+import AddTodaysDealModal from '../../components/MenuManagement/AddTodaysDealModal';
+import AddTopSellerModal from '../../components/MenuManagement/AddTopSellerModal';
 import { useSelector } from 'react-redux';
 import { createPortal } from 'react-dom';
 
@@ -77,6 +79,13 @@ const formatMoney = (value) => {
     if (typeof value === 'number' && Number.isFinite(value)) return `$${value.toFixed(2)}`;
     if (typeof value === 'string' && value.trim()) return value.trim();
     return '$0.00';
+};
+
+const formatDateTime = (value) => {
+    if (!value || typeof value !== 'string') return '-';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return '-';
+    return parsed.toLocaleString();
 };
 
 const mapDishToMenuItem = (dish) => {
@@ -164,6 +173,8 @@ export default function MenuManagement() {
     const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
     const [isAddCategoryModalOpen, setIsAddCategoryModalOpen] = useState(false);
     const [isEditCategoryModalOpen, setIsEditCategoryModalOpen] = useState(false);
+    const [isAddTodaysDealModalOpen, setIsAddTodaysDealModalOpen] = useState(false);
+    const [isAddTopSellerModalOpen, setIsAddTopSellerModalOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [categoryMenu, setCategoryMenu] = useState(null);
@@ -171,6 +182,11 @@ export default function MenuManagement() {
     const [categorySearch, setCategorySearch] = useState('');
     const [categoriesLoading, setCategoriesLoading] = useState(false);
     const [categoriesErrorLines, setCategoriesErrorLines] = useState([]);
+    const [todaysDeals, setTodaysDeals] = useState([]);
+    const [todaysDealsLoading, setTodaysDealsLoading] = useState(false);
+    const [bestSellers, setBestSellers] = useState([]);
+    const [bestSellersLoading, setBestSellersLoading] = useState(false);
+    const [updatingBestSellerIds, setUpdatingBestSellerIds] = useState([]);
     const [savingCategory, setSavingCategory] = useState(false);
     const [savingCategoryErrorLines, setSavingCategoryErrorLines] = useState([]);
     const [deleteCategoryTarget, setDeleteCategoryTarget] = useState(null);
@@ -342,9 +358,118 @@ export default function MenuManagement() {
         }
     }, [accessToken, restaurantId]);
 
+    const fetchTodaysDeals = useCallback(async () => {
+        if (!restaurantId) return;
+        setTodaysDealsLoading(true);
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/categories/todays-deals?restaurant_id=${restaurantId}`;
+            const res = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                },
+            });
+            const contentType = res.headers.get('content-type');
+            const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+            console.log(data);
+            if (!res.ok || isErrorPayload(data)) {
+                setTodaysDeals([]);
+                return;
+            }
+            const deals = Array.isArray(data?.data?.deals) ? data.data.deals : [];
+            setTodaysDeals(deals);
+        } catch (e) {
+            console.log(e);
+            setTodaysDeals([]);
+        } finally {
+            setTodaysDealsLoading(false);
+        }
+    }, [accessToken, restaurantId]);
+
+    const fetchBestSellers = useCallback(async () => {
+        if (!restaurantId) return;
+        setBestSellersLoading(true);
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/categories/best-sellers?restaurant_id=${restaurantId}`;
+            const res = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                },
+            });
+            const contentType = res.headers.get('content-type');
+            const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+            if (!res.ok || isErrorPayload(data)) {
+                setBestSellers([]);
+                return;
+            }
+            const list =
+                Array.isArray(data?.data?.best_sellers)
+                    ? data.data.best_sellers
+                    : Array.isArray(data?.data?.deals)
+                        ? data.data.deals
+                        : Array.isArray(data?.data?.items)
+                            ? data.data.items
+                            : [];
+            setBestSellers(list);
+        } catch {
+            setBestSellers([]);
+        } finally {
+            setBestSellersLoading(false);
+        }
+    }, [accessToken, restaurantId]);
+
     useEffect(() => {
         void fetchCategories();
     }, [fetchCategories]);
+
+    useEffect(() => {
+        void fetchTodaysDeals();
+    }, [fetchTodaysDeals]);
+
+    useEffect(() => {
+        void fetchBestSellers();
+    }, [fetchBestSellers]);
+
+    const handleDealSuccess = useCallback(async () => {
+        await Promise.all([fetchCategories(), fetchTodaysDeals()]);
+    }, [fetchCategories, fetchTodaysDeals]);
+
+    const handleBestSellerSuccess = useCallback(async () => {
+        await Promise.all([fetchCategories(), fetchBestSellers()]);
+    }, [fetchCategories, fetchBestSellers]);
+
+    const updateBestSeller = useCallback(async (dishId, isBestSeller) => {
+        if (!dishId) return;
+        setUpdatingBestSellerIds((prev) => [...prev, dishId]);
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/dishes/${encodeURIComponent(dishId)}/best-seller`;
+            const res = await fetch(url, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                },
+                body: JSON.stringify({ is_best_seller: !!isBestSeller }),
+            });
+            const contentType = res.headers.get('content-type');
+            const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+            console.log(data);
+        } catch (e) {
+            console.log(e);
+        } finally {
+            setUpdatingBestSellerIds((prev) => prev.filter((id) => id !== dishId));
+            void fetchBestSellers();
+        }
+    }, [accessToken, fetchBestSellers]);
 
     useEffect(() => {
         const handleRefresh = () => {
@@ -692,6 +817,150 @@ export default function MenuManagement() {
                 </div>
             </div>
 
+            <div className="bg-white rounded-[12px] border border-[#00000033] p-6 mt-6">
+                <div className="flex items-center justify-between gap-4">
+                    <h3 className="text-[16px] font-[800] text-[#111827]">Today’s Deal</h3>
+                    <button
+                        onClick={() => setIsAddTodaysDealModalOpen(true)}
+                        className="h-[38px] px-4 bg-[#2BB29C] text-white rounded-[10px] text-[13px] font-[600] hover:bg-[#259D89] transition-colors"
+                    >
+                        + Add Today’s Deal
+                    </button>
+                </div>
+                <div className="mt-4 border border-[#E5E7EB] rounded-[12px] overflow-hidden">
+                    <div className="w-full overflow-x-auto">
+                        <table className="min-w-[900px] w-full text-left border-collapse">
+                        <thead className="bg-[#F9FAFB]">
+                            <tr>
+                                <th className="px-4 py-3 text-[12px] font-[600] text-[#6B7280] uppercase">Item</th>
+                                <th className="px-4 py-3 text-[12px] font-[600] text-[#6B7280] uppercase">Category</th>
+                                <th className="px-4 py-3 text-[12px] font-[600] text-[#6B7280] uppercase">Price</th>
+                                <th className="px-4 py-3 text-[12px] font-[600] text-[#6B7280] uppercase">Discounted Price</th>
+                                <th className="px-4 py-3 text-[12px] font-[600] text-[#6B7280] uppercase">Deal Starts</th>
+                                <th className="px-4 py-3 text-[12px] font-[600] text-[#6B7280] uppercase">Deal Ends</th>
+                                <th className="px-6 py-3 text-[12px] font-[600] text-[#6B7280] uppercase w-[120px]">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {todaysDealsLoading ? (
+                                <tr>
+                                    <td colSpan={7} className="px-6 py-10 text-center text-[13px] text-[#6B7280]">
+                                        Loading deals...
+                                    </td>
+                                </tr>
+                            ) : todaysDeals.length ? (
+                                todaysDeals.map((deal) => (
+                                    <tr key={deal.id} className="border-t border-[#E5E7EB]">
+                                        <td className="px-4 py-4 text-[14px] text-[#111827]">
+                                            <div className="flex items-center gap-3">
+                                                <img
+                                                    src={deal.images?.[0] ? normalizeUrl(deal.images[0]) : 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=80&q=80'}
+                                                    alt={deal.name}
+                                                    className="w-[40px] h-[40px] rounded-[10px] object-cover border border-gray-100"
+                                                />
+                                                <span>{deal.name}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-4 text-[14px] text-[#111827]">
+                                            {categories.find((category) => category.id === deal.category_id)?.name || '-'}
+                                        </td>
+                                        <td className="px-4 py-4 text-[14px] text-[#111827]">{formatMoney(deal.price)}</td>
+                                        <td className="px-4 py-4 text-[14px] font-[600] text-[#2BB29C]">{formatMoney(deal.discounted_price)}</td>
+                                        <td className="px-4 py-4 text-[13px] text-[#6B7280]">{formatDateTime(deal.deal_starts_at)}</td>
+                                        <td className="px-4 py-4 text-[13px] text-[#6B7280]">{formatDateTime(deal.deal_ends_at)}</td>
+                                        <td className="px-6 py-4 w-[120px]">
+                                            <button className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] bg-[#F0FDFA] text-[#2BB29C] hover:bg-[#E8FFFA] transition-colors">
+                                                <Edit2 size={16} />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={7} className="px-6 py-10 text-center text-[13px] text-[#6B7280]">
+                                        No deals found
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-white rounded-[12px] border border-[#00000033] p-6 mt-6">
+                <div className="flex items-center justify-between gap-4">
+                    <h3 className="text-[16px] font-[800] text-[#111827]">Top Seller</h3>
+                    <button
+                        onClick={() => setIsAddTopSellerModalOpen(true)}
+                        className="h-[38px] px-4 bg-[#2BB29C] text-white rounded-[10px] text-[13px] font-[600] hover:bg-[#259D89] transition-colors"
+                    >
+                        + Add Top Seller
+                    </button>
+                </div>
+                <div className="mt-4 border border-[#E5E7EB] rounded-[12px] overflow-hidden">
+                    <div className="w-full overflow-x-auto">
+                        <table className="min-w-[780px] w-full text-left border-collapse">
+                            <thead className="bg-[#F9FAFB]">
+                                <tr>
+                                    <th className="px-4 py-3 text-[12px] font-[600] text-[#6B7280] uppercase">Item</th>
+                                    <th className="px-4 py-3 text-[12px] font-[600] text-[#6B7280] uppercase">Category</th>
+                                    <th className="px-4 py-3 text-[12px] font-[600] text-[#6B7280] uppercase">Price</th>
+                                    <th className="px-6 py-3 text-[12px] font-[600] text-[#6B7280] uppercase w-[140px]">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {bestSellersLoading ? (
+                                    <tr>
+                                        <td colSpan={4} className="px-6 py-10 text-center text-[13px] text-[#6B7280]">
+                                            Loading top sellers...
+                                        </td>
+                                    </tr>
+                                ) : bestSellers.length ? (
+                                    bestSellers.map((item) => {
+                                        const imageUrl = item.images?.[0] ? normalizeUrl(item.images[0]) : 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=80&q=80';
+                                        const categoryName = categories.find((category) => category.id === item.category_id)?.name || '-';
+                                        const isUpdating = updatingBestSellerIds.includes(item.id);
+                                        return (
+                                            <tr key={item.id} className="border-t border-[#E5E7EB]">
+                                                <td className="px-4 py-4 text-[14px] text-[#111827]">
+                                                    <div className="flex items-center gap-3">
+                                                        <img
+                                                            src={imageUrl}
+                                                            alt={item.name}
+                                                            className="w-[40px] h-[40px] rounded-[10px] object-cover border border-gray-100"
+                                                        />
+                                                        <span>{item.name}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-4 text-[14px] text-[#111827]">{categoryName}</td>
+                                                <td className="px-4 py-4 text-[14px] text-[#111827]">{formatMoney(item.price)}</td>
+                                                <td className="px-6 py-4 w-[140px]">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => updateBestSeller(item.id, false)}
+                                                        disabled={isUpdating}
+                                                        className={`w-[44px] h-[24px] rounded-full p-1 transition-colors ${item.is_best_seller === false ? 'bg-gray-300' : 'bg-[#2BB29C]'} ${isUpdating ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                                    >
+                                                        <div className={`w-[16px] h-[16px] bg-white rounded-full shadow-sm transform transition-transform ${item.is_best_seller === false ? 'translate-x-0' : 'translate-x-[20px]'}`} />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                ) : (
+                                    <tr>
+                                        <td colSpan={4} className="px-6 py-10 text-center text-[13px] text-[#6B7280]">
+                                            No top sellers found
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             {/* Quick Analytics */}
             {/* <div className="bg-white rounded-[12px] border border-[#00000033] p-6 mt-6">
                 <div className="flex items-center gap-2 mb-4">
@@ -773,6 +1042,20 @@ export default function MenuManagement() {
             <MenuPreviewModal
                 isOpen={isPreviewModalOpen}
                 onClose={() => setIsPreviewModalOpen(false)}
+            />
+            <AddTodaysDealModal
+                isOpen={isAddTodaysDealModalOpen}
+                onClose={() => setIsAddTodaysDealModalOpen(false)}
+                categories={categories}
+                accessToken={accessToken}
+                onSuccess={handleDealSuccess}
+            />
+            <AddTopSellerModal
+                isOpen={isAddTopSellerModalOpen}
+                onClose={() => setIsAddTopSellerModalOpen(false)}
+                categories={categories}
+                accessToken={accessToken}
+                onSuccess={handleBestSellerSuccess}
             />
             {isAddCategoryModalOpen && (
                 <AddCategoryModal
