@@ -33,7 +33,7 @@ const steps = [
 const WEBSITE_HEADER_REQUIRED_PX = { width: 1440, height: 495 };
 const WEBSITE_FOOTER_LEFT_REQUIRED_PX = { width: 604, height: 425 };
 const WEBSITE_FOOTER_RIGHT_REQUIRED_PX = { width: 604, height: 425 };
-const CATEGORY_IMAGE_REQUIRED_PX = { width: 270, height: 208 };
+const CATEGORY_IMAGE_REQUIRED_PX = { width: 270, height: 195 };
 
 export default function OnboardingStep() {
     const LS_FORM_DATA = 'onboardingFormData';
@@ -142,6 +142,10 @@ export default function OnboardingStep() {
         price: '',
         description: '',
         prepTimeMinutes: '15',
+        addOns: [{ id: 'addon-1', name: '', price: '' }],
+        tags: [],
+        tagInput: '',
+        isAvailable: true,
     });
 
     const [brandingFiles, setBrandingFiles] = useState({
@@ -325,6 +329,10 @@ export default function OnboardingStep() {
             price: '',
             description: '',
             prepTimeMinutes: '15',
+            addOns: [{ id: 'addon-1', name: '', price: '' }],
+            tags: [],
+            tagInput: '',
+            isAvailable: true,
         });
     };
 
@@ -351,6 +359,9 @@ export default function OnboardingStep() {
             price: priceValue,
             description: itemForm.description.trim(),
             prepTimeMinutes: prepMinutesValue,
+            addOns: Array.isArray(itemForm.addOns) ? itemForm.addOns : [],
+            tags: Array.isArray(itemForm.tags) ? itemForm.tags : [],
+            isAvailable: itemForm.isAvailable !== false,
             imageName: itemImage?.name || '',
         };
 

@@ -1,6 +1,7 @@
 import { AlertCircle, ChevronDown, ChevronLeft, ChevronRight, Edit2, Image, Plus, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
+import Toggle from './Toggle';
 
 const normalizeUrl = (value) => {
     if (typeof value !== 'string') return '';
@@ -411,6 +412,11 @@ export default function Step3({
                     description: itemForm.description?.trim() || '',
                     price: priceValue,
                     prep_time_minutes: Math.trunc(prepMinutesValue),
+                    discounted_price: 0,
+                    is_best_seller: false,
+                    is_todays_deal: false,
+                    deal_starts_at: null,
+                    deal_ends_at: null,
                 }),
             });
 
@@ -445,6 +451,50 @@ export default function Step3({
         } finally {
             setSavingItem(false);
         }
+    };
+
+    const addOnRows = Array.isArray(itemForm.addOns) && itemForm.addOns.length ? itemForm.addOns : [];
+    const tagInputValue = itemForm.tagInput || '';
+    const addTag = (value) => {
+        const nextTag = value.trim();
+        if (!nextTag) return;
+        setItemForm((prev) => {
+            const current = Array.isArray(prev.tags) ? prev.tags : [];
+            if (current.some((t) => t.toLowerCase() === nextTag.toLowerCase())) {
+                return { ...prev, tagInput: '' };
+            }
+            return { ...prev, tags: [...current, nextTag], tagInput: '' };
+        });
+    };
+    const handleTagKeyDown = (event) => {
+        if (event.key === 'Enter' || event.key === ',') {
+            event.preventDefault();
+            addTag(tagInputValue);
+        }
+    };
+    const removeTag = (tag) => {
+        setItemForm((prev) => ({
+            ...prev,
+            tags: (Array.isArray(prev.tags) ? prev.tags : []).filter((t) => t !== tag),
+        }));
+    };
+    const addAddOn = () => {
+        setItemForm((prev) => ({
+            ...prev,
+            addOns: [...(Array.isArray(prev.addOns) ? prev.addOns : []), { id: `addon-${Date.now()}`, name: '', price: '' }],
+        }));
+    };
+    const updateAddOn = (id, key, value) => {
+        setItemForm((prev) => ({
+            ...prev,
+            addOns: (Array.isArray(prev.addOns) ? prev.addOns : []).map((addon) => (addon.id === id ? { ...addon, [key]: value } : addon)),
+        }));
+    };
+    const removeAddOn = (id) => {
+        setItemForm((prev) => {
+            const next = (Array.isArray(prev.addOns) ? prev.addOns : []).filter((addon) => addon.id !== id);
+            return { ...prev, addOns: next.length ? next : [{ id: `addon-${Date.now()}`, name: '', price: '' }] };
+        });
     };
 
     return (
@@ -483,7 +533,7 @@ export default function Step3({
                             />
                         </div>
                         {categoryImagePreviewUrl && (
-                            <div className="w-full h-[140px] rounded-[16px] overflow-hidden border border-[#E5E7EB] bg-white mt-2">
+                            <div className="w-[270px] h-[195px] rounded-[16px] overflow-hidden border border-[#E5E7EB] bg-white mt-2">
                                 <img src={categoryImagePreviewUrl} alt="Category Preview" className="w-full h-full object-cover" />
                             </div>
                         )}
@@ -704,20 +754,22 @@ export default function Step3({
                                     </div>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="block text-[14px] font-[600] text-[#1A1A1A]">Category <span className="text-red-500">*</span></label>
-                                    <div className="relative">
-                                        <select
-                                            value={itemForm.categoryId}
-                                            onChange={(e) => setItemForm((prev) => ({ ...prev, categoryId: e.target.value }))}
-                                            className="onboarding-input !h-[56px] !rounded-[12px] appearance-none"
-                                        >
-                                            <option value="">Select category</option>
-                                            {categoryOptions.map((c) => (
-                                                <option key={c.id} value={c.id}>{c.name}</option>
-                                            ))}
-                                        </select>
-                                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <div className="space-y-2">
+                                        <label className="block text-[14px] font-[600] text-[#1A1A1A]">Category <span className="text-red-500">*</span></label>
+                                        <div className="relative">
+                                            <select
+                                                value={itemForm.categoryId}
+                                                onChange={(e) => setItemForm((prev) => ({ ...prev, categoryId: e.target.value }))}
+                                                className="onboarding-input !h-[56px] !rounded-[12px] appearance-none"
+                                            >
+                                                <option value="">Select category</option>
+                                                {categoryOptions.map((c) => (
+                                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                                ))}
+                                            </select>
+                                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
+                                        </div>
                                     </div>
                                 </div>
 
@@ -728,7 +780,7 @@ export default function Step3({
                                         className="w-full h-[240px] rounded-[16px] border-2 border-dashed border-[#E5E7EB] bg-white flex flex-col items-center justify-center cursor-pointer overflow-hidden"
                                     >
                                         {itemImagePreviewUrl ? (
-                                            <img src={itemImagePreviewUrl} alt="Item preview" className="w-full h-full object-cover" />
+                                            <img src={itemImagePreviewUrl} alt="Item preview" className="w-full h-full object-contain" />
                                         ) : (
                                             <div className="flex flex-col items-center justify-center text-[#6B7280] gap-3">
                                                 <div className="w-[44px] h-[44px] rounded-[12px] bg-[#F6F8F9] flex items-center justify-center">
@@ -757,6 +809,67 @@ export default function Step3({
                                     />
                                 </div>
 
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <label className="block text-[14px] font-[600] text-[#1A1A1A]">Add-ons (Optional)</label>
+                                        <button
+                                            type="button"
+                                            onClick={addAddOn}
+                                            className="h-[36px] px-4 border border-primary text-primary rounded-[10px] text-[13px] font-[500] hover:bg-[#E8FFFA] transition-colors flex items-center gap-2"
+                                        >
+                                            <Plus size={14} /> Add Add-on
+                                        </button>
+                                    </div>
+                                    <div className="space-y-3">
+                                        {(addOnRows.length ? addOnRows : [{ id: 'addon-1', name: '', price: '' }]).map((addon) => (
+                                            <div key={addon.id} className="grid grid-cols-1 md:grid-cols-[1fr_140px_auto] gap-3 items-center">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Add-on name"
+                                                    value={addon.name}
+                                                    onChange={(e) => updateAddOn(addon.id, 'name', e.target.value)}
+                                                    className="onboarding-input !h-[48px] !rounded-[12px]"
+                                                />
+                                                <input
+                                                    type="text"
+                                                    placeholder="Price"
+                                                    value={addon.price}
+                                                    onChange={(e) => updateAddOn(addon.id, 'price', e.target.value)}
+                                                    className="onboarding-input !h-[48px] !rounded-[12px]"
+                                                />
+                                                <button type="button" onClick={() => removeAddOn(addon.id)} className="h-[44px] w-[44px] rounded-[10px] border border-[#F3DADA] text-[#EF4444] flex items-center justify-center hover:bg-[#FEECEC] transition-colors">
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="block text-[14px] font-[600] text-[#1A1A1A]">Tags</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Type a tag and press Enter"
+                                        value={tagInputValue}
+                                        onChange={(e) => setItemForm((prev) => ({ ...prev, tagInput: e.target.value }))}
+                                        onKeyDown={handleTagKeyDown}
+                                        onBlur={() => addTag(tagInputValue)}
+                                        className="onboarding-input !h-[56px] !rounded-[12px]"
+                                    />
+                                    {Array.isArray(itemForm.tags) && itemForm.tags.length > 0 && (
+                                        <div className="flex flex-wrap gap-2">
+                                            {itemForm.tags.map((tag) => (
+                                                <div key={tag} className="flex items-center gap-2 px-4 h-[36px] rounded-full text-[13px] font-[500] border border-[#E5E7EB] text-[#374151] bg-white">
+                                                    <span>{tag}</span>
+                                                    <button type="button" onClick={() => removeTag(tag)} className="text-[#9CA3AF] hover:text-[#EF4444] transition-colors">
+                                                        <X size={14} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
                                     <div className="space-y-2">
                                         <label className="block text-[14px] font-[600] text-[#1A1A1A]">Prep Time (minutes)</label>
@@ -767,7 +880,15 @@ export default function Step3({
                                             className="onboarding-input !h-[56px] !rounded-[12px]"
                                         />
                                     </div>
+                                    <div className="space-y-2">
+                                        <label className="block text-[14px] font-[600] text-[#1A1A1A]">Availability</label>
+                                        <div className="flex items-center gap-3 h-[56px]">
+                                            <Toggle active={itemForm.isAvailable !== false} onClick={() => setItemForm((prev) => ({ ...prev, isAvailable: !prev.isAvailable }))} />
+                                            <span className="text-[14px] text-[#374151]">{itemForm.isAvailable !== false ? 'Available' : 'Unavailable'}</span>
+                                        </div>
+                                    </div>
                                 </div>
+
                             </div>
 
                             <div className="p-6 border-t border-gray-100 flex items-center justify-end gap-4">
