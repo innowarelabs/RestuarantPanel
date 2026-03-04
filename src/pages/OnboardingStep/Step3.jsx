@@ -171,9 +171,16 @@ export default function Step3({
     const canOpenAddItem = categories.length > 0;
     const priceText = itemForm.price?.trim() || '';
     const prepTimeText = itemForm.prepTimeMinutes?.trim() || '';
-    const priceOk = !!priceText && Number.isFinite(Number(priceText));
+    const hasVariants = !!itemForm.hasVariants;
+    const variantsList = Array.isArray(itemForm.variants) ? itemForm.variants : [];
+    const variantsValid = !hasVariants || variantsList.some((variant) => {
+        const name = typeof variant?.name === 'string' ? variant.name.trim() : '';
+        const price = Number(variant?.price);
+        return name && Number.isFinite(price);
+    });
+    const priceOk = hasVariants ? true : !!priceText && Number.isFinite(Number(priceText));
     const prepOk = !!prepTimeText && Number.isFinite(Number(prepTimeText));
-    const canSaveItem = !!itemForm.categoryId && !!itemForm.name.trim() && priceOk && prepOk;
+    const canSaveItem = !!itemForm.categoryId && !!itemForm.name.trim() && priceOk && prepOk && variantsValid;
 
     const canProceed = categories.length > 0;
     void _startEditCategory;
@@ -380,9 +387,9 @@ export default function Step3({
             const baseUrl = import.meta.env.VITE_BACKEND_URL;
             if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
 
-            const priceValue = Number(priceText);
+            const priceValue = hasVariants ? 0 : Number(priceText);
             const prepMinutesValue = Number(prepTimeText);
-            if (!Number.isFinite(priceValue)) {
+            if (!hasVariants && !Number.isFinite(priceValue)) {
                 setErrorLines(['Price must be a number']);
                 return;
             }
@@ -390,6 +397,35 @@ export default function Step3({
                 setErrorLines(['Prep time must be a number']);
                 return;
             }
+            const stockValue = Number(itemForm.stockQuantity);
+            const lowStockValue = Number(itemForm.lowStockAlert);
+            if (itemForm.trackInventory && itemForm.stockQuantity?.trim() && !Number.isFinite(stockValue)) {
+                setErrorLines(['Stock quantity must be a number']);
+                return;
+            }
+            if (itemForm.trackInventory && itemForm.lowStockAlert?.trim() && !Number.isFinite(lowStockValue)) {
+                setErrorLines(['Low stock alert must be a number']);
+                return;
+            }
+            const cleanedVariants = hasVariants
+                ? variantsList
+                    .map((variant) => ({
+                        name: variant.name?.trim() || '',
+                        price: Number(variant.price),
+                        sku: variant.sku?.trim() || '',
+                    }))
+                    .filter((variant) => variant.name && Number.isFinite(variant.price))
+                : [];
+            if (hasVariants && cleanedVariants.length === 0) {
+                setErrorLines(['At least one variant is required']);
+                return;
+            }
+            const cleanedAddons = (Array.isArray(itemForm.addOns) ? itemForm.addOns : [])
+                .map((addon) => ({
+                    name: addon.name?.trim() || '',
+                    price: Number(addon.price),
+                }))
+                .filter((addon) => addon.name && Number.isFinite(addon.price));
 
             const images = [];
             if (itemImage) {
@@ -411,12 +447,21 @@ export default function Step3({
                     images,
                     description: itemForm.description?.trim() || '',
                     price: priceValue,
+                    tags: Array.isArray(itemForm.tags) ? itemForm.tags : [],
                     prep_time_minutes: Math.trunc(prepMinutesValue),
                     discounted_price: 0,
+                    has_variants: hasVariants,
+                    track_inventory: !!itemForm.trackInventory,
+                    stock_quantity: itemForm.trackInventory && Number.isFinite(stockValue) ? Math.trunc(stockValue) : 0,
+                    low_stock_alert: itemForm.trackInventory && Number.isFinite(lowStockValue) ? Math.trunc(lowStockValue) : 10,
+                    number_of_orders: 0,
+                    is_available: itemForm.isAvailable !== false,
                     is_best_seller: false,
                     is_todays_deal: false,
                     deal_starts_at: null,
                     deal_ends_at: null,
+                    variants: cleanedVariants,
+                    addons: cleanedAddons,
                 }),
             });
 
@@ -494,6 +539,24 @@ export default function Step3({
         setItemForm((prev) => {
             const next = (Array.isArray(prev.addOns) ? prev.addOns : []).filter((addon) => addon.id !== id);
             return { ...prev, addOns: next.length ? next : [{ id: `addon-${Date.now()}`, name: '', price: '' }] };
+        });
+    };
+    const addVariant = () => {
+        setItemForm((prev) => ({
+            ...prev,
+            variants: [...(Array.isArray(prev.variants) ? prev.variants : []), { id: `variant-${Date.now()}`, name: '', price: '', sku: '' }],
+        }));
+    };
+    const updateVariant = (id, key, value) => {
+        setItemForm((prev) => ({
+            ...prev,
+            variants: (Array.isArray(prev.variants) ? prev.variants : []).map((variant) => (variant.id === id ? { ...variant, [key]: value } : variant)),
+        }));
+    };
+    const removeVariant = (id) => {
+        setItemForm((prev) => {
+            const next = (Array.isArray(prev.variants) ? prev.variants : []).filter((variant) => variant.id !== id);
+            return { ...prev, variants: next.length ? next : [{ id: `variant-${Date.now()}`, name: '', price: '', sku: '' }] };
         });
     };
 
@@ -743,13 +806,16 @@ export default function Step3({
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="block text-[14px] font-[600] text-[#1A1A1A]">Price <span className="text-red-500">*</span></label>
+                                        <label className="block text-[14px] font-[600] text-[#1A1A1A]">
+                                            Price {!itemForm.hasVariants && <span className="text-red-500">*</span>}
+                                        </label>
                                         <input
                                             type="text"
                                             placeholder="12.99"
                                             value={itemForm.price}
                                             onChange={(e) => setItemForm((prev) => ({ ...prev, price: e.target.value }))}
-                                            className="onboarding-input !h-[56px] !rounded-[12px]"
+                                            disabled={!!itemForm.hasVariants}
+                                            className={`onboarding-input !h-[56px] !rounded-[12px] ${itemForm.hasVariants ? 'bg-[#F3F4F6] text-[#9CA3AF]' : ''}`}
                                         />
                                     </div>
                                 </div>
@@ -798,6 +864,59 @@ export default function Step3({
                                         onChange={(e) => setItemImageFile(e.target.files?.[0] ?? null)}
                                     />
                                 </div>
+
+                                <div className="flex items-center justify-between bg-[#F6F8F9] rounded-[12px] p-4">
+                                    <div>
+                                        <h4 className="text-[14px] font-[600] text-[#1A1A1A]">Has Variants?</h4>
+                                        <p className="text-[12px] text-[#6B7280]">E.g., Small, Medium, Large</p>
+                                    </div>
+                                    <Toggle active={!!itemForm.hasVariants} onClick={() => setItemForm((prev) => ({ ...prev, hasVariants: !prev.hasVariants }))} />
+                                </div>
+
+                                {itemForm.hasVariants && (
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <label className="block text-[14px] font-[600] text-[#1A1A1A]">Variants <span className="text-red-500">*</span></label>
+                                            <button
+                                                type="button"
+                                                onClick={addVariant}
+                                                className="h-[36px] px-4 border border-primary text-primary rounded-[10px] text-[13px] font-[500] hover:bg-[#E8FFFA] transition-colors flex items-center gap-2"
+                                            >
+                                                <Plus size={14} /> Add variant
+                                            </button>
+                                        </div>
+                                        <div className="space-y-3">
+                                            {(Array.isArray(itemForm.variants) && itemForm.variants.length ? itemForm.variants : [{ id: 'variant-1', name: '', price: '', sku: '' }]).map((variant) => (
+                                                <div key={variant.id} className="grid grid-cols-1 md:grid-cols-[1fr_140px_120px_auto] gap-3 items-center">
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Size name"
+                                                        value={variant.name}
+                                                        onChange={(e) => updateVariant(variant.id, 'name', e.target.value)}
+                                                        className="onboarding-input !h-[48px] !rounded-[12px]"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Price"
+                                                        value={variant.price}
+                                                        onChange={(e) => updateVariant(variant.id, 'price', e.target.value)}
+                                                        className="onboarding-input !h-[48px] !rounded-[12px]"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        placeholder="SKU"
+                                                        value={variant.sku}
+                                                        onChange={(e) => updateVariant(variant.id, 'sku', e.target.value)}
+                                                        className="onboarding-input !h-[48px] !rounded-[12px]"
+                                                    />
+                                                    <button type="button" onClick={() => removeVariant(variant.id)} className="h-[44px] w-[44px] rounded-[10px] border border-[#F3DADA] text-[#EF4444] flex items-center justify-center hover:bg-[#FEECEC] transition-colors">
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className="space-y-2">
                                     <label className="block text-[14px] font-[600] text-[#1A1A1A]">Description</label>
@@ -888,6 +1007,39 @@ export default function Step3({
                                         </div>
                                     </div>
                                 </div>
+
+                                <div className="flex items-center justify-between bg-[#F6F8F9] rounded-[12px] p-4">
+                                    <div>
+                                        <h4 className="text-[14px] font-[600] text-[#1A1A1A]">Track Inventory</h4>
+                                        <p className="text-[12px] text-[#6B7280]">Monitor stock levels for this item</p>
+                                    </div>
+                                    <Toggle active={!!itemForm.trackInventory} onClick={() => setItemForm((prev) => ({ ...prev, trackInventory: !prev.trackInventory }))} />
+                                </div>
+
+                                {itemForm.trackInventory && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <div className="space-y-2">
+                                            <label className="block text-[14px] font-[600] text-[#1A1A1A]">Stock Quantity</label>
+                                            <input
+                                                type="text"
+                                                placeholder="100"
+                                                value={itemForm.stockQuantity}
+                                                onChange={(e) => setItemForm((prev) => ({ ...prev, stockQuantity: e.target.value }))}
+                                                className="onboarding-input !h-[56px] !rounded-[12px]"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="block text-[14px] font-[600] text-[#1A1A1A]">Low Stock Alert</label>
+                                            <input
+                                                type="text"
+                                                placeholder="10"
+                                                value={itemForm.lowStockAlert}
+                                                onChange={(e) => setItemForm((prev) => ({ ...prev, lowStockAlert: e.target.value }))}
+                                                className="onboarding-input !h-[56px] !rounded-[12px]"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
 
                             </div>
 

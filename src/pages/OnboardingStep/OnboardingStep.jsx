@@ -142,6 +142,11 @@ export default function OnboardingStep() {
         price: '',
         description: '',
         prepTimeMinutes: '15',
+        hasVariants: false,
+        variants: [{ id: 'variant-1', name: '', price: '', sku: '' }],
+        trackInventory: false,
+        stockQuantity: '',
+        lowStockAlert: '10',
         addOns: [{ id: 'addon-1', name: '', price: '' }],
         tags: [],
         tagInput: '',
@@ -329,6 +334,11 @@ export default function OnboardingStep() {
             price: '',
             description: '',
             prepTimeMinutes: '15',
+            hasVariants: false,
+            variants: [{ id: 'variant-1', name: '', price: '', sku: '' }],
+            trackInventory: false,
+            stockQuantity: '',
+            lowStockAlert: '10',
             addOns: [{ id: 'addon-1', name: '', price: '' }],
             tags: [],
             tagInput: '',
@@ -344,10 +354,21 @@ export default function OnboardingStep() {
     const saveItem = () => {
         const trimmedName = itemForm.name.trim();
         const trimmedPrice = itemForm.price.trim();
-        if (!trimmedName || !trimmedPrice || !itemForm.categoryId) return;
+        if (!trimmedName || !itemForm.categoryId) return;
+        const hasVariants = !!itemForm.hasVariants;
+        const variants = Array.isArray(itemForm.variants) ? itemForm.variants : [];
+        const cleanedVariants = variants
+            .map((variant) => ({
+                name: variant.name?.trim() || '',
+                price: Number(variant.price),
+                sku: variant.sku?.trim() || '',
+            }))
+            .filter((variant) => variant.name && Number.isFinite(variant.price));
 
-        const priceValue = Number(trimmedPrice);
-        if (!Number.isFinite(priceValue)) return;
+        if (!hasVariants && !trimmedPrice) return;
+
+        const priceValue = hasVariants ? 0 : Number(trimmedPrice);
+        if (!hasVariants && !Number.isFinite(priceValue)) return;
 
         const prepMinutesValue = Number(itemForm.prepTimeMinutes.trim());
         if (!Number.isFinite(prepMinutesValue)) return;
@@ -359,6 +380,12 @@ export default function OnboardingStep() {
             price: priceValue,
             description: itemForm.description.trim(),
             prepTimeMinutes: prepMinutesValue,
+            hasVariants,
+            variants: cleanedVariants,
+            trackInventory: !!itemForm.trackInventory,
+            stockQuantity: itemForm.stockQuantity,
+            lowStockAlert: itemForm.lowStockAlert,
+            numberOfOrders: 0,
             addOns: Array.isArray(itemForm.addOns) ? itemForm.addOns : [],
             tags: Array.isArray(itemForm.tags) ? itemForm.tags : [],
             isAvailable: itemForm.isAvailable !== false,

@@ -347,6 +347,16 @@ export default function MenuManagement() {
     }, [fetchCategories]);
 
     useEffect(() => {
+        const handleRefresh = () => {
+            void fetchCategories();
+        };
+        window.addEventListener('menu-item-added', handleRefresh);
+        return () => {
+            window.removeEventListener('menu-item-added', handleRefresh);
+        };
+    }, [fetchCategories]);
+
+    useEffect(() => {
         if (!categories.length) {
             setActiveCategory('');
             return;
@@ -683,7 +693,7 @@ export default function MenuManagement() {
             </div>
 
             {/* Quick Analytics */}
-            <div className="bg-white rounded-[12px] border border-[#00000033] p-6 mt-6">
+            {/* <div className="bg-white rounded-[12px] border border-[#00000033] p-6 mt-6">
                 <div className="flex items-center gap-2 mb-4">
                     <TrendingUp className="text-[#2BB29C] w-5 h-5" />
                     <h3 className="text-[16px] font-[800] text-[#111827]">Quick Analytics</h3>
@@ -735,9 +745,9 @@ export default function MenuManagement() {
                         </div>
                     </div>
                 </div>
-            </div>
+            </div> */}
 
-            <div className="mt-6">
+            {/* <div className="mt-6">
                 <div className="bg-white rounded-[12px] border border-[#00000033] p-6 flex flex-col items-center justify-center text-center">
                     <div className="w-16 h-16 bg-[#F0FDFA] rounded-full flex items-center justify-center mb-4">
                         <Eye size={32} className="text-[#2BB29C]" />
@@ -752,7 +762,7 @@ export default function MenuManagement() {
                         Preview Menu
                     </button>
                 </div>
-            </div>
+            </div> */}
 
             {/* Modals */}
             <EditMenuItemModal
