@@ -1237,11 +1237,10 @@ export default function MenuManagement() {
                                                     <div className="flex items-center gap-2">
                                                         <button
                                                             onClick={() => handleEditClick(item)}
-                                                            className="text-[#2BB29C] hover:text-[#2BB29C]/80 bg-[#F0FDFA] p-2 rounded-md transition-colors cursor-pointer"
+                                                            className="text-[#2BB29C] hover:text-[#2BB29C] p-2 rounded-md transition-colors cursor-pointer"
                                                         >
                                                             <Edit2 size={16} />
                                                         </button>
-                                                        <button className="text-[#6B7280] hover:text-[#374151] hover:bg-gray-100 p-2 rounded-md transition-colors cursor-pointer"><Copy size={16} /></button>
                                                         <button
                                                             type="button"
                                                             onClick={() => {

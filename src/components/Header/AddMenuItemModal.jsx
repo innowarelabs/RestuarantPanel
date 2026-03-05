@@ -32,7 +32,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
         catering: false,
         cateringMinimumOrder: '0',
     });
-    const [variants, setVariants] = useState([{ name: '', price: '', sku: '' }]);
+    const [variants, setVariants] = useState([{ name: '', price: '' }]);
     const [addons, setAddons] = useState([]);
     const [selectedTags, setSelectedTags] = useState([]);
     const [tagInput, setTagInput] = useState('');
@@ -58,7 +58,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
             catering: false,
             cateringMinimumOrder: '0',
         });
-        setVariants([{ name: '', price: '', sku: '' }]);
+        setVariants([{ name: '', price: '' }]);
         setAddons([]);
         setSelectedTags([]);
         setTagInput('');
@@ -156,7 +156,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
     };
 
     const addVariant = () => {
-        setVariants((prev) => [...prev, { name: '', price: '', sku: '' }]);
+        setVariants((prev) => [...prev, { name: '', price: '' }]);
     };
 
     const updateVariant = (index, key, value) => {
@@ -296,7 +296,6 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                         .map((variant) => ({
                             name: variant.name?.trim() || '',
                             price: Number(variant.price),
-                            sku: variant.sku?.trim() || '',
                         }))
                         .filter((variant) => variant.name && Number.isFinite(variant.price))
                     : [],
@@ -486,13 +485,6 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                                             className="w-full h-[42px] pl-7 pr-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#2BB29C] shadow-sm"
                                         />
                                     </div>
-                                    <input
-                                        type="text"
-                                        placeholder="SKU"
-                                        value={variant.sku}
-                                        onChange={(e) => updateVariant(idx, 'sku', e.target.value)}
-                                        className="w-[100px] h-[42px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#2BB29C] shadow-sm"
-                                    />
                                 </div>
                             ))}
                             <button onClick={addVariant} className="flex items-center gap-1 text-[13px] font-medium text-[#2BB29C] hover:text-[#249A88] active:scale-95 transition-transform">
