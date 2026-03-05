@@ -1027,8 +1027,13 @@ export default function MenuManagement() {
                     id: String(dish.id),
                     name: dish.name || '-',
                     categoryName: category.name || '-',
+                    imageUrl: dish.images?.[0] ? normalizeUrl(dish.images[0]) : '',
                     minimumOrder: toFiniteNumber(dish.catering_minimum_order),
                     catering: !!dish.catering,
+                    price: dish.price,
+                    discounted_price: dish.discounted_price,
+                    has_variants: dish.has_variants,
+                    variants: Array.isArray(dish.variants) ? dish.variants : [],
                 });
             });
         });
@@ -1403,6 +1408,7 @@ export default function MenuManagement() {
                                     bestSellers.map((item) => {
                                         const imageUrl = item.images?.[0] ? normalizeUrl(item.images[0]) : 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=80&q=80';
                                         const categoryName = categories.find((category) => category.id === item.category_id)?.name || '-';
+                                        const pricing = getPricingDisplay(item);
                                         const isUpdating = updatingBestSellerIds.includes(item.id);
                                         return (
                                             <tr key={item.id} className="border-t border-[#E5E7EB]">
@@ -1417,7 +1423,16 @@ export default function MenuManagement() {
                                                     </div>
                                                 </td>
                                                 <td className="px-4 py-4 text-[14px] text-[#111827]">{categoryName}</td>
-                                                <td className="px-4 py-4 text-[14px] text-[#111827]">{formatMoney(item.price)}</td>
+                                                <td className="px-4 py-4 text-[14px] font-[500] text-[#111827] whitespace-nowrap">
+                                                    {pricing.hasDiscount && pricing.discounted ? (
+                                                        <div className="flex items-baseline gap-2">
+                                                            <span className="line-through text-[#9CA3AF] font-[400]">{pricing.price}</span>
+                                                            <span className="text-[#2BB29C] font-[600]">{pricing.discounted}</span>
+                                                        </div>
+                                                    ) : (
+                                                        pricing.price
+                                                    )}
+                                                </td>
                                                 <td className="px-6 py-4 w-[140px]">
                                                     <button
                                                         type="button"
@@ -1456,11 +1471,12 @@ export default function MenuManagement() {
                 </div>
                 <div className="mt-4 border border-[#E5E7EB] rounded-[12px] overflow-hidden">
                     <div className="w-full overflow-x-auto">
-                        <table className="min-w-[780px] w-full text-left border-collapse">
+                        <table className="min-w-[900px] w-full text-left border-collapse">
                             <thead className="bg-[#F9FAFB]">
                                 <tr>
                                     <th className="px-4 py-3 text-[12px] font-[600] text-[#6B7280] uppercase">Item</th>
                                     <th className="px-4 py-3 text-[12px] font-[600] text-[#6B7280] uppercase">Category</th>
+                                    <th className="px-4 py-3 text-[12px] font-[600] text-[#6B7280] uppercase">Price</th>
                                     <th className="px-4 py-3 text-[12px] font-[600] text-[#6B7280] uppercase">Minimum Order</th>
                                     <th className="px-6 py-3 text-[12px] font-[600] text-[#6B7280] uppercase w-[140px]">Actions</th>
                                 </tr>
@@ -1468,17 +1484,37 @@ export default function MenuManagement() {
                             <tbody>
                                 {categoriesLoading ? (
                                     <tr>
-                                        <td colSpan={4} className="px-6 py-10 text-center text-[13px] text-[#6B7280]">
+                                        <td colSpan={5} className="px-6 py-10 text-center text-[13px] text-[#6B7280]">
                                             Loading catering items...
                                         </td>
                                     </tr>
                                 ) : cateringItems.length ? (
                                     cateringItems.map((item) => {
                                         const isUpdating = updatingCateringIds.includes(item.id);
+                                        const pricing = getPricingDisplay(item);
                                         return (
                                         <tr key={item.id} className="border-t border-[#E5E7EB]">
-                                            <td className="px-4 py-4 text-[14px] text-[#111827]">{item.name}</td>
+                                            <td className="px-4 py-4 text-[14px] text-[#111827]">
+                                                <div className="flex items-center gap-3">
+                                                    <img
+                                                        src={item.imageUrl || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=80&q=80'}
+                                                        alt={item.name}
+                                                        className="w-[40px] h-[40px] rounded-[10px] object-cover border border-gray-100"
+                                                    />
+                                                    <span>{item.name}</span>
+                                                </div>
+                                            </td>
                                             <td className="px-4 py-4 text-[14px] text-[#111827]">{item.categoryName}</td>
+                                            <td className="px-4 py-4 text-[14px] font-[500] text-[#111827] whitespace-nowrap">
+                                                {pricing.hasDiscount && pricing.discounted ? (
+                                                    <div className="flex items-baseline gap-2">
+                                                        <span className="line-through text-[#9CA3AF] font-[400]">{pricing.price}</span>
+                                                        <span className="text-[#2BB29C] font-[600]">{pricing.discounted}</span>
+                                                    </div>
+                                                ) : (
+                                                    pricing.price
+                                                )}
+                                            </td>
                                             <td className="px-4 py-4 text-[14px] text-[#111827]">
                                                 {typeof item.minimumOrder === 'number' ? item.minimumOrder : '-'}
                                             </td>
@@ -1501,7 +1537,7 @@ export default function MenuManagement() {
                                     })
                                 ) : (
                                     <tr>
-                                        <td colSpan={4} className="px-6 py-10 text-center text-[13px] text-[#6B7280]">
+                                        <td colSpan={5} className="px-6 py-10 text-center text-[13px] text-[#6B7280]">
                                             No catering items found
                                         </td>
                                     </tr>
