@@ -34,9 +34,9 @@ const isErrorPayload = (data) => {
     if (typeof data.code !== 'string') return false;
     const code = data.code.trim().toUpperCase();
     if (!code) return false;
+    if (code.startsWith('SUCCESS_')) return false;
     if (code.startsWith('ERROR_')) return true;
     if (code.endsWith('_400') || code.endsWith('_401') || code.endsWith('_403') || code.endsWith('_404') || code.endsWith('_422') || code.endsWith('_500')) return true;
-    if (data.data === null && typeof data.message === 'string' && data.message.trim()) return true;
     return false;
 };
 
@@ -491,6 +491,7 @@ export default function MenuManagement() {
     const [updatingBestSellerIds, setUpdatingBestSellerIds] = useState([]);
     const [updatingCateringIds, setUpdatingCateringIds] = useState([]);
     const [removingTodaysDealIds, setRemovingTodaysDealIds] = useState([]);
+    const [deletingDishIds, setDeletingDishIds] = useState([]);
     const [savingCategory, setSavingCategory] = useState(false);
     const [savingCategoryErrorLines, setSavingCategoryErrorLines] = useState([]);
     const [deleteCategoryTarget, setDeleteCategoryTarget] = useState(null);
@@ -744,6 +745,32 @@ export default function MenuManagement() {
     const handleDealSuccess = useCallback(async () => {
         await Promise.all([fetchCategories(), fetchTodaysDeals()]);
     }, [fetchCategories, fetchTodaysDeals]);
+
+    const deleteDish = useCallback(async (dishId) => {
+        const id = typeof dishId === 'string' ? dishId : typeof dishId === 'number' ? String(dishId) : '';
+        if (!id) return;
+        setDeletingDishIds((prev) => [...prev, id]);
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/dishes/${encodeURIComponent(id)}`;
+            const res = await fetch(url, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                },
+            });
+            const contentType = res.headers.get('content-type');
+            const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+            if (!res.ok || isErrorPayload(data)) return;
+            await Promise.all([fetchCategories(), fetchTodaysDeals(), fetchBestSellers()]);
+        } catch {
+            return;
+        } finally {
+            setDeletingDishIds((prev) => prev.filter((value) => value !== id));
+        }
+    }, [accessToken, fetchBestSellers, fetchCategories, fetchTodaysDeals]);
 
     const removeTodaysDeal = useCallback(async (deal) => {
         const dishId = deal?.id ? String(deal.id) : '';
@@ -1162,7 +1189,9 @@ export default function MenuManagement() {
                                             </tr>
                                         ))
                                     ) : menuItems.length ? (
-                                        menuItems.map((item) => (
+                                        menuItems.map((item) => {
+                                            const isDeleting = deletingDishIds.includes(item.id);
+                                            return (
                                             <tr key={item.id} className="hover:bg-gray-50 group transition-colors">
                                                 <td className="px-4 py-4 whitespace-nowrap">
                                                     <div className="flex items-center gap-4">
@@ -1213,11 +1242,22 @@ export default function MenuManagement() {
                                                             <Edit2 size={16} />
                                                         </button>
                                                         <button className="text-[#6B7280] hover:text-[#374151] hover:bg-gray-100 p-2 rounded-md transition-colors cursor-pointer"><Copy size={16} /></button>
-                                                        <button className="text-[#EF4444] hover:text-[#D14343] hover:bg-red-50 p-2 rounded-md transition-colors cursor-pointer"><Trash2 size={16} /></button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                if (isDeleting) return;
+                                                                void deleteDish(item.id);
+                                                            }}
+                                                            disabled={isDeleting}
+                                                            className={`text-[#EF4444] hover:text-[#D14343] hover:bg-red-50 p-2 rounded-md transition-colors ${isDeleting ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
                                                     </div>
                                                 </td>
                                             </tr>
-                                        ))
+                                            );
+                                        })
                                     ) : (
                                         <tr>
                                             <td colSpan={6} className="px-6 py-16">
