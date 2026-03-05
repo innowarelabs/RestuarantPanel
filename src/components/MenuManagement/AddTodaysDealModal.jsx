@@ -11,6 +11,7 @@ export default function AddTodaysDealModal({ isOpen, onClose, categories, access
     const [selectedCategoryId, setSelectedCategoryId] = useState('');
     const [selectedItemId, setSelectedItemId] = useState('');
     const [discountedPrice, setDiscountedPrice] = useState('');
+    const [variantDiscounts, setVariantDiscounts] = useState({});
     const [dealStartsAt, setDealStartsAt] = useState('');
     const [dealEndsAt, setDealEndsAt] = useState('');
     const [saving, setSaving] = useState(false);
@@ -30,9 +31,32 @@ export default function AddTodaysDealModal({ isOpen, onClose, categories, access
     );
 
     useEffect(() => {
+        if (!selectedItem) {
+            setDiscountedPrice('');
+            setVariantDiscounts({});
+            return;
+        }
+        const hasVariants = !!selectedItem?.has_variants || (Array.isArray(selectedItem?.variants) && selectedItem.variants.length > 0);
+        if (hasVariants) {
+            const next = {};
+            (Array.isArray(selectedItem?.variants) ? selectedItem.variants : []).forEach((variant) => {
+                const value = Number(variant?.discounted_price);
+                next[String(variant.id)] = Number.isFinite(value) ? String(value) : '';
+            });
+            setVariantDiscounts(next);
+            setDiscountedPrice('');
+        } else {
+            const value = Number(selectedItem?.discounted_price);
+            setDiscountedPrice(Number.isFinite(value) ? String(value) : '');
+            setVariantDiscounts({});
+        }
+    }, [selectedItem]);
+
+    useEffect(() => {
         if (!isOpen) return;
         setSelectedItemId('');
         setDiscountedPrice('');
+        setVariantDiscounts({});
         setDealStartsAt('');
         setDealEndsAt('');
         setError('');
@@ -42,6 +66,7 @@ export default function AddTodaysDealModal({ isOpen, onClose, categories, access
         setSelectedCategoryId('');
         setSelectedItemId('');
         setDiscountedPrice('');
+        setVariantDiscounts({});
         setDealStartsAt('');
         setDealEndsAt('');
         setError('');
@@ -58,10 +83,29 @@ export default function AddTodaysDealModal({ isOpen, onClose, categories, access
             setError('Please select category and item');
             return;
         }
-        const priceValue = Number(discountedPrice);
-        if (!Number.isFinite(priceValue)) {
-            setError('Discounted price must be a number');
-            return;
+        const hasVariants = !!selectedItem?.has_variants || (Array.isArray(selectedItem?.variants) && selectedItem.variants.length > 0);
+        const variants = Array.isArray(selectedItem?.variants) ? selectedItem.variants : [];
+        if (hasVariants) {
+            const invalid = variants.some((variant) => {
+                const input = variantDiscounts[String(variant.id)];
+                if (input === undefined || String(input).trim() === '') return true;
+                const value = Number(input);
+                return !Number.isFinite(value);
+            });
+            if (invalid) {
+                setError('Variant discounted prices are required');
+                return;
+            }
+        } else {
+            if (!discountedPrice.trim()) {
+                setError('Discounted price is required');
+                return;
+            }
+            const priceValue = Number(discountedPrice);
+            if (!Number.isFinite(priceValue)) {
+                setError('Discounted price must be a number');
+                return;
+            }
         }
         if (!dealStartsAt || !dealEndsAt) {
             setError('Deal start and end time are required');
@@ -80,6 +124,13 @@ export default function AddTodaysDealModal({ isOpen, onClose, categories, access
             const baseUrl = import.meta.env.VITE_BACKEND_URL;
             if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
             const url = `${baseUrl.replace(/\/$/, '')}/api/v1/dishes/${encodeURIComponent(selectedItemId)}/todays-deal`;
+            const hasItemVariants = !!selectedItem?.has_variants || (Array.isArray(selectedItem?.variants) && selectedItem.variants.length > 0);
+            const variantsPayload = hasItemVariants
+                ? (Array.isArray(selectedItem?.variants) ? selectedItem.variants : []).map((variant) => ({
+                    ...variant,
+                    discounted_price: Number(variantDiscounts[String(variant.id)]),
+                }))
+                : [];
             const res = await fetch(url, {
                 method: 'PATCH',
                 headers: {
@@ -88,9 +139,9 @@ export default function AddTodaysDealModal({ isOpen, onClose, categories, access
                 },
                 body: JSON.stringify({
                     is_todays_deal: true,
-                    discounted_price: priceValue,
                     deal_starts_at: startDate.toISOString(),
                     deal_ends_at: endDate.toISOString(),
+                    ...(hasItemVariants ? { variants: variantsPayload, discounted_price: 0, price: 0 } : { discounted_price: Number(discountedPrice) }),
                 }),
             });
             const contentType = res.headers.get('content-type');
@@ -183,17 +234,46 @@ export default function AddTodaysDealModal({ isOpen, onClose, categories, access
                             </div>
                         )}
 
-                        <div>
-                            <label className="block text-[14px] font-[500] text-[#374151] mb-1.5">Discounted Price <span className="text-red-500">*</span></label>
-                            <input
-                                type="text"
-                                placeholder="0.00"
-                                value={discountedPrice}
-                                onChange={(e) => setDiscountedPrice(e.target.value)}
-                                disabled={!selectedItem}
-                                className={`w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors shadow-sm ${!selectedItem ? 'bg-[#F3F4F6] text-[#9CA3AF]' : ''}`}
-                            />
-                        </div>
+                        {selectedItem && (selectedItem.has_variants || (Array.isArray(selectedItem.variants) && selectedItem.variants.length > 0)) ? (
+                            <div className="space-y-3">
+                                <label className="block text-[14px] font-[500] text-[#374151]">Variants Discounted Price <span className="text-red-500">*</span></label>
+                                <div className="space-y-2">
+                                    {(Array.isArray(selectedItem.variants) ? selectedItem.variants : []).map((variant) => (
+                                        <div key={variant.id} className="flex items-center justify-between gap-3 border border-[#E5E7EB] rounded-[10px] px-4 py-3 bg-white">
+                                            <div>
+                                                <div className="text-[14px] font-[600] text-[#111827]">{variant.name}</div>
+                                                <div className="text-[12px] text-[#6B7280]">Price: {formatMoney(variant.price)}</div>
+                                            </div>
+                                            <div className="relative w-[160px]">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B7280] text-[13px]">$</span>
+                                                <input
+                                                    type="text"
+                                                    placeholder="0.00"
+                                                    value={variantDiscounts[String(variant.id)] ?? ''}
+                                                    onChange={(e) => setVariantDiscounts((prev) => ({ ...prev, [String(variant.id)]: e.target.value }))}
+                                                    className="w-full h-[40px] pl-7 pr-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[13px] outline-none focus:border-[#2BB29C] transition-colors shadow-sm"
+                                                />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <div>
+                                <label className="block text-[14px] font-[500] text-[#374151] mb-1.5">Discounted Price <span className="text-red-500">*</span></label>
+                                <div className="relative">
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6B7280] text-[14px]">$</span>
+                                    <input
+                                        type="text"
+                                        placeholder="0.00"
+                                        value={discountedPrice}
+                                        onChange={(e) => setDiscountedPrice(e.target.value)}
+                                        disabled={!selectedItem}
+                                        className={`w-full h-[46px] pl-8 pr-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors shadow-sm ${!selectedItem ? 'bg-[#F3F4F6] text-[#9CA3AF]' : ''}`}
+                                    />
+                                </div>
+                            </div>
+                        )}
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div>

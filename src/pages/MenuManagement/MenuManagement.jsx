@@ -81,11 +81,57 @@ const formatMoney = (value) => {
     return '$0.00';
 };
 
+const toFiniteNumber = (value) => {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string' && value.trim()) {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+};
+
 const formatDateTime = (value) => {
     if (!value || typeof value !== 'string') return '-';
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return '-';
     return parsed.toLocaleString();
+};
+
+const getPricingDisplay = (entity) => {
+    const hasVariants = !!entity?.has_variants || (Array.isArray(entity?.variants) && entity.variants.length > 0);
+    if (hasVariants) {
+        const rawVariants = Array.isArray(entity?.variants) ? entity.variants : [];
+        const minVariant = rawVariants.reduce((best, variant) => {
+            if (!variant || typeof variant !== 'object') return best;
+            const variantPriceNumber = toFiniteNumber(variant.price);
+            const variantDiscountedNumber = toFiniteNumber(variant.discounted_price);
+            const variantHasDiscount = variantDiscountedNumber !== null && variantDiscountedNumber > 0;
+            const effective = variantHasDiscount ? variantDiscountedNumber : variantPriceNumber;
+            if (effective === null) return best;
+            if (!best || effective < best.effective) {
+                return {
+                    effective,
+                    priceNumber: variantPriceNumber,
+                    discountedNumber: variantDiscountedNumber,
+                    hasDiscount: variantHasDiscount,
+                };
+            }
+            return best;
+        }, null);
+
+        if (minVariant) {
+            const price = minVariant.hasDiscount && minVariant.priceNumber !== null ? formatMoney(minVariant.priceNumber) : formatMoney(minVariant.effective);
+            const discounted =
+                minVariant.hasDiscount && minVariant.discountedNumber !== null ? formatMoney(minVariant.discountedNumber) : '';
+            return { price, discounted, hasDiscount: !!(minVariant.hasDiscount && discounted) };
+        }
+    }
+
+    const basePrice = formatMoney(entity?.price);
+    const discountedNumber = toFiniteNumber(entity?.discounted_price);
+    const hasDiscount = discountedNumber !== null && discountedNumber > 0;
+    const discounted = hasDiscount ? formatMoney(discountedNumber) : '';
+    return { price: basePrice, discounted, hasDiscount };
 };
 
 const mapDishToMenuItem = (dish) => {
@@ -97,10 +143,37 @@ const mapDishToMenuItem = (dish) => {
     const images = Array.isArray(dish.images) ? dish.images : [];
     const firstImage = typeof images[0] === 'string' ? normalizeUrl(images[0]) : '';
     const price = formatMoney(dish.price);
+    const discountedNumber = toFiniteNumber(dish.discounted_price);
+    const discountedPrice = discountedNumber !== null ? formatMoney(discountedNumber) : '';
+    const hasDiscount = discountedNumber !== null && discountedNumber > 0;
     const prepTimeMinutes = typeof dish.prep_time_minutes === 'number' ? dish.prep_time_minutes : null;
     const prepTime = typeof prepTimeMinutes === 'number' ? `${prepTimeMinutes} min` : '';
     const numberOfOrders = typeof dish.number_of_orders === 'number' ? dish.number_of_orders : 0;
     const isAvailable = typeof dish.is_available === 'boolean' ? dish.is_available : true;
+    const hasVariants = !!dish.has_variants || (Array.isArray(dish.variants) && dish.variants.length > 0);
+    const rawVariants = Array.isArray(dish.variants) ? dish.variants : [];
+    const minVariant = rawVariants.reduce((best, variant) => {
+        if (!variant || typeof variant !== 'object') return best;
+        const variantPriceNumber = toFiniteNumber(variant.price);
+        const variantDiscountedNumber = toFiniteNumber(variant.discounted_price);
+        const variantHasDiscount = variantDiscountedNumber !== null && variantDiscountedNumber > 0;
+        const effective = variantHasDiscount ? variantDiscountedNumber : variantPriceNumber;
+        if (effective === null) return best;
+        if (!best || effective < best.effective) {
+            return {
+                effective,
+                priceNumber: variantPriceNumber,
+                discountedNumber: variantDiscountedNumber,
+                hasDiscount: variantHasDiscount,
+            };
+        }
+        return best;
+    }, null);
+    const minVariantPrice = minVariant ? formatMoney(minVariant.effective) : '';
+    const minVariantOriginalPrice = minVariant?.priceNumber !== null && minVariant?.priceNumber !== undefined ? formatMoney(minVariant.priceNumber) : '';
+    const minVariantDiscountedPrice =
+        minVariant?.discountedNumber !== null && minVariant?.discountedNumber !== undefined ? formatMoney(minVariant.discountedNumber) : '';
+    const minVariantHasDiscount = !!minVariant?.hasDiscount && !!minVariantDiscountedPrice;
 
     return {
         id,
@@ -108,6 +181,13 @@ const mapDishToMenuItem = (dish) => {
         sales: '',
         prepTime,
         price,
+        discountedPrice,
+        hasDiscount,
+        hasVariants,
+        minVariantPrice,
+        minVariantOriginalPrice,
+        minVariantDiscountedPrice,
+        minVariantHasDiscount,
         orders: { current: numberOfOrders, total: '' },
         status: isAvailable,
         image: firstImage || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=100&q=80',
@@ -152,6 +232,227 @@ const mapCategory = (raw) => {
     return { id: safeId, name, description, imageUrl, visible, count, dishes };
 };
 
+function AddCateringItemModal({ isOpen, onClose, categories, accessToken, onSuccess }) {
+    const [selectedCategoryId, setSelectedCategoryId] = useState('');
+    const [selectedItemId, setSelectedItemId] = useState('');
+    const [cateringEnabled, setCateringEnabled] = useState(false);
+    const [minimumOrder, setMinimumOrder] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
+
+    const selectedCategory = useMemo(
+        () => categories.find((category) => category.id === selectedCategoryId) || null,
+        [categories, selectedCategoryId]
+    );
+    const items = useMemo(
+        () => (Array.isArray(selectedCategory?.dishes) ? selectedCategory.dishes : []),
+        [selectedCategory]
+    );
+    const selectedItem = useMemo(
+        () => items.find((item) => String(item.id) === selectedItemId) || null,
+        [items, selectedItemId]
+    );
+
+    useEffect(() => {
+        if (!isOpen) return;
+        setSelectedCategoryId('');
+        setSelectedItemId('');
+        setCateringEnabled(false);
+        setMinimumOrder('');
+        setError('');
+        setSaving(false);
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        setSelectedItemId('');
+        setCateringEnabled(false);
+        setMinimumOrder('');
+        setError('');
+    }, [isOpen, selectedCategoryId]);
+
+    useEffect(() => {
+        if (!selectedItem) {
+            setCateringEnabled(false);
+            setMinimumOrder('');
+            return;
+        }
+        setCateringEnabled(!!selectedItem?.catering);
+        const fromItem = toFiniteNumber(selectedItem?.catering_minimum_order);
+        setMinimumOrder(fromItem !== null ? String(fromItem) : '');
+    }, [selectedItem]);
+
+    const handleClose = () => {
+        if (saving) return;
+        onClose();
+    };
+
+    const handleSubmit = async () => {
+        if (!selectedCategoryId || !selectedItemId) {
+            setError('Please select category and item');
+            return;
+        }
+        const dishId = selectedItemId;
+        const minValueRaw = toFiniteNumber(minimumOrder);
+        if (cateringEnabled && (minValueRaw === null || minValueRaw < 0)) {
+            setError('Minimum order must be a valid number');
+            return;
+        }
+        if (saving) return;
+
+        setSaving(true);
+        setError('');
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/dishes/${encodeURIComponent(dishId)}`;
+            const res = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                },
+                body: JSON.stringify({
+                    catering: !!cateringEnabled,
+                    catering_minimum_order: cateringEnabled ? Number(minValueRaw ?? 0) : 0,
+                }),
+            });
+            const contentType = res.headers.get('content-type');
+            const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+            if (!res.ok || isErrorPayload(data)) {
+                const message =
+                    data && typeof data === 'object'
+                        ? data.message || data.error || 'Failed to save catering item'
+                        : typeof data === 'string' && data.trim()
+                            ? data.trim()
+                            : 'Failed to save catering item';
+                setError(message);
+                return;
+            }
+            if (onSuccess) await onSuccess();
+            onClose();
+        } catch (err) {
+            const message = typeof err?.message === 'string' ? err.message : 'Failed to save catering item';
+            setError(message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[130]">
+            <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px]" onClick={handleClose} />
+            <div className="fixed inset-0 flex items-center justify-center p-4">
+                <div className="bg-white w-full max-w-[520px] rounded-[20px] overflow-hidden shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+                    <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+                        <h2 className="text-[18px] font-bold text-[#1A1A1A]">Add Catering Item</h2>
+                        <button onClick={handleClose} className="p-1 hover:bg-gray-100 rounded-full transition-colors" disabled={saving}>
+                            <X size={18} className="text-gray-400" />
+                        </button>
+                    </div>
+
+                    <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                        {!!error && (
+                            <div className="bg-[#FEE2E2] text-[#991B1B] text-[12px] px-3 py-2 rounded-[8px]">
+                                {error}
+                            </div>
+                        )}
+
+                        <div>
+                            <label className="block text-[14px] font-[500] text-[#374151] mb-1.5">Category <span className="text-red-500">*</span></label>
+                            <div className="relative">
+                                <select
+                                    value={selectedCategoryId}
+                                    onChange={(e) => setSelectedCategoryId(e.target.value)}
+                                    className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors appearance-none cursor-pointer shadow-sm"
+                                >
+                                    <option value="">Select category...</option>
+                                    {categories.map((category) => (
+                                        <option key={category.id} value={category.id}>{category.name}</option>
+                                    ))}
+                                </select>
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-[14px] font-[500] text-[#374151] mb-1.5">Item <span className="text-red-500">*</span></label>
+                            <div className="relative">
+                                <select
+                                    value={selectedItemId}
+                                    onChange={(e) => setSelectedItemId(e.target.value)}
+                                    disabled={!selectedCategoryId}
+                                    className={`w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors appearance-none cursor-pointer shadow-sm ${!selectedCategoryId ? 'bg-[#F3F4F6] text-[#9CA3AF]' : ''}`}
+                                >
+                                    <option value="">{selectedCategoryId ? 'Select item...' : 'Select category first'}</option>
+                                    {items.map((item) => (
+                                        <option key={item.id} value={String(item.id)}>{item.name}</option>
+                                    ))}
+                                </select>
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        {selectedItem && (
+                            <div className="border border-[#E5E7EB] rounded-[12px] p-4 bg-white space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <div className="text-[14px] font-[600] text-[#111827]">Catering</div>
+                                        <div className="text-[12px] text-[#6B7280]">Enable/disable catering for this item</div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setCateringEnabled((prev) => !prev)}
+                                        className={`w-[44px] h-[24px] rounded-full p-1 transition-colors ${cateringEnabled ? 'bg-[#2BB29C]' : 'bg-gray-300'}`}
+                                    >
+                                        <div className={`w-[16px] h-[16px] bg-white rounded-full shadow-sm transform transition-transform ${cateringEnabled ? 'translate-x-[20px]' : 'translate-x-0'}`} />
+                                    </button>
+                                </div>
+
+                                <div>
+                                    <label className="block text-[13px] font-[500] text-[#374151] mb-1.5">Catering Minimum Order</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Minimum Order Stock"
+                                        value={minimumOrder}
+                                        onChange={(e) => setMinimumOrder(e.target.value)}
+                                        className="w-full h-[44px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors shadow-sm"
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="p-5 border-t border-gray-100 flex items-center justify-end gap-3">
+                        <button
+                            type="button"
+                            onClick={handleClose}
+                            disabled={saving}
+                            className="h-[40px] px-4 border border-[#E5E7EB] text-[#374151] rounded-[10px] text-[13px] font-[600] hover:bg-gray-50 transition-colors disabled:opacity-60"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleSubmit}
+                            disabled={saving}
+                            className="h-[40px] px-4 bg-[#2BB29C] text-white rounded-[10px] text-[13px] font-[600] hover:bg-[#259D89] transition-colors disabled:opacity-60"
+                        >
+                            {saving ? 'Saving...' : 'Save Item'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function MenuManagement() {
     const accessToken = useSelector((state) => state.auth.accessToken);
     const user = useSelector((state) => state.auth.user);
@@ -175,6 +476,7 @@ export default function MenuManagement() {
     const [isEditCategoryModalOpen, setIsEditCategoryModalOpen] = useState(false);
     const [isAddTodaysDealModalOpen, setIsAddTodaysDealModalOpen] = useState(false);
     const [isAddTopSellerModalOpen, setIsAddTopSellerModalOpen] = useState(false);
+    const [isAddCateringItemModalOpen, setIsAddCateringItemModalOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [categoryMenu, setCategoryMenu] = useState(null);
@@ -187,6 +489,8 @@ export default function MenuManagement() {
     const [bestSellers, setBestSellers] = useState([]);
     const [bestSellersLoading, setBestSellersLoading] = useState(false);
     const [updatingBestSellerIds, setUpdatingBestSellerIds] = useState([]);
+    const [updatingCateringIds, setUpdatingCateringIds] = useState([]);
+    const [removingTodaysDealIds, setRemovingTodaysDealIds] = useState([]);
     const [savingCategory, setSavingCategory] = useState(false);
     const [savingCategoryErrorLines, setSavingCategoryErrorLines] = useState([]);
     const [deleteCategoryTarget, setDeleteCategoryTarget] = useState(null);
@@ -441,9 +745,61 @@ export default function MenuManagement() {
         await Promise.all([fetchCategories(), fetchTodaysDeals()]);
     }, [fetchCategories, fetchTodaysDeals]);
 
+    const removeTodaysDeal = useCallback(async (deal) => {
+        const dishId = deal?.id ? String(deal.id) : '';
+        if (!dishId) return;
+        setRemovingTodaysDealIds((prev) => [...prev, dishId]);
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/dishes/${encodeURIComponent(dishId)}/todays-deal`;
+
+            const hasVariants = !!deal?.has_variants || (Array.isArray(deal?.variants) && deal.variants.length > 0);
+            const payload = hasVariants
+                ? {
+                    price: 0,
+                    discounted_price: 0,
+                    is_todays_deal: false,
+                    varients: (Array.isArray(deal?.variants) ? deal.variants : []).map((variant) => ({
+                        id: variant?.id,
+                        name: variant?.name,
+                        price: variant?.price,
+                        discounted_price: 0,
+                    })),
+                }
+                : {
+                    discounted_price: 0,
+                    is_todays_deal: false,
+                    deal_starts_at: null,
+                    deal_ends_at: null,
+                };
+
+            const res = await fetch(url, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                },
+                body: JSON.stringify(payload),
+            });
+            const contentType = res.headers.get('content-type');
+            const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+            if (!res.ok || isErrorPayload(data)) return;
+            await handleDealSuccess();
+        } catch {
+            return;
+        } finally {
+            setRemovingTodaysDealIds((prev) => prev.filter((id) => id !== dishId));
+        }
+    }, [accessToken, handleDealSuccess]);
+
     const handleBestSellerSuccess = useCallback(async () => {
         await Promise.all([fetchCategories(), fetchBestSellers()]);
     }, [fetchCategories, fetchBestSellers]);
+
+    const handleCateringSuccess = useCallback(async () => {
+        await fetchCategories();
+    }, [fetchCategories]);
 
     const updateBestSeller = useCallback(async (dishId, isBestSeller) => {
         if (!dishId) return;
@@ -470,6 +826,35 @@ export default function MenuManagement() {
             void fetchBestSellers();
         }
     }, [accessToken, fetchBestSellers]);
+
+    const disableCateringItem = useCallback(async (dishId) => {
+        if (!dishId) return;
+        setUpdatingCateringIds((prev) => [...prev, dishId]);
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/dishes/${encodeURIComponent(dishId)}`;
+            const res = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                },
+                body: JSON.stringify({
+                    catering: false,
+                    catering_minimum_order: 0,
+                }),
+            });
+            const contentType = res.headers.get('content-type');
+            const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+            if (!res.ok || isErrorPayload(data)) return;
+            await fetchCategories();
+        } catch {
+            return;
+        } finally {
+            setUpdatingCateringIds((prev) => prev.filter((id) => id !== dishId));
+        }
+    }, [accessToken, fetchCategories]);
 
     useEffect(() => {
         const handleRefresh = () => {
@@ -603,6 +988,25 @@ export default function MenuManagement() {
         const mapped = dishes.map(mapDishToMenuItem).filter(Boolean);
         return mapped;
     }, [activeCategoryData, categoriesLoading]);
+
+    const cateringItems = useMemo(() => {
+        const list = [];
+        categories.forEach((category) => {
+            const dishes = Array.isArray(category?.dishes) ? category.dishes : [];
+            dishes.forEach((dish) => {
+                if (!dish || typeof dish !== 'object') return;
+                if (!dish.catering) return;
+                list.push({
+                    id: String(dish.id),
+                    name: dish.name || '-',
+                    categoryName: category.name || '-',
+                    minimumOrder: toFiniteNumber(dish.catering_minimum_order),
+                    catering: !!dish.catering,
+                });
+            });
+        });
+        return list;
+    }, [categories]);
 
     return (
         <div className="max-w-[1600px] mx-auto animate-in fade-in duration-500">
@@ -770,7 +1174,25 @@ export default function MenuManagement() {
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 text-[14px] text-[#374151] whitespace-nowrap">{item.prepTime}</td>
-                                                <td className="px-6 py-4 text-[14px] font-[500] text-[#111827] whitespace-nowrap">{item.price}</td>
+                                                <td className="px-6 py-4 text-[14px] font-[500] text-[#111827] whitespace-nowrap">
+                                                    {item.hasVariants && item.minVariantPrice ? (
+                                                        item.minVariantHasDiscount && item.minVariantOriginalPrice ? (
+                                                            <div className="flex items-baseline gap-2">
+                                                                <span className="line-through text-[#9CA3AF] font-[400]">{item.minVariantOriginalPrice}</span>
+                                                                <span className="text-[#2BB29C] font-[600]">{item.minVariantDiscountedPrice}</span>
+                                                            </div>
+                                                        ) : (
+                                                            item.minVariantPrice
+                                                        )
+                                                    ) : item.hasDiscount && item.discountedPrice ? (
+                                                        <div className="flex items-baseline gap-2">
+                                                            <span className="line-through text-[#9CA3AF] font-[400]">{item.price}</span>
+                                                            <span className="text-[#2BB29C] font-[600]">{item.discountedPrice}</span>
+                                                        </div>
+                                                    ) : (
+                                                        item.price
+                                                    )}
+                                                </td>
                                                 <td className="px-4 py-4 whitespace-nowrap">
                                                     <div className="flex flex-col">
                                                         <span className="text-[13px] font-[500] text-[#111827]">{item.orders.current}</span>
@@ -849,7 +1271,11 @@ export default function MenuManagement() {
                                     </td>
                                 </tr>
                             ) : todaysDeals.length ? (
-                                todaysDeals.map((deal) => (
+                                todaysDeals.map((deal) => {
+                                    const categoryName = categories.find((category) => category.id === deal.category_id)?.name || '-';
+                                    const pricing = getPricingDisplay(deal);
+                                    const isRemoving = removingTodaysDealIds.includes(String(deal.id));
+                                    return (
                                     <tr key={deal.id} className="border-t border-[#E5E7EB]">
                                         <td className="px-4 py-4 text-[14px] text-[#111827]">
                                             <div className="flex items-center gap-3">
@@ -862,19 +1288,37 @@ export default function MenuManagement() {
                                             </div>
                                         </td>
                                         <td className="px-4 py-4 text-[14px] text-[#111827]">
-                                            {categories.find((category) => category.id === deal.category_id)?.name || '-'}
+                                            {categoryName}
                                         </td>
-                                        <td className="px-4 py-4 text-[14px] text-[#111827]">{formatMoney(deal.price)}</td>
-                                        <td className="px-4 py-4 text-[14px] font-[600] text-[#2BB29C]">{formatMoney(deal.discounted_price)}</td>
+                                        <td
+                                            className={`px-4 py-4 text-[14px] ${pricing.hasDiscount ? 'line-through text-[#9CA3AF]' : 'text-[#111827]'}`}
+                                        >
+                                            {pricing.price}
+                                        </td>
+                                        <td className="px-4 py-4 text-[14px] font-[600] text-[#2BB29C]">
+                                            {pricing.hasDiscount && pricing.discounted ? pricing.discounted : '-'}
+                                        </td>
                                         <td className="px-4 py-4 text-[13px] text-[#6B7280]">{formatDateTime(deal.deal_starts_at)}</td>
                                         <td className="px-4 py-4 text-[13px] text-[#6B7280]">{formatDateTime(deal.deal_ends_at)}</td>
                                         <td className="px-6 py-4 w-[120px]">
-                                            <button className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] bg-[#F0FDFA] text-[#2BB29C] hover:bg-[#E8FFFA] transition-colors">
+                                            <button className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] text-[#2BB29C] hover:bg-[#F0FDFA] transition-colors">
                                                 <Edit2 size={16} />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    if (isRemoving) return;
+                                                    void removeTodaysDeal(deal);
+                                                }}
+                                                disabled={isRemoving}
+                                                className={`inline-flex items-center justify-center w-9 h-9 rounded-[10px] text-[#EF4444] hover:bg-red-50 transition-colors ${isRemoving ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                            >
+                                                <Trash2 size={16} />
                                             </button>
                                         </td>
                                     </tr>
-                                ))
+                                    );
+                                })
                             ) : (
                                 <tr>
                                     <td colSpan={7} className="px-6 py-10 text-center text-[13px] text-[#6B7280]">
@@ -952,6 +1396,74 @@ export default function MenuManagement() {
                                     <tr>
                                         <td colSpan={4} className="px-6 py-10 text-center text-[13px] text-[#6B7280]">
                                             No top sellers found
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-white rounded-[12px] border border-[#00000033] p-6 mt-6">
+                <div className="flex items-center justify-between gap-4">
+                    <h3 className="text-[16px] font-[800] text-[#111827]">Catering Items</h3>
+                    <button
+                        onClick={() => setIsAddCateringItemModalOpen(true)}
+                        className="h-[38px] px-4 bg-[#2BB29C] text-white rounded-[10px] text-[13px] font-[600] hover:bg-[#259D89] transition-colors"
+                    >
+                        + Add Catering Item
+                    </button>
+                </div>
+                <div className="mt-4 border border-[#E5E7EB] rounded-[12px] overflow-hidden">
+                    <div className="w-full overflow-x-auto">
+                        <table className="min-w-[780px] w-full text-left border-collapse">
+                            <thead className="bg-[#F9FAFB]">
+                                <tr>
+                                    <th className="px-4 py-3 text-[12px] font-[600] text-[#6B7280] uppercase">Item</th>
+                                    <th className="px-4 py-3 text-[12px] font-[600] text-[#6B7280] uppercase">Category</th>
+                                    <th className="px-4 py-3 text-[12px] font-[600] text-[#6B7280] uppercase">Minimum Order</th>
+                                    <th className="px-6 py-3 text-[12px] font-[600] text-[#6B7280] uppercase w-[140px]">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {categoriesLoading ? (
+                                    <tr>
+                                        <td colSpan={4} className="px-6 py-10 text-center text-[13px] text-[#6B7280]">
+                                            Loading catering items...
+                                        </td>
+                                    </tr>
+                                ) : cateringItems.length ? (
+                                    cateringItems.map((item) => {
+                                        const isUpdating = updatingCateringIds.includes(item.id);
+                                        return (
+                                        <tr key={item.id} className="border-t border-[#E5E7EB]">
+                                            <td className="px-4 py-4 text-[14px] text-[#111827]">{item.name}</td>
+                                            <td className="px-4 py-4 text-[14px] text-[#111827]">{item.categoryName}</td>
+                                            <td className="px-4 py-4 text-[14px] text-[#111827]">
+                                                {typeof item.minimumOrder === 'number' ? item.minimumOrder : '-'}
+                                            </td>
+                                            <td className="px-6 py-4 w-[140px]">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (!item.catering) return;
+                                                        if (isUpdating) return;
+                                                        void disableCateringItem(item.id);
+                                                    }}
+                                                    disabled={!item.catering || isUpdating}
+                                                    className={`w-[44px] h-[24px] rounded-full p-1 transition-colors ${item.catering ? 'bg-[#2BB29C]' : 'bg-gray-300'} ${isUpdating ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                                >
+                                                    <div className={`w-[16px] h-[16px] bg-white rounded-full shadow-sm transform transition-transform ${item.catering ? 'translate-x-[20px]' : 'translate-x-0'}`} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        );
+                                    })
+                                ) : (
+                                    <tr>
+                                        <td colSpan={4} className="px-6 py-10 text-center text-[13px] text-[#6B7280]">
+                                            No catering items found
                                         </td>
                                     </tr>
                                 )}
@@ -1056,6 +1568,13 @@ export default function MenuManagement() {
                 categories={categories}
                 accessToken={accessToken}
                 onSuccess={handleBestSellerSuccess}
+            />
+            <AddCateringItemModal
+                isOpen={isAddCateringItemModalOpen}
+                onClose={() => setIsAddCateringItemModalOpen(false)}
+                categories={categories}
+                accessToken={accessToken}
+                onSuccess={handleCateringSuccess}
             />
             {isAddCategoryModalOpen && (
                 <AddCategoryModal

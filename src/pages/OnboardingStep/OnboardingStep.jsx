@@ -151,6 +151,8 @@ export default function OnboardingStep() {
         tags: [],
         tagInput: '',
         isAvailable: true,
+        catering: false,
+        cateringMinimumOrder: '0',
     });
 
     const [brandingFiles, setBrandingFiles] = useState({
@@ -343,6 +345,8 @@ export default function OnboardingStep() {
             tags: [],
             tagInput: '',
             isAvailable: true,
+            catering: false,
+            cateringMinimumOrder: '0',
         });
     };
 
@@ -389,6 +393,8 @@ export default function OnboardingStep() {
             addOns: Array.isArray(itemForm.addOns) ? itemForm.addOns : [],
             tags: Array.isArray(itemForm.tags) ? itemForm.tags : [],
             isAvailable: itemForm.isAvailable !== false,
+            catering: !!itemForm.catering,
+            cateringMinimumOrder: itemForm.catering ? itemForm.cateringMinimumOrder : '0',
             imageName: itemImage?.name || '',
         };
 

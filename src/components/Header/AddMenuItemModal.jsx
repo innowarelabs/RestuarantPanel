@@ -29,6 +29,8 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
         stockQuantity: '',
         lowStockAlert: '10',
         isAvailable: true,
+        catering: false,
+        cateringMinimumOrder: '0',
     });
     const [variants, setVariants] = useState([{ name: '', price: '', sku: '' }]);
     const [addons, setAddons] = useState([]);
@@ -53,6 +55,8 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
             stockQuantity: '',
             lowStockAlert: '10',
             isAvailable: true,
+            catering: false,
+            cateringMinimumOrder: '0',
         });
         setVariants([{ name: '', price: '', sku: '' }]);
         setAddons([]);
@@ -244,12 +248,17 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
         }
         const stockValue = Number(form.stockQuantity);
         const lowStockValue = Number(form.lowStockAlert);
+        const cateringMinValue = Number(form.cateringMinimumOrder);
         if (form.trackInventory && form.stockQuantity.trim() && !Number.isFinite(stockValue)) {
             setError('Stock quantity must be a number');
             return;
         }
         if (form.trackInventory && form.lowStockAlert.trim() && !Number.isFinite(lowStockValue)) {
             setError('Low stock alert must be a number');
+            return;
+        }
+        if (form.catering && form.cateringMinimumOrder.trim() && !Number.isFinite(cateringMinValue)) {
+            setError('Catering minimum order must be a number');
             return;
         }
 
@@ -274,6 +283,8 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                 low_stock_alert: form.trackInventory && Number.isFinite(lowStockValue) ? Math.trunc(lowStockValue) : 10,
                 number_of_orders: 0,
                 is_available: !!form.isAvailable,
+                catering: !!form.catering,
+                catering_minimum_order: form.catering && Number.isFinite(cateringMinValue) ? Math.trunc(cateringMinValue) : 0,
                 is_best_seller: false,
                 is_todays_deal: false,
                 deal_starts_at: null,
@@ -607,6 +618,38 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                                     className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] shadow-sm"
                                 />
                             </div>
+                        </div>
+                    )}
+
+                    <div className="flex items-center justify-between bg-gray-50 p-4 rounded-[12px]">
+                        <div>
+                            <h4 className="text-[14px] font-[500] text-[#111827]">Catering</h4>
+                            <p className="text-[12px] text-gray-500">Enable minimum order for catering</p>
+                        </div>
+                        <div
+                            className={`w-[44px] h-[24px] rounded-full p-1 cursor-pointer transition-colors ${form.catering ? 'bg-[#2BB29C]' : 'bg-gray-300'}`}
+                            onClick={() =>
+                                setForm((prev) => ({
+                                    ...prev,
+                                    catering: !prev.catering,
+                                    cateringMinimumOrder: !prev.catering ? prev.cateringMinimumOrder : '0',
+                                }))
+                            }
+                        >
+                            <div className={`w-[16px] h-[16px] bg-white rounded-full shadow-sm transform transition-transform ${form.catering ? 'translate-x-[20px]' : 'translate-x-0'}`} />
+                        </div>
+                    </div>
+
+                    {form.catering && (
+                        <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                            <label className="block text-[14px] font-[500] text-[#374151] mb-1.5">Minimum Order</label>
+                            <input
+                                type="text"
+                                placeholder="0"
+                                value={form.cateringMinimumOrder}
+                                onChange={(e) => setForm((prev) => ({ ...prev, cateringMinimumOrder: e.target.value }))}
+                                className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] shadow-sm"
+                            />
                         </div>
                     )}
 
