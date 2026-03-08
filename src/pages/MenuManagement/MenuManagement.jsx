@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Search, Plus, Eye, MoreVertical, Edit2, Copy, Trash2, TrendingUp, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Search, Plus, MoreVertical, Edit2, Trash2, X } from 'lucide-react';
 import EditMenuItemModal from '../../components/MenuManagement/EditMenuItemModal';
 import MenuPreviewModal from '../../components/MenuManagement/MenuPreviewModal';
 import AddCategoryModal from '../../components/MenuManagement/AddCategoryModal';
@@ -480,6 +480,8 @@ export default function MenuManagement() {
     const [selectedItem, setSelectedItem] = useState(null);
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [categoryMenu, setCategoryMenu] = useState(null);
+    const [updatingItem, setUpdatingItem] = useState(false);
+    const [updatingItemErrorLines, setUpdatingItemErrorLines] = useState([]);
     const [categories, setCategories] = useState([]);
     const [categorySearch, setCategorySearch] = useState('');
     const [categoriesLoading, setCategoriesLoading] = useState(false);
@@ -500,6 +502,7 @@ export default function MenuManagement() {
 
     const handleEditClick = (item) => {
         setSelectedItem(item);
+        setUpdatingItemErrorLines([]);
         setIsEditModalOpen(true);
     };
 
@@ -989,6 +992,67 @@ export default function MenuManagement() {
         }
     };
 
+    const handleUpdateItem = async ({ itemId, categoryId, payload }) => {
+        if (!restaurantId) {
+            setUpdatingItemErrorLines(['Restaurant not found. Please login again.']);
+            return;
+        }
+        if (!itemId) return;
+        if (updatingItem) return;
+
+        setUpdatingItem(true);
+        setUpdatingItemErrorLines([]);
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step3/item/${encodeURIComponent(itemId)}`;
+
+            const res = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                },
+                body: JSON.stringify({
+                    restaurant_id: restaurantId,
+                    ...(categoryId ? { category_id: categoryId } : {}),
+                    ...payload,
+                }),
+            });
+
+            const contentType = res.headers.get('content-type');
+            const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+            if (!res.ok || isErrorPayload(data)) {
+                const lines = toValidationErrorLines(data);
+                if (lines.length) {
+                    setUpdatingItemErrorLines(lines);
+                } else if (data && typeof data === 'object') {
+                    const message =
+                        typeof data.message === 'string'
+                            ? data.message
+                            : typeof data.error === 'string'
+                                ? data.error
+                                : 'Failed to update item';
+                    setUpdatingItemErrorLines([message]);
+                } else if (typeof data === 'string' && data.trim()) {
+                    setUpdatingItemErrorLines([data.trim()]);
+                } else {
+                    setUpdatingItemErrorLines(['Failed to update item']);
+                }
+                return;
+            }
+
+            setIsEditModalOpen(false);
+            setSelectedItem(null);
+            await fetchCategories();
+        } catch (e) {
+            const message = typeof e?.message === 'string' ? e.message : 'Failed to update item';
+            setUpdatingItemErrorLines([message]);
+        } finally {
+            setUpdatingItem(false);
+        }
+    };
+
     const filteredCategories = useMemo(() => {
         const q = categorySearch.trim().toLowerCase();
         if (!q) return categories;
@@ -1012,7 +1076,18 @@ export default function MenuManagement() {
         if (!activeCategoryData) return [];
         const dishes = Array.isArray(activeCategoryData?.dishes) ? activeCategoryData.dishes : [];
         if (!dishes.length) return [];
-        const mapped = dishes.map(mapDishToMenuItem).filter(Boolean);
+        const mapped = dishes
+            .map((dish) => {
+                const mappedDish = mapDishToMenuItem(dish);
+                if (!mappedDish) return null;
+                return {
+                    ...mappedDish,
+                    rawDish: dish,
+                    categoryId: activeCategoryData.id,
+                    categoryName: activeCategoryData.name,
+                };
+            })
+            .filter(Boolean);
         return mapped;
     }, [activeCategoryData, categoriesLoading]);
 
@@ -1241,7 +1316,15 @@ export default function MenuManagement() {
                                                 <td className="px-4 py-4 whitespace-nowrap">
                                                     <div className="flex items-center gap-2">
                                                         <button
-                                                            onClick={() => handleEditClick(item)}
+                                                            onClick={() => {
+                                                                const rawDish = item?.rawDish && typeof item.rawDish === 'object' ? item.rawDish : null;
+                                                                if (!rawDish) return;
+                                                                handleEditClick({
+                                                                    ...rawDish,
+                                                                    categoryId: item.categoryId,
+                                                                    categoryName: item.categoryName,
+                                                                });
+                                                            }}
                                                             className="text-[#2BB29C] hover:text-[#2BB29C] p-2 rounded-md transition-colors cursor-pointer"
                                                         >
                                                             <Edit2 size={16} />
@@ -1622,9 +1705,19 @@ export default function MenuManagement() {
 
             {/* Modals */}
             <EditMenuItemModal
+                key={`${selectedItem?.id || 'none'}-${isEditModalOpen ? 'open' : 'closed'}`}
                 isOpen={isEditModalOpen}
-                onClose={() => setIsEditModalOpen(false)}
+                onClose={() => {
+                    if (updatingItem) return;
+                    setIsEditModalOpen(false);
+                    setSelectedItem(null);
+                    setUpdatingItemErrorLines([]);
+                }}
+                categories={categories}
                 item={selectedItem}
+                onSave={handleUpdateItem}
+                saving={updatingItem}
+                errorLines={updatingItemErrorLines}
             />
             <MenuPreviewModal
                 isOpen={isPreviewModalOpen}

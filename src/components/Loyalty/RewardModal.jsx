@@ -4,30 +4,58 @@ import { X, Image as ImageIcon } from 'lucide-react';
 const getInitialFormData = (reward, mode) => {
     if (reward && (mode === 'edit' || mode === 'reactivate')) {
         return {
-            name: reward.name || '',
-            points: reward.points || '',
-            menuItem: reward.linkedItem || '',
+            reward_name: reward.reward_name || reward.name || '',
+            points_required: reward.points_required || reward.points || '',
+            menu_item_id: reward.menu_item_id || reward.linked_item || reward.menuItemId || '',
             description: reward.description || '',
-            emoji: reward.image || '',
-            isActive: mode === 'edit' ? reward.status === 'Active' : false,
+            reward_image: reward.reward_image || reward.image || '',
+            is_active: mode === 'edit' ? reward.is_active || reward.status === 'Active' : false,
         };
     }
 
     return {
-        name: '',
-        points: '',
-        menuItem: '',
+        reward_name: '',
+        points_required: '',
+        menu_item_id: '',
         description: '',
-        emoji: '',
-        isActive: true,
+        reward_image: '',
+        is_active: true,
     };
 };
 
-const RewardModalInner = ({ onClose, reward, mode }) => {
+const RewardModalInner = ({ onClose, reward, mode, menuItems = [], categories = [], loadingMenuItems = false, onSave }) => {
     const [formData, setFormData] = useState(() => getInitialFormData(reward, mode));
+    const [submitting, setSubmitting] = useState(false);
+    const [selectedCategoryId, setSelectedCategoryId] = useState('');
 
     const title = mode === 'add' ? 'Add Reward Item' : mode === 'edit' ? 'Edit Reward Item' : 'Reactivate Reward Item';
-    const buttonText = mode === 'add' ? 'Save Reward' : 'Save Changes';
+    const buttonText = submitting ? 'Saving...' : (mode === 'add' ? 'Save Reward' : 'Save Changes');
+
+    const handleSubmit = async () => {
+        setSubmitting(true);
+        try {
+            if (onSave) {
+                await onSave(formData);
+            }
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    // Initialize selected category if editing an existing reward
+    React.useEffect(() => {
+        if (!formData.menu_item_id || !Array.isArray(categories) || categories.length === 0) return;
+        for (const cat of categories) {
+            if (Array.isArray(cat.dishes) && cat.dishes.some(d => String(d.id) === String(formData.menu_item_id))) {
+                setSelectedCategoryId(cat.id);
+                return;
+            }
+        }
+    }, [formData.menu_item_id, categories]);
+
+    const itemsForCategory = selectedCategoryId && Array.isArray(categories)
+        ? (categories.find(c => String(c.id) === String(selectedCategoryId))?.dishes || [])
+        : [];
 
     return (
         <div
@@ -54,8 +82,8 @@ const RewardModalInner = ({ onClose, reward, mode }) => {
                         <input
                             type="text"
                             placeholder="e.g., Free Ice Cream"
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            value={formData.reward_name}
+                            onChange={(e) => setFormData({ ...formData, reward_name: e.target.value })}
                             className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                         />
                     </div>
@@ -66,27 +94,44 @@ const RewardModalInner = ({ onClose, reward, mode }) => {
                         <input
                             type="number"
                             placeholder="e.g., 175"
-                            value={formData.points}
-                            onChange={(e) => setFormData({ ...formData, points: e.target.value })}
+                            value={formData.points_required}
+                            onChange={(e) => setFormData({ ...formData, points_required: e.target.value })}
                             className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                         />
+                    </div>
+
+                    {/* Choose Category */}
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Choose Category</label>
+                        <select
+                            value={selectedCategoryId}
+                            onChange={(e) => {
+                                setSelectedCategoryId(e.target.value);
+                                setFormData({ ...formData, menu_item_id: '' });
+                            }}
+                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none"
+                            disabled={loadingMenuItems}
+                        >
+                            <option value="">{loadingMenuItems ? 'Loading categories...' : 'Select a category'}</option>
+                            {Array.isArray(categories) && categories.map((cat) => (
+                                <option key={cat.id} value={cat.id}>{cat.name}</option>
+                            ))}
+                        </select>
                     </div>
 
                     {/* Choose Menu Item */}
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-1.5">Choose Menu Item</label>
                         <select
-                            value={formData.menuItem}
-                            onChange={(e) => setFormData({ ...formData, menuItem: e.target.value })}
+                            value={formData.menu_item_id}
+                            onChange={(e) => setFormData({ ...formData, menu_item_id: e.target.value })}
                             className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none"
+                            disabled={loadingMenuItems || !selectedCategoryId}
                         >
-                            <option value="">Select an item</option>
-                            <option value="Ice Cream Cone">Ice Cream Cone</option>
-                            <option value="French Fries (Regular)">French Fries (Regular)</option>
-                            <option value="Soft Drink (Any Size)">Soft Drink (Any Size)</option>
-                            <option value="Cheeseburger">Cheeseburger</option>
-                            <option value="Coffee">Coffee</option>
-                            <option value="Cookie">Cookie</option>
+                            <option value="">{loadingMenuItems ? 'Loading items...' : (selectedCategoryId ? 'Select an item' : 'Select a category first')}</option>
+                            {itemsForCategory && itemsForCategory.length > 0 && itemsForCategory.map((item) => (
+                                <option key={item.id} value={item.id}>{item.name}</option>
+                            ))}
                         </select>
                     </div>
 
@@ -107,13 +152,13 @@ const RewardModalInner = ({ onClose, reward, mode }) => {
                         <label className="block text-sm font-semibold text-gray-700 mb-1.5">Reward Image (Emoji)</label>
                         <div className="flex gap-3">
                             <div className="w-12 h-12 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-center text-2xl">
-                                {formData.emoji || <ImageIcon className="w-6 h-6 text-gray-300" />}
+                                {formData.reward_image || <ImageIcon className="w-6 h-6 text-gray-300" />}
                             </div>
                             <input
                                 type="text"
                                 placeholder="Paste emoji or icon"
-                                value={formData.emoji}
-                                onChange={(e) => setFormData({ ...formData, emoji: e.target.value })}
+                                value={formData.reward_image}
+                                onChange={(e) => setFormData({ ...formData, reward_image: e.target.value })}
                                 className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                             />
                         </div>
@@ -128,8 +173,8 @@ const RewardModalInner = ({ onClose, reward, mode }) => {
                         <label className="relative inline-flex items-center cursor-pointer">
                             <input
                                 type="checkbox"
-                                checked={formData.isActive}
-                                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                                checked={formData.is_active}
+                                onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                                 className="sr-only peer"
                             />
                             <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
@@ -146,11 +191,9 @@ const RewardModalInner = ({ onClose, reward, mode }) => {
                         Cancel
                     </button>
                     <button
-                        onClick={() => {
-                            // In a real app, we'd call a save function here
-                            onClose();
-                        }}
-                        className="flex-1 px-4 py-2.5 bg-primary text-white font-semibold rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
+                        onClick={handleSubmit}
+                        disabled={submitting}
+                        className="flex-1 px-4 py-2.5 bg-primary text-white font-semibold rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {buttonText}
                     </button>
@@ -160,12 +203,12 @@ const RewardModalInner = ({ onClose, reward, mode }) => {
     );
 };
 
-const RewardModal = ({ isOpen, onClose, reward, mode = 'add' }) => {
+const RewardModal = ({ isOpen, onClose, reward, mode = 'add', onSave, menuItems = [], categories = [], loadingMenuItems = false }) => {
     if (!isOpen) return null;
 
-    const modalKey = `${mode}-${reward?.name || ''}-${reward?.points || ''}-${reward?.status || ''}-${reward?.linkedItem || ''}`;
+    const modalKey = `${mode}-${reward?.reward_name || reward?.name || ''}-${reward?.points_required || reward?.points || ''}-${reward?.is_active || reward?.status || ''}-${reward?.linked_item || reward?.linkedItem || ''}`;
 
-    return <RewardModalInner key={modalKey} onClose={onClose} reward={reward} mode={mode} />;
+    return <RewardModalInner key={modalKey} onClose={onClose} reward={reward} mode={mode} onSave={onSave} menuItems={menuItems} categories={categories} loadingMenuItems={loadingMenuItems} />;
 };
 
 export default RewardModal;

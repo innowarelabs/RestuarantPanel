@@ -1,32 +1,54 @@
 import React from 'react';
 import { X, Phone, Mail, MapPin, ChevronRight, ShoppingBag, DollarSign, Award, Target } from 'lucide-react';
 
-export default function CustomerDetailsModal({ isOpen, onClose, customer }) {
+export default function CustomerDetailsModal({ isOpen, onClose, customer, customerDetails, loadingDetails }) {
     if (!isOpen || !customer) return null;
 
-    const isActive = customer.status === 'Active';
+    // Skeleton Loader Component
+    const SkeletonLoader = () => (
+        <div className="space-y-8">
+            <div className="space-y-4">
+                <div className="h-6 bg-gray-200 rounded w-40 animate-pulse"></div>
+                <div className="space-y-2">
+                    <div className="h-4 bg-gray-200 rounded w-32 animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 rounded w-32 animate-pulse"></div>
+                </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+                {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="bg-gray-200 p-5 rounded-[16px] h-24 animate-pulse"></div>
+                ))}
+            </div>
+            <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                    <div key={i} className="bg-gray-200 p-4 rounded-[16px] h-16 animate-pulse"></div>
+                ))}
+            </div>
+        </div>
+    );
 
-    // Mock extra data for the modal based on images
-    const extraData = isActive ? {
-        avgOrderValue: '$12.16',
-        loyaltyPoints: 190,
-        lifetimePoints: 450,
-        rewards: ['Free Ice Cream', 'Free Drink'],
-        addresses: [
-            { id: 1, street: '123 High Street', city: 'London, SW1A 1AA' },
-            { id: 2, street: '45 Park Lane', city: 'London, W1K 1PN' }
-        ]
-    } : {
-        avgOrderValue: '$11.74',
-        loyaltyPoints: 80,
-        lifetimePoints: 180,
-        addresses: [
-            { id: 1, street: '89 Queen Road', city: 'Newcastle, NE1 4EX' }
-        ],
-        orderHistory: [
-            { id: 'ORD-2275', status: 'Returned', date: '29 Nov 2025', price: '$14.20' }
-        ]
+    // Use real data from API if available, otherwise use customer from table
+    const displayData = customerDetails || customer;
+
+    const formatCurrency = (amount) => {
+        if (typeof amount === 'number') {
+            return `$${amount.toFixed(2)}`;
+        }
+        return amount;
     };
+
+    const formatAddress = (address) => {
+        const parts = [];
+        if (address.street) parts.push(address.street);
+        if (address.apt_suite) parts.push(address.apt_suite);
+        if (address.city) parts.push(address.city);
+        if (address.state) parts.push(address.state);
+        if (address.zip_code) parts.push(address.zip_code);
+        return parts.join(', ');
+    };
+
+    const averageOrderValue = customerDetails ? formatCurrency(customerDetails.average_order_value) : 'N/A';
+    const defaultAddress = customerDetails?.delivery_addresses?.find(addr => addr.is_default) || customerDetails?.delivery_addresses?.[0];
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 transition-opacity" onClick={onClose}>
@@ -37,21 +59,20 @@ export default function CustomerDetailsModal({ isOpen, onClose, customer }) {
                 {/* Header */}
                 <div className="px-8 py-8 flex justify-between items-start">
                     <div className="space-y-3">
-                        <h2 className="text-[24px] font-[800] text-[#111827]">{customer.name}</h2>
+                        <h2 className="text-[24px] font-[800] text-[#111827]">{displayData.name || 'Customer'}</h2>
                         <div className="space-y-2">
                             <div className="flex items-center gap-3 text-gray-500">
                                 <Phone size={18} />
-                                <span className="text-[14px]">{customer.phone}</span>
+                                <span className="text-[14px]">{displayData.phone_number || displayData.phone || 'N/A'}</span>
                             </div>
                             <div className="flex items-center gap-3 text-gray-500">
                                 <Mail size={18} />
-                                <span className="text-[14px]">{customer.email}</span>
+                                <span className="text-[14px]">{displayData.email || 'N/A'}</span>
                             </div>
                         </div>
                         <div className="pt-1">
-                            <span className={`px-4 py-1.5 rounded-lg text-[14px] font-medium
-                                ${isActive ? 'bg-[#E0F2F1] text-[#2BB29C]' : 'bg-[#FEF2F2] text-[#EF4444]'}`}>
-                                {customer.status}
+                            <span className="px-4 py-1.5 rounded-lg text-[14px] font-medium bg-[#E0F2F1] text-[#2BB29C]">
+                                Active
                             </span>
                         </div>
                     </div>
@@ -67,104 +88,101 @@ export default function CustomerDetailsModal({ isOpen, onClose, customer }) {
                 <div className="h-[1px] w-full bg-gray-100 mx-8"></div>
 
                 {/* Scrollable Content */}
-                <div className="flex-1 overflow-y-auto px-8 py-6 space-y-8">
+                <div className="flex-1 overflow-y-auto px-8 py-6">
+                    {loadingDetails ? (
+                        <SkeletonLoader />
+                    ) : (
+                        <div className="space-y-8">
+                            {/* Customer Profile Summary */}
+                            <section>
+                                <h3 className="text-[16px] font-[800] text-[#111827] mb-4">Customer Profile Summary</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="bg-[#F6F8F9] p-5 rounded-[16px] border border-gray-50">
+                                        <div className="flex items-center gap-2 text-gray-400 mb-2">
+                                            <ShoppingBag size={16} />
+                                            <span className="text-[13px]">Total Orders</span>
+                                        </div>
+                                        <p className="text-[20px] font-bold text-[#111827]">{displayData.total_orders || 0}</p>
+                                    </div>
+                                    <div className="bg-[#F6F8F9] p-5 rounded-[16px] border border-gray-50">
+                                        <div className="flex items-center gap-2 text-gray-400 mb-2">
+                                            <DollarSign size={16} />
+                                            <span className="text-[13px]">Total Spend</span>
+                                        </div>
+                                        <p className="text-[20px] font-bold text-[#111827]">{formatCurrency(displayData.total_spending || 0)}</p>
+                                    </div>
+                                    <div className="bg-[#F6F8F9] p-5 rounded-[16px] border border-gray-50">
+                                        <div className="flex items-center gap-2 text-gray-400 mb-2">
+                                            <Target size={16} />
+                                            <span className="text-[13px]">Avg Order Value</span>
+                                        </div>
+                                        <p className="text-[20px] font-bold text-[#111827]">{averageOrderValue}</p>
+                                    </div>
+                                    <div className="bg-[#E6F7F4]/30 p-5 rounded-[16px] border border-[#2BB29C]/10">
+                                        <div className="flex items-center gap-2 text-[#2BB29C] mb-2">
+                                            <Award size={16} />
+                                            <span className="text-[13px]">Loyalty Points</span>
+                                        </div>
+                                        <p className="text-[20px] font-bold text-[#2BB29C]">{displayData.loyalty_points || 0}</p>
+                                    </div>
+                                </div>
 
-                    {/* Customer Profile Summary */}
-                    <section>
-                        <h3 className="text-[16px] font-[800] text-[#111827] mb-4">Customer Profile Summary</h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-[#F6F8F9] p-5 rounded-[16px] border border-gray-50">
-                                <div className="flex items-center gap-2 text-gray-400 mb-2">
-                                    <ShoppingBag size={16} />
-                                    <span className="text-[13px]">Total Orders</span>
+                                {/* Points Info Box */}
+                                <div className="mt-4 p-5 rounded-[12px] border border-gray-100">
+                                    <p className="text-[14px] text-gray-600">
+                                        Lifetime Points Earned: <span className="font-bold text-[#111827]">{displayData.lifetime_loyalty_points_earned || 0}</span>
+                                    </p>
+                                    {displayData.rewards_available && displayData.rewards_available.length > 0 && (
+                                        <div className="mt-4 space-y-3">
+                                            <p className="text-[14px] text-gray-600">Rewards Available:</p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {displayData.rewards_available.map((reward, i) => (
+                                                    <span key={i} className="px-3 py-1 bg-[#E0F2F1] text-[#2BB29C] rounded-lg text-[13px]">
+                                                        {reward}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                                <p className="text-[20px] font-bold text-[#111827]">{customer.totalOrders}</p>
-                            </div>
-                            <div className="bg-[#F6F8F9] p-5 rounded-[16px] border border-gray-50">
-                                <div className="flex items-center gap-2 text-gray-400 mb-2">
-                                    <DollarSign size={16} />
-                                    <span className="text-[13px]">Total Spend</span>
-                                </div>
-                                <p className="text-[20px] font-bold text-[#111827]">{customer.totalSpend}</p>
-                            </div>
-                            <div className="bg-[#F6F8F9] p-5 rounded-[16px] border border-gray-50">
-                                <div className="flex items-center gap-2 text-gray-400 mb-2">
-                                    <Target size={16} />
-                                    <span className="text-[13px]">Avg Order Value</span>
-                                </div>
-                                <p className="text-[20px] font-bold text-[#111827]">{extraData.avgOrderValue}</p>
-                            </div>
-                            <div className="bg-[#E6F7F4]/30 p-5 rounded-[16px] border border-[#2BB29C]/10">
-                                <div className="flex items-center gap-2 text-[#2BB29C] mb-2">
-                                    <Award size={16} />
-                                    <span className="text-[13px]">Loyalty Points</span>
-                                </div>
-                                <p className="text-[20px] font-bold text-[#2BB29C]">{extraData.loyaltyPoints}</p>
-                            </div>
-                        </div>
+                            </section>
 
-                        {/* Points Info Box */}
-                        <div className="mt-4 p-5 rounded-[12px] border border-gray-100">
-                            <p className="text-[14px] text-gray-600">
-                                Lifetime Points Earned: <span className="font-bold text-[#111827]">{extraData.lifetimePoints}</span>
-                            </p>
-                            {isActive && extraData.rewards && (
-                                <div className="mt-4 space-y-3">
-                                    <p className="text-[14px] text-gray-600">Rewards Redeemed:</p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {extraData.rewards.map((reward, i) => (
-                                            <span key={i} className="px-3 py-1 bg-[#E0F2F1] text-[#2BB29C] rounded-lg text-[13px]">
-                                                {reward}
-                                            </span>
+                            {/* Delivery Addresses */}
+                            {customerDetails?.delivery_addresses && customerDetails.delivery_addresses.length > 0 && (
+                                <section>
+                                    <h3 className="text-[16px] font-bold text-[#111827] mb-4">Delivery Addresses</h3>
+                                    <div className="space-y-3">
+                                        {customerDetails.delivery_addresses.map((addr) => (
+                                            <div key={addr.id} className={`p-4 rounded-[16px] flex items-start gap-4 border ${addr.is_default ? 'bg-[#E0F2F1] border-[#2BB29C]' : 'bg-[#F9FAFB] border-gray-50'}`}>
+                                                <div className="p-2 bg-white rounded-lg shadow-sm">
+                                                    <MapPin size={18} className="text-gray-400" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="text-[15px] font-medium text-[#111827]">{addr.label || 'Address'}</p>
+                                                    <p className="text-[14px] text-gray-600">
+                                                        {addr.street}
+                                                        {addr.apt_suite && ` ${addr.apt_suite}`}
+                                                    </p>
+                                                    <p className="text-[13px] text-gray-500">
+                                                        {addr.city}, {addr.state} {addr.zip_code}
+                                                    </p>
+                                                    {addr.delivery_instructions && (
+                                                        <p className="text-[13px] text-gray-500 mt-2">
+                                                            <span className="font-medium">Instructions:</span> {addr.delivery_instructions}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                {addr.is_default && (
+                                                    <span className="px-2 py-1 bg-[#2BB29C] text-white rounded text-[12px] font-medium whitespace-nowrap mt-1">
+                                                        Default
+                                                    </span>
+                                                )}
+                                            </div>
                                         ))}
                                     </div>
-                                </div>
+                                </section>
                             )}
                         </div>
-                    </section>
-
-                    {/* Delivery Addresses */}
-                    <section>
-                        <h3 className="text-[16px] font-bold text-[#111827] mb-4">Delivery Addresses</h3>
-                        <div className="space-y-3">
-                            {extraData.addresses.map((addr) => (
-                                <div key={addr.id} className="bg-[#F9FAFB] p-4 rounded-[16px] flex items-start gap-4 border border-gray-50">
-                                    <div className="p-2 bg-white rounded-lg shadow-sm">
-                                        <MapPin size={18} className="text-gray-400" />
-                                    </div>
-                                    <div>
-                                        <p className="text-[15px] font-normal text-[#111827]">{addr.street}</p>
-                                        <p className="text-[13px] font-normal text-gray-500">{addr.city}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </section>
-
-                    {/* Order History (Blocked only) */}
-                    {!isActive && extraData.orderHistory && (
-                        <section className="pb-4">
-                            <h3 className="text-[16px] font-bold text-[#111827] mb-4">Order History</h3>
-                            <div className="space-y-3">
-                                {extraData.orderHistory.map((order) => (
-                                    <div key={order.id} className="p-4 border border-gray-100 rounded-[16px] flex items-center justify-between hover:bg-gray-50 transition-colors cursor-pointer group">
-                                        <div className="flex items-center gap-4">
-                                            <div>
-                                                <p className="text-[14px] font-bold text-[#111827]">{order.id}</p>
-                                                <p className="text-[12px] text-gray-500">{order.date}</p>
-                                            </div>
-                                            <span className="px-3 py-0.5 bg-[#E0E7FF] text-[#4338CA] rounded-full text-[12px]">
-                                                {order.status}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-4">
-                                            <span className="text-[14px] font-bold text-[#111827]">{order.price}</span>
-                                            <ChevronRight size={18} className="text-gray-400 group-hover:text-gray-600" />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </section>
                     )}
                 </div>
             </div>

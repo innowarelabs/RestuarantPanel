@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 
 export default function AddCategoryModal({ isOpen, onClose, onSave, saving, errorLines }) {
@@ -6,7 +6,6 @@ export default function AddCategoryModal({ isOpen, onClose, onSave, saving, erro
     const objectUrlRef = useRef('');
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
-    const [isVisible, setIsVisible] = useState(true);
     const [imageFile, setImageFile] = useState(null);
     const [imagePreviewUrl, setImagePreviewUrl] = useState('');
 
@@ -116,20 +115,6 @@ export default function AddCategoryModal({ isOpen, onClose, onSave, saving, erro
                         />
                     </div>
 
-                    {/* Category Visibility */}
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h4 className="text-[14px] font-medium text-[#374151]">Category Visibility</h4>
-                            <p className="text-[12px] text-gray-500">Show this category to customers</p>
-                        </div>
-                        <div
-                            className={`w-[44px] h-[24px] rounded-full p-1 cursor-pointer transition-colors ${isVisible ? 'bg-[#2BB29C]' : 'bg-gray-300'}`}
-                            onClick={() => setIsVisible(!isVisible)}
-                        >
-                            <div className={`w-[16px] h-[16px] bg-white rounded-full shadow-sm transform transition-transform ${isVisible ? 'translate-x-[20px]' : 'translate-x-0'}`} />
-                        </div>
-                    </div>
-
                 </div>
 
                 {/* Footer */}
@@ -142,7 +127,7 @@ export default function AddCategoryModal({ isOpen, onClose, onSave, saving, erro
                     </button>
                     <button
                         type="button"
-                        onClick={() => onSave?.({ name, description, isVisible, imageFile })}
+                        onClick={() => onSave?.({ name, description, imageFile })}
                         disabled={!canSave}
                         className={`px-5 py-2.5 rounded-[8px] text-[14px] font-medium text-white transition-colors ${canSave ? 'bg-[#2BB29C] hover:bg-[#259D89]' : 'bg-gray-300 cursor-not-allowed'}`}
                     >

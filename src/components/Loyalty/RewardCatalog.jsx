@@ -4,70 +4,17 @@ import RewardCard from './RewardCard';
 import RewardModal from './RewardModal';
 import DeleteRewardModal from './DeleteRewardModal';
 
-const RewardCatalog = () => {
-    const [rewards, setRewards] = useState([
-        {
-            id: 1,
-            name: "Free Ice Cream",
-            description: "Choose any flavour",
-            points: 175,
-            linkedItem: "Ice Cream Cone",
-            redemptions: 23,
-            status: "Active",
-            image: "🍦"
-        },
-        {
-            id: 2,
-            name: "Free Fries",
-            description: "Regular portion",
-            points: 150,
-            linkedItem: "French Fries (Regular)",
-            redemptions: 17,
-            status: "Active",
-            image: "🍟"
-        },
-        {
-            id: 3,
-            name: "Free Drink",
-            description: "Any size soft drink",
-            points: 100,
-            linkedItem: "Soft Drink (Any Size)",
-            redemptions: 9,
-            status: "Inactive",
-            image: "🥤"
-        },
-        {
-            id: 4,
-            name: "Free Burger",
-            description: "Classic cheeseburger",
-            points: 350,
-            linkedItem: "Cheeseburger",
-            redemptions: 12,
-            status: "Active",
-            image: "🍔"
-        },
-        {
-            id: 5,
-            name: "Free Coffee",
-            description: "Regular coffee",
-            points: 120,
-            linkedItem: "Coffee",
-            redemptions: 31,
-            status: "Active",
-            image: "☕"
-        },
-        {
-            id: 6,
-            name: "Free Cookie",
-            description: "Freshly baked",
-            points: 80,
-            linkedItem: "Cookie",
-            redemptions: 8,
-            status: "Active",
-            image: "🍪"
-        }
-    ]);
-
+const RewardCatalog = ({ 
+    rewards = [], 
+    loading = false, 
+    error = null, 
+    menuItems = [],
+    categories = [],
+    loadingMenuItems = false,
+    onSaveReward, 
+    onDeleteReward, 
+    onRefreshRewards 
+}) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState('add');
     const [selectedReward, setSelectedReward] = useState(null);
@@ -99,10 +46,26 @@ const RewardCatalog = () => {
         setIsDeleteModalOpen(true);
     };
 
-    const handleConfirmDelete = () => {
-        if (rewardToDelete) {
-            setRewards(rewards.filter(r => r.id !== rewardToDelete.id));
-            setRewardToDelete(null);
+    const handleConfirmDelete = async () => {
+        if (rewardToDelete && onDeleteReward) {
+            const success = await onDeleteReward(rewardToDelete.reward_id || rewardToDelete.id);
+            if (success) {
+                setRewardToDelete(null);
+                setIsDeleteModalOpen(false);
+            }
+        }
+    };
+
+    const handleSaveReward = async (formData) => {
+        let success = false;
+        if (onSaveReward) {
+            success = await onSaveReward({
+                ...formData,
+                ...(selectedReward?.reward_id ? { reward_id: selectedReward.reward_id } : {})
+            });
+        }
+        if (success) {
+            setIsModalOpen(false);
         }
     };
 
@@ -125,17 +88,62 @@ const RewardCatalog = () => {
                 </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {rewards.map(reward => (
-                    <RewardCard
-                        key={reward.id}
-                        reward={reward}
-                        onEdit={handleEditClick}
-                        onReactivate={handleReactivateClick}
-                        onDelete={handleDeleteClick}
-                    />
-                ))}
-            </div>
+            {error && (
+                <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+                    {error}
+                    {onRefreshRewards && (
+                        <button 
+                            onClick={onRefreshRewards}
+                            className="ml-2 underline hover:no-underline"
+                        >
+                            Retry
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {loading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {[...Array(6)].map((_, i) => (
+                        <div key={i} className="bg-gray-100 rounded-lg p-4 animate-pulse">
+                            <div className="h-32 bg-gray-200 rounded mb-4"></div>
+                            <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                        </div>
+                    ))}
+                </div>
+            ) : rewards.length === 0 ? (
+                <div className="py-12 text-center">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No rewards yet</h3>
+                    <p className="text-gray-500 mb-6">Create your first reward to start engaging customers with your loyalty program.</p>
+                    <button
+                        onClick={handleAddClick}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        Add Your First Reward
+                    </button>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {rewards.map(reward => (
+                        <RewardCard
+                            key={reward.reward_id || reward.id}
+                            reward={reward}
+                            onEdit={handleEditClick}
+                            onReactivate={handleReactivateClick}
+                            onDelete={handleDeleteClick}
+                        />
+                    ))}
+                </div>
+            )}
 
             {/* Add/Edit/Reactivate Modal */}
             <RewardModal
@@ -143,6 +151,10 @@ const RewardCatalog = () => {
                 onClose={handleCloseModal}
                 reward={selectedReward}
                 mode={modalMode}
+                menuItems={menuItems}
+                categories={categories}
+                loadingMenuItems={loadingMenuItems}
+                onSave={handleSaveReward}
             />
 
             {/* Delete Confirmation Modal */}
@@ -150,7 +162,7 @@ const RewardCatalog = () => {
                 isOpen={isDeleteModalOpen}
                 onClose={() => setIsDeleteModalOpen(false)}
                 onConfirm={handleConfirmDelete}
-                rewardName={rewardToDelete?.name}
+                rewardName={rewardToDelete?.reward_name || rewardToDelete?.name}
             />
         </div>
     );
