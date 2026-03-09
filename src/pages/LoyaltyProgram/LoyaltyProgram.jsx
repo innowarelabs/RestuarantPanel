@@ -174,23 +174,36 @@ const LoyaltyProgram = () => {
         try {
             const baseUrl = import.meta.env.VITE_BACKEND_URL;
             if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
-            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step5/reward`;
+            const trimmedBaseUrl = baseUrl.replace(/\/$/, '');
+
+            // If reward_id is present, this is an update – use PUT /api/v1/rewards/catalog/{item_id}
+            const isUpdate = !!rewardData.reward_id;
+            const url = isUpdate
+                ? `${trimmedBaseUrl}/api/v1/rewards/catalog/${rewardData.reward_id}`
+                : `${trimmedBaseUrl}/api/v1/restaurants/onboarding/step5/reward`;
+
+            const payload = {
+                // Old API still expects restaurant_id & reward_name, keep them for backward compatibility
+                restaurant_id: restaurantId,
+                reward_name: rewardData.reward_name || rewardData.title || '',
+
+                // New catalog API expects these fields
+                title: rewardData.title || rewardData.reward_name || '',
+                menu_item_id: rewardData.menu_item_id || '',
+                description: rewardData.description || '',
+                reward_image: rewardData.reward_image || '',
+                points_required: Number(rewardData.points_required) || 0,
+                is_active: rewardData.is_active !== undefined ? rewardData.is_active : true,
+                valid_until: rewardData.valid_until || null,
+            };
+
             const res = await fetch(url, {
-                method: 'POST',
+                method: isUpdate ? 'PUT' : 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
                 },
-                body: JSON.stringify({
-                    restaurant_id: restaurantId,
-                    reward_name: rewardData.reward_name || '',
-                    menu_item_id: rewardData.menu_item_id || '',
-                    description: rewardData.description || '',
-                    reward_image: rewardData.reward_image || '',
-                    is_active: rewardData.is_active !== undefined ? rewardData.is_active : true,
-                    points_required: Number(rewardData.points_required) || 0,
-                    ...(rewardData.reward_id ? { reward_id: rewardData.reward_id } : {}), // For updates
-                }),
+                body: JSON.stringify(payload),
             });
             const data = await res.json();
             console.log('Add/Update Reward Response:', data);
@@ -213,11 +226,47 @@ const LoyaltyProgram = () => {
         return await addReward(rewardData);
     }, [addReward]);
 
-    const deleteReward = useCallback(async () => {
-        // Note: Delete functionality is not implemented in the Step5 API
-        toast.error('Delete functionality is not available in the current API');
-        return false;
-    }, []);
+    const deleteReward = useCallback(async (rewardId) => {
+        if (!rewardId) {
+            toast.error('Reward ID not found');
+            return false;
+        }
+
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+            const trimmedBaseUrl = baseUrl.replace(/\/$/, '');
+            const url = `${trimmedBaseUrl}/api/v1/rewards/catalog/${rewardId}`;
+
+            const res = await fetch(url, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                },
+            });
+
+            let data = {};
+            try {
+                data = await res.json();
+            } catch {
+                data = {};
+            }
+
+            if (res.ok && (data.code === 'SUCCESS_200' || !data.code)) {
+                toast.success('Reward deleted successfully');
+                fetchRewards(); // Refresh rewards list
+                return true;
+            } else {
+                toast.error(data.message || 'Failed to delete reward');
+                return false;
+            }
+        } catch (error) {
+            console.error('Error deleting reward:', error);
+            toast.error('Error deleting reward');
+            return false;
+        }
+    }, [accessToken, fetchRewards]);
 
     useEffect(() => {
         fetchLoyaltyData();

@@ -14,13 +14,10 @@ const DeleteRewardModal = ({ isOpen, onClose, onConfirm, rewardName }) => {
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="p-8">
-                    <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mb-4">
-                        {React.createElement(AlertTriangle, { className: "w-6 h-6 text-[#EF4444]" })}
-                    </div>
-                    <h2 className="text-2xl font-bold text-general-text mb-3">
-                        Delete {rewardName ? `"${rewardName}"` : 'Reward'}?
+                    <h2 className="text-2xl font-bold text-general-text mb-2">
+                        Delete Reward?
                     </h2>
-                    <p className="text-gray-500 text-sm leading-relaxed mb-8">
+                    <p className="text-gray-500 text-sm leading-relaxed mb-4">
                         This reward will no longer be available to customers. This action cannot be undone.
                     </p>
 

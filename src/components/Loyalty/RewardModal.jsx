@@ -10,6 +10,8 @@ const getInitialFormData = (reward, mode) => {
             description: reward.description || '',
             reward_image: reward.reward_image || reward.image || '',
             is_active: mode === 'edit' ? reward.is_active || reward.status === 'Active' : false,
+            // Convert ISO string from API to datetime-local input format
+            valid_until: reward.valid_until ? reward.valid_until.slice(0, 16) : '',
         };
     }
 
@@ -20,6 +22,7 @@ const getInitialFormData = (reward, mode) => {
         description: '',
         reward_image: '',
         is_active: true,
+        valid_until: '',
     };
 };
 
@@ -34,8 +37,15 @@ const RewardModalInner = ({ onClose, reward, mode, menuItems = [], categories = 
     const handleSubmit = async () => {
         setSubmitting(true);
         try {
+            // Normalize valid_until to ISO string expected by backend
+            const payload = {
+                ...formData,
+                valid_until: formData.valid_until
+                    ? new Date(formData.valid_until).toISOString()
+                    : null,
+            };
             if (onSave) {
-                await onSave(formData);
+                await onSave(payload);
             }
         } finally {
             setSubmitting(false);
@@ -162,6 +172,17 @@ const RewardModalInner = ({ onClose, reward, mode, menuItems = [], categories = 
                                 className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                             />
                         </div>
+                    </div>
+
+                    {/* Valid Until */}
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Valid Until</label>
+                        <input
+                            type="datetime-local"
+                            value={formData.valid_until}
+                            onChange={(e) => setFormData({ ...formData, valid_until: e.target.value })}
+                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        />
                     </div>
 
                     {/* Status Toggle */}
