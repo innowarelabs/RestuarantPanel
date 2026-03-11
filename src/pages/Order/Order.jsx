@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Clock, User, Phone, Box, MapPin } from 'lucide-react';
+import { useSelector } from 'react-redux';
+import toast from 'react-hot-toast';
 
 import OrderRequestModal from '../../components/OrderManagement/OrderRequestModal';
 import AcceptOrderModal from '../../components/OrderManagement/AcceptOrderModal';
@@ -11,6 +13,24 @@ export default function OrderManagement() {
     const [isAcceptModalOpen, setIsAcceptModalOpen] = useState(false);
     const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState(null);
+    const [orders, setOrders] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    const accessToken = useSelector((state) => state.auth.accessToken);
+    const user = useSelector((state) => state.auth.user);
+
+    const getRestaurantId = () => {
+        const fromUser = user && typeof user === 'object' && typeof user.restaurant_id === 'string' ? user.restaurant_id : '';
+        let fromStorage = '';
+        try {
+            fromStorage = localStorage.getItem('restaurant_id') || '';
+        } catch {
+            fromStorage = '';
+        }
+        return (fromUser || fromStorage).trim();
+    };
+
+    const restaurantId = getRestaurantId();
 
     const handleCardClick = (order) => {
         setSelectedOrder(order);
@@ -29,112 +49,165 @@ export default function OrderManagement() {
         setIsRejectModalOpen(true);
     };
 
-    // Mock Data for all tabs
-    const allOrders = [
-        // New Orders
-        {
-            id: 'ORD-2310', status: 'Pending', timeAgo: '2 mins ago', customerName: 'Ali Raza', customerPhone: '+44 7700 900123', type: 'Delivery', itemsCount: 3, total: '$12.90', paymentStatus: 'Paid'
-        },
-        {
-            id: 'ORD-2311', status: 'Pending', timeAgo: '4 mins ago', customerName: 'Sana Khan', customerPhone: '+44 7700 900456', type: 'Collection', itemsCount: 1, total: '$4.50', paymentStatus: 'Cash'
-        },
-        {
-            id: 'ORD-2312', status: 'Pending', timeAgo: '6 mins ago', customerName: 'Bilal Ahmed', customerPhone: '+44 7700 900789', type: 'Delivery', itemsCount: 2, total: '$8.20', paymentStatus: 'Paid'
-        },
-
-        // In Progress
-        {
-            id: 'ORD-2313', status: 'Preparing', timeAgo: '15 mins ago', customerName: 'Ali Raza', customerPhone: '+44 7700 900123', type: 'Delivery', itemsCount: 3, total: '$12.90', paymentStatus: 'Paid', estTime: 'Est. 12 min'
-        },
-        {
-            id: 'ORD-2308', status: 'Preparing', timeAgo: '20 mins ago', customerName: 'Hamza Noor', customerPhone: '+44 7700 901234', type: 'Delivery', itemsCount: 2, total: '$10.40', paymentStatus: 'Paid', estTime: 'Est. 8 min'
-        },
-        {
-            id: 'ORD-2305', status: 'Preparing', timeAgo: '25 mins ago', customerName: 'Nida Karim', customerPhone: '+44 7700 902345', type: 'Collection', itemsCount: 1, total: '$7.90', paymentStatus: 'Cash', estTime: 'Est. 6 min'
-        },
-
-        // Ready for Pickup
-        {
-            id: 'ORD-2302', status: 'Ready', timeAgo: '6 hours ago', customerName: 'Ahmed', customerPhone: '+44 7700 903456', type: 'Delivery', itemsCount: 1, total: '$9.60', paymentStatus: 'Paid', riderStatus: 'Rider not assigned'
-        },
-        {
-            id: 'ORD-2299', status: 'Ready', timeAgo: '6 hours ago', customerName: 'Farah', customerPhone: '+44 7700 904567', type: 'Collection', itemsCount: 1, total: '$5.50', paymentStatus: 'Cash', riderStatus: 'Collection'
-        },
-        {
-            id: 'ORD-2297', status: 'Ready', timeAgo: '6 hours ago', customerName: 'Danish', customerPhone: '+44 7700 905678', type: 'Delivery', itemsCount: 2, total: '$11.75', paymentStatus: 'Paid', riderStatus: 'Rider arriving in 4 min'
-        },
-
-        // On the Way
-        {
-            id: 'ORD-2288', status: 'On the Way', timeAgo: '6 hours ago', customerName: 'Sara', customerPhone: '+44 7700 906789', type: 'Delivery', itemsCount: 1, total: '$13.20', paymentStatus: 'Paid', eta: 'ETA 12 min'
-        },
-        {
-            id: 'ORD-2282', status: 'On the Way', timeAgo: '6 hours ago', customerName: 'Noor', customerPhone: '+44 7700 907890', type: 'Delivery', itemsCount: 1, total: '$6.80', paymentStatus: 'Paid', eta: 'ETA 5 min'
-        },
-        {
-            id: 'ORD-2280', status: 'On the Way', timeAgo: '6 hours ago', customerName: 'Imran', customerPhone: '+44 7700 908901', type: 'Delivery', itemsCount: 1, total: '$15.50', paymentStatus: 'Paid', eta: 'ETA 18 min'
-        },
-
-        // Completed
-        {
-            id: 'ORD-2270', status: 'Completed', timeAgo: 'Delivered 7 hours ago', customerName: 'Wajahat', customerPhone: '+44 7700 909012', type: 'Delivery', itemsCount: 1, total: '$10.40', paymentStatus: 'Paid'
-        },
-        {
-            id: 'ORD-2265', status: 'Completed', timeAgo: 'Delivered 11 hours ago', customerName: 'Sana', customerPhone: '+44 7700 910123', type: 'Collection', itemsCount: 1, total: '$7.20', paymentStatus: 'Cash'
-        },
-        {
-            id: 'ORD-2258', status: 'Completed', timeAgo: 'Delivered yesterday', customerName: 'Farooq', customerPhone: '+44 7700 911234', type: 'Delivery', itemsCount: 3, total: '$6.50', paymentStatus: 'Paid'
-        },
-
-        // Cancelled
-        {
-            id: 'ORD-2247', status: 'Cancelled', timeAgo: 'Changed mind', customerName: 'CANCELLED', customerPhone: '+44 7700 912345', type: 'Delivery', itemsCount: 1, total: '$9.00', paymentStatus: 'Paid', cancelledBy: 'Cancelled by Customer'
-        },
-        {
-            id: 'ORD-2241', status: 'Cancelled', timeAgo: 'Item unavailable', customerName: 'CANCELLED', customerPhone: '+44 7700 913456', type: 'Delivery', itemsCount: 1, total: '$12.50', paymentStatus: 'Paid', cancelledBy: 'Cancelled by Restaurant'
-        },
-        {
-            id: 'ORD-2239', status: 'Cancelled', timeAgo: 'Customer unreachable', customerName: 'CANCELLED', customerPhone: '+44 7700 914567', type: 'Delivery', itemsCount: 1, total: '$5.20', paymentStatus: 'Paid', cancelledBy: 'Cancelled by Restaurant'
-        }
-    ];
-
-    // Filter orders based on active tab
+    // Map tabs to backend status values
     const getStatusFromTab = (tab) => {
         switch (tab) {
-            case 'New Orders': return 'Pending';
-            case 'In Progress': return 'Preparing';
-            case 'Ready for Pickup': return 'Ready';
-            case 'On the Way': return 'On the Way';
-            case 'Completed': return 'Completed';
-            case 'Cancelled': return 'Cancelled';
-            case 'Refunds': return 'Refund';
-            default: return 'Pending';
+            case 'New Orders': return 'PENDING';
+            case 'In Progress': return 'PREPARING';
+            case 'Ready for Pickup': return 'READY';
+            case 'On the Way': return 'ON_THE_WAY';
+            case 'Completed': return 'COMPLETED';
+            case 'Cancelled': return 'CANCELLED';
+            case 'Refunds': return 'REFUNDED';
+            default: return 'PENDING';
         }
     };
 
     const currentStatus = getStatusFromTab(activeTab);
-    const filteredOrders = allOrders.filter(order => order.status === currentStatus);
 
-    // Tab counts
+    const fetchOrders = useCallback(async () => {
+        if (!restaurantId) {
+            return;
+        }
+        setLoading(true);
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+            const trimmedBaseUrl = baseUrl.replace(/\/$/, '');
+            const url = `${trimmedBaseUrl}/api/v1/orders/?skip=0&limit=50&status=${encodeURIComponent(currentStatus)}`;
+
+            const res = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
+                },
+            });
+            const data = await res.json();
+            console.log('Orders Data:', data);
+
+            if (data.code === 'SUCCESS_200' && Array.isArray(data.data?.orders)) {
+                const mappedOrders = data.data.orders.map((order) => ({
+                    id: order.order_number || order.order_id || order.id,
+                    rawId: order.order_id || order.id,
+                    status: order.status || currentStatus,
+                    timeAgo: order.time_ago || '',
+                    customerName: order.customer_name || '',
+                    customerPhone: order.customer_phone || '',
+                    type: order.order_type === 'DELIVERY' ? 'Delivery' : order.order_type === 'PICKUP' ? 'Collection' : order.order_type || 'Delivery',
+                    itemsCount: order.items_count || 0,
+                    total: typeof order.total_amount === 'number' ? `$${order.total_amount.toFixed(2)}` : order.total || '',
+                    paymentStatus: order.payment_status || 'Paid',
+                    estTime: order.estimated_time || '',
+                    riderStatus: order.rider_status || '',
+                    eta: order.eta || '',
+                    cancelledBy: order.cancelled_by || '',
+                }));
+                setOrders(mappedOrders);
+            } else if (Array.isArray(data.data)) {
+                // Fallback if API returns array directly in data
+                const mappedOrders = data.data.map((order) => ({
+                    id: order.order_number || order.order_id || order.id,
+                    rawId: order.order_id || order.id,
+                    status: order.status || currentStatus,
+                    timeAgo: order.time_ago || '',
+                    customerName: order.customer_name || '',
+                    customerPhone: order.customer_phone || '',
+                    type: order.order_type === 'DELIVERY' ? 'Delivery' : order.order_type === 'PICKUP' ? 'Collection' : order.order_type || 'Delivery',
+                    itemsCount: order.items_count || 0,
+                    total: typeof order.total_amount === 'number' ? `$${order.total_amount.toFixed(2)}` : order.total || '',
+                    paymentStatus: order.payment_status || 'Paid',
+                    estTime: order.estimated_time || '',
+                    riderStatus: order.rider_status || '',
+                    eta: order.eta || '',
+                    cancelledBy: order.cancelled_by || '',
+                }));
+                setOrders(mappedOrders);
+            } else {
+                setOrders([]);
+            }
+        } catch (error) {
+            console.error('Error fetching orders:', error);
+            toast.error('Error fetching orders');
+            setOrders([]);
+        } finally {
+            setLoading(false);
+        }
+    }, [accessToken, restaurantId, currentStatus]);
+
+    useEffect(() => {
+        fetchOrders();
+    }, [fetchOrders]);
+
+    // Tab counts – for now, show count from currently loaded list for active tab
     const tabs = [
-        { name: 'New Orders', count: allOrders.filter(o => o.status === 'Pending').length },
-        { name: 'In Progress', count: allOrders.filter(o => o.status === 'Preparing').length },
-        { name: 'Ready for Pickup', count: allOrders.filter(o => o.status === 'Ready').length },
-        { name: 'On the Way', count: allOrders.filter(o => o.status === 'On the Way').length },
-        { name: 'Completed', count: allOrders.filter(o => o.status === 'Completed').length },
-        { name: 'Cancelled', count: allOrders.filter(o => o.status === 'Cancelled').length },
-        { name: 'Refunds', count: 0 },
+        { name: 'New Orders', count: activeTab === 'New Orders' ? orders.length : 0 },
+        { name: 'In Progress', count: activeTab === 'In Progress' ? orders.length : 0 },
+        { name: 'Ready for Pickup', count: activeTab === 'Ready for Pickup' ? orders.length : 0 },
+        { name: 'On the Way', count: activeTab === 'On the Way' ? orders.length : 0 },
+        { name: 'Completed', count: activeTab === 'Completed' ? orders.length : 0 },
+        { name: 'Cancelled', count: activeTab === 'Cancelled' ? orders.length : 0 },
+        { name: 'Refunds', count: activeTab === 'Refunds' ? orders.length : 0 },
     ];
 
     const getStatusColor = (status) => {
         switch (status) {
-            case 'Pending': return 'bg-[#FFF7ED] text-[#ea580c] border-[#FFEDD5]';
-            case 'Preparing': return 'bg-[#DBEAFE] text-[#2563EB] border-[#BFDBFE]';
-            case 'Ready': return 'bg-[#E0E7FF] text-[#4F46E5] border-[#C7D2FE]';
-            case 'On the Way': return 'bg-[#F3E8FF] text-[#9333EA] border-[#E9D5FF]';
-            case 'Completed': return 'bg-[#DCFCE7] text-[#16A34A] border-[#BBF7D0]';
-            case 'Cancelled': return 'bg-[#FEE2E2] text-[#DC2626] border-[#FECACA]';
+            case 'PENDING':
+            case 'Pending':
+                return 'bg-[#FFF7ED] text-[#ea580c] border-[#FFEDD5]';
+            case 'PREPARING':
+            case 'Preparing':
+                return 'bg-[#DBEAFE] text-[#2563EB] border-[#BFDBFE]';
+            case 'READY':
+            case 'Ready':
+                return 'bg-[#E0E7FF] text-[#4F46E5] border-[#C7D2FE]';
+            case 'ON_THE_WAY':
+            case 'On the Way':
+                return 'bg-[#F3E8FF] text-[#9333EA] border-[#E9D5FF]';
+            case 'COMPLETED':
+            case 'Completed':
+                return 'bg-[#DCFCE7] text-[#16A34A] border-[#BBF7D0]';
+            case 'CANCELLED':
+            case 'Cancelled':
+                return 'bg-[#FEE2E2] text-[#DC2626] border-[#FECACA]';
             default: return 'bg-gray-100 text-gray-600 border-gray-200';
+        }
+    };
+
+    const updateOrderStatus = async (orderId, newStatus, extraPayload = {}) => {
+        if (!orderId) return;
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+            const trimmedBaseUrl = baseUrl.replace(/\/$/, '');
+            const url = `${trimmedBaseUrl}/api/v1/orders/${encodeURIComponent(orderId)}`;
+
+            const res = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
+                },
+                body: JSON.stringify({
+                    status: newStatus,
+                    ...extraPayload,
+                }),
+            });
+
+            const data = await res.json();
+            console.log('Update Order Response:', data);
+
+            if (res.ok && (data.code === 'SUCCESS_200' || data.code === 'SUCCESS_201')) {
+                toast.success('Order updated successfully');
+                fetchOrders();
+            } else {
+                toast.error(data.message || 'Failed to update order');
+            }
+        } catch (error) {
+            console.error('Error updating order:', error);
+            toast.error('Error updating order');
         }
     };
 
@@ -167,8 +240,12 @@ export default function OrderManagement() {
 
             {/* Orders List */}
             <div className="space-y-4">
-                {filteredOrders.length > 0 ? (
-                    filteredOrders.map((order) => (
+                {loading ? (
+                    <div className="bg-white rounded-[12px] p-12 border border-[#E5E7EB] text-center">
+                        <p className="text-gray-500 font-medium">Loading orders...</p>
+                    </div>
+                ) : orders.length > 0 ? (
+                    orders.map((order) => (
                         <div
                             key={order.id}
                             onClick={() => handleCardClick(order)}
@@ -177,7 +254,7 @@ export default function OrderManagement() {
                             {/* Top Row: ID, Status, Time, Price */}
                             <div className="flex flex-col md:flex-row md:items-start justify-between mb-4 gap-4">
                                 <div className="flex items-center gap-3 flex-wrap">
-                                    <span className={`text-[18px] font-[400] ${order.status === 'Cancelled' ? 'text-gray-500 line-through' : 'text-[#111827]'}`}>
+                                    <span className={`text-[18px] font-[400] ${order.status === 'CANCELLED' || order.status === 'Cancelled' ? 'text-gray-500 line-through' : 'text-[#111827]'}`}>
                                         {order.id}
                                     </span>
                                     <span className={`px-3 py-1 rounded-md text-[12px] font-medium border ${getStatusColor(order.status)}`}>
@@ -237,7 +314,7 @@ export default function OrderManagement() {
                                     )}
                                 </div>
 
-                                {order.status === 'Pending' && (
+                                {(order.status === 'PENDING' || order.status === 'Pending') && (
                                     <div className="flex items-center gap-3">
                                         <button
                                             onClick={(e) => handleRejectClick(e, order)}
@@ -279,25 +356,29 @@ export default function OrderManagement() {
                 }}
             />
 
-            <AcceptOrderModal
-                isOpen={isAcceptModalOpen}
-                onClose={() => setIsAcceptModalOpen(false)}
-                onConfirm={() => {
-                    console.log('Accepted order:', selectedOrder?.id);
-                    setIsAcceptModalOpen(false);
-                }}
-                orderId={selectedOrder?.id}
-            />
+                <AcceptOrderModal
+                    isOpen={isAcceptModalOpen}
+                    onClose={() => setIsAcceptModalOpen(false)}
+                    onConfirm={() => {
+                        if (selectedOrder?.rawId) {
+                            updateOrderStatus(selectedOrder.rawId, 'PREPARING');
+                        }
+                        setIsAcceptModalOpen(false);
+                    }}
+                    orderId={selectedOrder?.id}
+                />
 
-            <RejectOrderModal
-                isOpen={isRejectModalOpen}
-                onClose={() => setIsRejectModalOpen(false)}
-                onConfirm={(reason) => {
-                    console.log('Rejected order:', selectedOrder?.id, 'Reason:', reason);
-                    setIsRejectModalOpen(false);
-                }}
-                orderId={selectedOrder?.id}
-            />
+                <RejectOrderModal
+                    isOpen={isRejectModalOpen}
+                    onClose={() => setIsRejectModalOpen(false)}
+                    onConfirm={(reason) => {
+                        if (selectedOrder?.rawId) {
+                            updateOrderStatus(selectedOrder.rawId, 'CANCELLED', reason ? { cancel_reason: reason } : {});
+                        }
+                        setIsRejectModalOpen(false);
+                    }}
+                    orderId={selectedOrder?.id}
+                />
         </div>
     );
 }

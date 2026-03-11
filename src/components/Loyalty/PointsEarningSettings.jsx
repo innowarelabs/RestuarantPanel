@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 
 const PointsEarningSettings = ({ loyaltySettings, onSettingsUpdate }) => {
     const accessToken = useSelector((state) => state.auth.accessToken);
+    const user = useSelector((state) => state.auth.user);
     const [saving, setSaving] = useState(false);
     const [localSettings, setLocalSettings] = useState({
         points_per_dollar: 0,
@@ -30,6 +31,17 @@ const PointsEarningSettings = ({ loyaltySettings, onSettingsUpdate }) => {
     const handleSave = async () => {
         setSaving(true);
         try {
+            const restaurantId = (() => {
+                const fromUser = user && typeof user === 'object' && typeof user.restaurant_id === 'string' ? user.restaurant_id : '';
+                let fromStorage = '';
+                try {
+                    fromStorage = localStorage.getItem('restaurant_id') || '';
+                } catch {
+                    fromStorage = '';
+                }
+                return (fromUser || fromStorage).trim();
+            })();
+
             const baseUrl = import.meta.env.VITE_BACKEND_URL;
             if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
             const url = `${baseUrl.replace(/\/$/, '')}/api/v1/rewards/loyalty`;
@@ -38,6 +50,7 @@ const PointsEarningSettings = ({ loyaltySettings, onSettingsUpdate }) => {
                 headers: {
                     'Content-Type': 'application/json',
                     ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
                 },
                 body: JSON.stringify(localSettings)
             });

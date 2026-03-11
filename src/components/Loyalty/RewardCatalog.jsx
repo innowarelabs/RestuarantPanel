@@ -11,6 +11,9 @@ const RewardCatalog = ({
     menuItems = [],
     categories = [],
     loadingMenuItems = false,
+    rewardTypes = [],
+    loadingRewardTypes = false,
+    rewardTypesError = null,
     onSaveReward, 
     onDeleteReward, 
     onRefreshRewards 
@@ -88,9 +91,10 @@ const RewardCatalog = ({
                 </button>
             </div>
 
-            {error && (
+            {(error || rewardTypesError) && (
                 <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-                    {error}
+                    {error && <div>{error}</div>}
+                    {rewardTypesError && <div>{rewardTypesError}</div>}
                     {onRefreshRewards && (
                         <button 
                             onClick={onRefreshRewards}
@@ -154,6 +158,8 @@ const RewardCatalog = ({
                 menuItems={menuItems}
                 categories={categories}
                 loadingMenuItems={loadingMenuItems}
+                rewardTypes={rewardTypes}
+                loadingRewardTypes={loadingRewardTypes}
                 onSave={handleSaveReward}
             />
 

@@ -10,6 +10,8 @@ const getInitialFormData = (reward, mode) => {
             description: reward.description || '',
             reward_image: reward.reward_image || reward.image || '',
             is_active: mode === 'edit' ? reward.is_active || reward.status === 'Active' : false,
+            reward_type: typeof reward.reward_type === 'string' ? reward.reward_type : '',
+            reward_value: reward.reward_value ?? '',
             // Convert ISO string from API to datetime-local input format
             valid_until: reward.valid_until ? reward.valid_until.slice(0, 16) : '',
         };
@@ -22,11 +24,23 @@ const getInitialFormData = (reward, mode) => {
         description: '',
         reward_image: '',
         is_active: true,
+        reward_type: '',
+        reward_value: '',
         valid_until: '',
     };
 };
 
-const RewardModalInner = ({ onClose, reward, mode, menuItems = [], categories = [], loadingMenuItems = false, onSave }) => {
+const RewardModalInner = ({
+    onClose,
+    reward,
+    mode,
+    menuItems = [],
+    categories = [],
+    loadingMenuItems = false,
+    rewardTypes = [],
+    loadingRewardTypes = false,
+    onSave
+}) => {
     const [formData, setFormData] = useState(() => getInitialFormData(reward, mode));
     const [submitting, setSubmitting] = useState(false);
     const [selectedCategoryId, setSelectedCategoryId] = useState('');
@@ -34,10 +48,39 @@ const RewardModalInner = ({ onClose, reward, mode, menuItems = [], categories = 
     const title = mode === 'add' ? 'Add Reward Item' : mode === 'edit' ? 'Edit Reward Item' : 'Reactivate Reward Item';
     const buttonText = submitting ? 'Saving...' : (mode === 'add' ? 'Save Reward' : 'Save Changes');
 
+    const selectedTypeConfig = Array.isArray(rewardTypes)
+        ? rewardTypes.find((t) => t.reward_type === formData.reward_type)
+        : null;
+
+    const isFreeItem = formData.reward_type === 'free_item';
+    const isRewardValueRequired = !!selectedTypeConfig?.reward_value_required;
+
     const handleSubmit = async () => {
         setSubmitting(true);
         try {
             // Normalize valid_until to ISO string expected by backend
+            // Basic front-end validation using reward types definition
+            if (!formData.reward_type) {
+                alert('Please select a reward type.');
+                setSubmitting(false);
+                return;
+            }
+
+            if (isFreeItem && !formData.menu_item_id) {
+                alert('Please select a menu item for a Free Item reward.');
+                setSubmitting(false);
+                return;
+            }
+
+            if (isRewardValueRequired) {
+                const valueNum = Number(formData.reward_value);
+                if (!Number.isFinite(valueNum) || valueNum <= 0) {
+                    alert('Please enter a valid reward value for this reward type.');
+                    setSubmitting(false);
+                    return;
+                }
+            }
+
             const payload = {
                 ...formData,
                 valid_until: formData.valid_until
@@ -86,6 +129,40 @@ const RewardModalInner = ({ onClose, reward, mode, menuItems = [], categories = 
 
                 {/* Body */}
                 <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                    {/* Reward Type (top) */}
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Reward Type</label>
+                        <select
+                            value={formData.reward_type}
+                            onChange={(e) => {
+                                const value = e.target.value;
+                                setFormData(prev => ({
+                                    ...prev,
+                                    reward_type: value,
+                                    // Clear menu item if switching away from free_item
+                                    ...(value !== 'free_item' ? { menu_item_id: '' } : {}),
+                                }));
+                                if (value !== 'free_item') {
+                                    setSelectedCategoryId('');
+                                }
+                            }}
+                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none"
+                            disabled={loadingRewardTypes}
+                        >
+                            <option value="">{loadingRewardTypes ? 'Loading types...' : 'Select reward type'}</option>
+                            {Array.isArray(rewardTypes) && rewardTypes.map((type) => (
+                                <option key={type.reward_type} value={type.reward_type}>
+                                    {type.label || type.reward_type}
+                                </option>
+                            ))}
+                        </select>
+                        {selectedTypeConfig?.description && (
+                            <p className="mt-1 text-xs text-gray-500">
+                                {selectedTypeConfig.description}
+                            </p>
+                        )}
+                    </div>
+
                     {/* Reward Name */}
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-1.5">Reward Name</label>
@@ -110,40 +187,43 @@ const RewardModalInner = ({ onClose, reward, mode, menuItems = [], categories = 
                         />
                     </div>
 
-                    {/* Choose Category */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Choose Category</label>
-                        <select
-                            value={selectedCategoryId}
-                            onChange={(e) => {
-                                setSelectedCategoryId(e.target.value);
-                                setFormData({ ...formData, menu_item_id: '' });
-                            }}
-                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none"
-                            disabled={loadingMenuItems}
-                        >
-                            <option value="">{loadingMenuItems ? 'Loading categories...' : 'Select a category'}</option>
-                            {Array.isArray(categories) && categories.map((cat) => (
-                                <option key={cat.id} value={cat.id}>{cat.name}</option>
-                            ))}
-                        </select>
-                    </div>
+                    {/* Choose Category & Menu Item (only for free_item type) */}
+                    {isFreeItem && (
+                        <>
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Choose Category</label>
+                                <select
+                                    value={selectedCategoryId}
+                                    onChange={(e) => {
+                                        setSelectedCategoryId(e.target.value);
+                                        setFormData({ ...formData, menu_item_id: '' });
+                                    }}
+                                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none"
+                                    disabled={loadingMenuItems}
+                                >
+                                    <option value="">{loadingMenuItems ? 'Loading categories...' : 'Select a category'}</option>
+                                    {Array.isArray(categories) && categories.map((cat) => (
+                                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                    ))}
+                                </select>
+                            </div>
 
-                    {/* Choose Menu Item */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Choose Menu Item</label>
-                        <select
-                            value={formData.menu_item_id}
-                            onChange={(e) => setFormData({ ...formData, menu_item_id: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none"
-                            disabled={loadingMenuItems || !selectedCategoryId}
-                        >
-                            <option value="">{loadingMenuItems ? 'Loading items...' : (selectedCategoryId ? 'Select an item' : 'Select a category first')}</option>
-                            {itemsForCategory && itemsForCategory.length > 0 && itemsForCategory.map((item) => (
-                                <option key={item.id} value={item.id}>{item.name}</option>
-                            ))}
-                        </select>
-                    </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Choose Menu Item</label>
+                                <select
+                                    value={formData.menu_item_id}
+                                    onChange={(e) => setFormData({ ...formData, menu_item_id: e.target.value })}
+                                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none"
+                                    disabled={loadingMenuItems || !selectedCategoryId}
+                                >
+                                    <option value="">{loadingMenuItems ? 'Loading items...' : (selectedCategoryId ? 'Select an item' : 'Select a category first')}</option>
+                                    {itemsForCategory && itemsForCategory.length > 0 && itemsForCategory.map((item) => (
+                                        <option key={item.id} value={item.id}>{item.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </>
+                    )}
 
                     {/* Description */}
                     <div>
@@ -185,6 +265,28 @@ const RewardModalInner = ({ onClose, reward, mode, menuItems = [], categories = 
                         />
                     </div>
 
+                    {/* Reward Value */}
+                    {formData.reward_type && !isFreeItem && (
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Reward Value</label>
+                            <input
+                                type="number"
+                                placeholder="e.g., 10"
+                                value={formData.reward_value}
+                                onChange={(e) => setFormData({ ...formData, reward_value: e.target.value })}
+                                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                            />
+                            <p className="mt-1 text-xs text-gray-500">
+                                {formData.reward_type === 'discount' &&
+                                    '0–100 = % off (10 = 10%), >100 = $ off (15 = $15 off).'}
+                                {formData.reward_type === 'free_delivery' &&
+                                    'Max delivery fee to waive (e.g. 5.99).'}
+                                {formData.reward_type === 'cash_credit' &&
+                                    'Dollar amount off order (e.g. 5 = $5 off).'}
+                            </p>
+                        </div>
+                    )}
+
                     {/* Status Toggle */}
                     <div className="bg-gray-50 p-4 rounded-xl flex items-center justify-between">
                         <div>
@@ -224,12 +326,36 @@ const RewardModalInner = ({ onClose, reward, mode, menuItems = [], categories = 
     );
 };
 
-const RewardModal = ({ isOpen, onClose, reward, mode = 'add', onSave, menuItems = [], categories = [], loadingMenuItems = false }) => {
+const RewardModal = ({
+    isOpen,
+    onClose,
+    reward,
+    mode = 'add',
+    onSave,
+    menuItems = [],
+    categories = [],
+    loadingMenuItems = false,
+    rewardTypes = [],
+    loadingRewardTypes = false,
+}) => {
     if (!isOpen) return null;
 
     const modalKey = `${mode}-${reward?.reward_name || reward?.name || ''}-${reward?.points_required || reward?.points || ''}-${reward?.is_active || reward?.status || ''}-${reward?.linked_item || reward?.linkedItem || ''}`;
 
-    return <RewardModalInner key={modalKey} onClose={onClose} reward={reward} mode={mode} onSave={onSave} menuItems={menuItems} categories={categories} loadingMenuItems={loadingMenuItems} />;
+    return (
+        <RewardModalInner
+            key={modalKey}
+            onClose={onClose}
+            reward={reward}
+            mode={mode}
+            onSave={onSave}
+            menuItems={menuItems}
+            categories={categories}
+            loadingMenuItems={loadingMenuItems}
+            rewardTypes={rewardTypes}
+            loadingRewardTypes={loadingRewardTypes}
+        />
+    );
 };
 
 export default RewardModal;

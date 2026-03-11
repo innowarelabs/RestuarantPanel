@@ -20,6 +20,20 @@ export default function Customers() {
     const [customerCards, setCustomerCards] = useState(null);
 
     const accessToken = useSelector((state) => state.auth.accessToken);
+    const user = useSelector((state) => state.auth.user);
+
+    const getRestaurantId = () => {
+        const fromUser = user && typeof user === 'object' && typeof user.restaurant_id === 'string' ? user.restaurant_id : '';
+        let fromStorage = '';
+        try {
+            fromStorage = localStorage.getItem('restaurant_id') || '';
+        } catch {
+            fromStorage = '';
+        }
+        return (fromUser || fromStorage).trim();
+    };
+
+    const restaurantId = getRestaurantId();
 
     const fetchCustomersData = async (page = 1, search = '', sort = '') => {
         setLoading(true);
@@ -37,6 +51,7 @@ export default function Customers() {
                 headers: {
                     'Content-Type': 'application/json',
                     ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
                 },
             });
             const data = await res.json();
@@ -85,6 +100,7 @@ export default function Customers() {
                     headers: {
                         'Content-Type': 'application/json',
                         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                        ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
                     },
                 });
                 const data = await res.json();
@@ -131,6 +147,7 @@ export default function Customers() {
                     headers: {
                         'Content-Type': 'application/json',
                         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                        ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
                     },
                 });
                 const data = await res.json();

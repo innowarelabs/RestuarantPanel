@@ -61,19 +61,21 @@ export default function Step5({
             const expiryDaysRaw = Number(formData.expiryPeriod?.trim());
             const pointsExpiryDaysValue = formData.pointsExpire ? (Number.isFinite(expiryDaysRaw) ? Math.trunc(expiryDaysRaw) : 365) : 0;
 
-            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step5/settings`;
+            // Guide: PUT /api/v1/rewards/loyalty
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/rewards/loyalty`;
             const res = await fetch(url, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                     ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
                 },
                 body: JSON.stringify({
-                    restaurant_id: restaurantId,
                     points_per_dollar: Number.isFinite(pointsPerDollarValue) ? Math.trunc(pointsPerDollarValue) : 1,
-                    bonus_first_order_points: Number.isFinite(bonusFirstOrderPointsValue) ? Math.trunc(bonusFirstOrderPointsValue) : 0,
+                    first_order_bonus_points: Number.isFinite(bonusFirstOrderPointsValue) ? Math.trunc(bonusFirstOrderPointsValue) : 0,
                     min_order_to_earn_points: Number.isFinite(minOrderToEarnPointsValue) ? minOrderToEarnPointsValue : 0,
                     points_expiry_days: pointsExpiryDaysValue,
+                    is_active: !!formData.loyaltyEnabled,
                 }),
             });
 

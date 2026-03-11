@@ -771,12 +771,14 @@ export default function OnboardingStep() {
             const baseUrl = import.meta.env.VITE_BACKEND_URL;
             if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
 
-            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step5/rewards/${restaurantId}`;
+            // Guide: GET /api/v1/rewards/catalog
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/rewards/catalog`;
             const res = await fetch(url, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
                     ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
                 },
             });
 
@@ -898,23 +900,28 @@ export default function OnboardingStep() {
             const baseUrl = import.meta.env.VITE_BACKEND_URL;
             if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
 
-            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step5/reward`;
+            // Guide: POST /api/v1/rewards/catalog, PUT /api/v1/rewards/catalog/{item_id}
+            const trimmedBaseUrl = baseUrl.replace(/\/$/, '');
+            const isUpdate = !!editingReward?.reward_id;
+            const url = isUpdate
+                ? `${trimmedBaseUrl}/api/v1/rewards/catalog/${editingReward.reward_id}`
+                : `${trimmedBaseUrl}/api/v1/rewards/catalog`;
             const rewardImageUrl = rewardImageFile ? await uploadImage(rewardImageFile, baseUrl) : rewardForm.rewardImage.trim();
             const payload = {
-                restaurant_id: restaurantId,
-                reward_name: rewardForm.rewardName.trim(),
+                title: rewardForm.rewardName.trim(),
+                reward_name: rewardForm.rewardName.trim(), // keep for backward compatibility
                 menu_item_id: rewardForm.menuItemId,
                 description: rewardForm.description.trim(),
                 reward_image: rewardImageUrl,
                 is_active: !!rewardForm.isActive,
                 points_required: Math.trunc(pointsValue),
             };
-            if (editingReward?.reward_id) payload.reward_id = editingReward.reward_id;
             const res = await fetch(url, {
-                method: 'POST',
+                method: isUpdate ? 'PUT' : 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
                 },
                 body: JSON.stringify(payload),
             });
