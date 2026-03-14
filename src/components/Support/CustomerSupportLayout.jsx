@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux';
 import CustomerSupportInbox from './CustomerSupportInbox';
 import CustomerChatWindow from './CustomerChatWindow';
 
-const CustomerSupportLayout = () => {
+const CustomerSupportLayout = ({ refreshKey }) => {
     const accessToken = useSelector((state) => state.auth.accessToken);
     const user = useSelector((state) => state.auth.user);
 
@@ -103,7 +103,7 @@ const CustomerSupportLayout = () => {
         if (accessToken) {
             fetchInbox();
         }
-    }, [accessToken, restaurantId]);
+    }, [accessToken, restaurantId, refreshKey]);
 
     useEffect(() => {
         const fetchTicket = async () => {

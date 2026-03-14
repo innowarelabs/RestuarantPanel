@@ -11,6 +11,7 @@ const Supports = () => {
     const [activeTab, setActiveTab] = useState('customer');
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0);
 
     // Ticket Details Modal State
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -19,6 +20,10 @@ const Supports = () => {
     const handleViewTicket = (ticket) => {
         setSelectedTicket(ticket);
         setIsDetailsModalOpen(true);
+    };
+
+    const handleTicketCreated = () => {
+        setRefreshKey((prev) => prev + 1);
     };
 
     return (
@@ -33,9 +38,9 @@ const Supports = () => {
 
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {activeTab === 'customer' ? (
-                    <CustomerSupportLayout />
+                    <CustomerSupportLayout refreshKey={refreshKey} />
                 ) : (
-                    <AdminSupportTickets onViewTicket={handleViewTicket} />
+                    <AdminSupportTickets refreshKey={refreshKey} onViewTicket={handleViewTicket} />
                 )}
             </div>
 
@@ -43,6 +48,7 @@ const Supports = () => {
             <CreateTicketModal
                 isOpen={isCreateModalOpen}
                 onClose={() => setIsCreateModalOpen(false)}
+                onSuccess={handleTicketCreated}
             />
             <FilterTicketsModal
                 isOpen={isFilterModalOpen}

@@ -1,43 +1,58 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ChevronLeft, Calendar, FileSpreadsheet, FileText, Filter, Download } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import RecentOrdersFilterModal from './RecentOrdersFilterModal';
 import ScheduleReportModal from './ScheduleReportModal';
 
-const OrderReports = ({ onBack }) => {
+const CHART_COLORS = ['#2BB29C', '#4F46E5', '#F59E0B', '#94A3B8', '#EF4444', '#8B5CF6'];
+
+const OrderReports = ({ onBack, reportData, loading, onRefresh }) => {
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
     const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
 
-    const pieData = [
-        { name: 'UberEats', value: 42, color: '#2BB29C', amount: '$8,500' },
-        { name: 'App', value: 31, color: '#4F46E5', amount: '$5,200' },
-        { name: 'Walk-in', value: 19, color: '#F59E0B', amount: '$3,800' },
-        { name: 'Deliveroo', value: 8, color: '#94A3B8', amount: '$2,882' },
-    ];
+    const pieData = useMemo(() => {
+        if (!reportData?.orders_by_source?.length) return [];
+        return reportData.orders_by_source.map((item, index) => ({
+            name: item.source,
+            value: item.percent,
+            color: CHART_COLORS[index % CHART_COLORS.length],
+            amount: `$${item.revenue?.toLocaleString() || 0}`
+        }));
+    }, [reportData]);
 
-    const barData = [
-        { name: 'App', orders: 480 },
-        { name: 'Uber Eats', orders: 380 },
-        { name: 'Deliveroo', orders: 250 },
-        { name: 'Walk-in', orders: 120 },
-    ];
+    const barData = useMemo(() => {
+        if (!reportData?.orders_by_source?.length) return [];
+        return reportData.orders_by_source.map(item => ({
+            name: item.source,
+            orders: item.order_count
+        }));
+    }, [reportData]);
 
-    const stats = [
-        { label: "Total Orders", value: "1,247" },
-        { label: "Avg Prep Time", value: "12.3 min" },
-        { label: "Avg Delivery Time", value: "28.5 min" },
-        { label: "Cancelled", value: "23" },
-        { label: "Completed", value: "1,224" },
-        { label: "Success Rate", value: "98.2%" },
-    ];
+    const stats = useMemo(() => {
+        const s = reportData?.stats || {};
+        return [
+            { label: "Total Orders", value: s.total_orders?.toLocaleString() || "0" },
+            { label: "Avg Prep Time", value: s.avg_prep_time_min ? `${s.avg_prep_time_min} min` : "--" },
+            { label: "Avg Delivery Time", value: s.avg_delivery_time_min ? `${s.avg_delivery_time_min} min` : "--" },
+            { label: "Cancelled", value: s.cancelled?.toLocaleString() || "0" },
+            { label: "Completed", value: s.completed?.toLocaleString() || "0" },
+            { label: "Success Rate", value: s.success_rate_percent != null ? `${s.success_rate_percent}%` : "--" },
+        ];
+    }, [reportData]);
 
-    const recentOrders = [
-        { id: "ORD-2310", customer: "Ali Raza", items: 3, amount: "$12.90", status: "Completed", source: "App", prep: "11 min", delivery: "25 min" },
-        { id: "ORD-2309", customer: "Sana Khan", items: 1, amount: "$4.50", status: "Completed", source: "Uber Eats", prep: "8 min", delivery: "--" },
-        { id: "ORD-2308", customer: "Bilal Ahmed", items: 2, amount: "$8.20", status: "Cancelled", source: "Deliveroo", prep: "--", delivery: "--" },
-        { id: "ORD-2307", customer: "Hamza Noor", items: 2, amount: "$10.40", status: "Completed", source: "App", prep: "14 min", delivery: "32 min" },
-        { id: "ORD-2306", customer: "Nida Karim", items: 1, amount: "$7.90", status: "Completed", source: "Walk-in", prep: "9 min", delivery: "--" },
-    ];
+    const recentOrders = useMemo(() => {
+        if (!reportData?.recent_orders?.length) return [];
+        return reportData.recent_orders.map(order => ({
+            id: order.order_number,
+            customer: order.customer,
+            items: order.items_count,
+            amount: `$${order.amount?.toFixed(2) || '0.00'}`,
+            status: order.status?.charAt(0).toUpperCase() + order.status?.slice(1) || 'Unknown',
+            source: order.source,
+            prep: order.prep_time_min ? `${order.prep_time_min} min` : "--",
+            delivery: order.delivery_time_min ? `${order.delivery_time_min} min` : "--"
+        }));
+    }, [reportData]);
 
     return (
         <div className="animate-in fade-in slide-in-from-left-4 duration-500 pb-12">
@@ -143,48 +158,70 @@ const OrderReports = ({ onBack }) => {
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="bg-white rounded-[16px] border border-[#00000033] p-6 sm:p-8 shadow-sm min-h-[400px] flex flex-col md:flex-row items-center gap-8">
-                        <div className="w-full md:w-[60%] h-[250px] sm:h-[300px]">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={pieData}
-                                        innerRadius={70}
-                                        outerRadius={100}
-                                        paddingAngle={5}
-                                        dataKey="value"
-                                    >
-                                        {pieData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.color} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </div>
-                        <div className="w-full md:w-[40%] space-y-4">
-                            {pieData.map((entry, i) => (
-                                <div key={i} className="flex items-center gap-3">
-                                    <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: entry.color }}></div>
-                                    <div className="flex-1">
-                                        <p className="text-[13px] font-[500] text-general-text">{entry.name}</p>
-                                        <p className="text-[12px] text-[#6B7280]">{entry.amount}</p>
-                                    </div>
-                                    <span className="text-xs font-bold text-gray-400">{entry.value}%</span>
+                        {loading ? (
+                            <div className="w-full h-[300px] flex items-center justify-center">
+                                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                            </div>
+                        ) : pieData.length > 0 ? (
+                            <>
+                                <div className="w-full md:w-[60%] h-[250px] sm:h-[300px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={pieData}
+                                                innerRadius={70}
+                                                outerRadius={100}
+                                                paddingAngle={5}
+                                                dataKey="value"
+                                            >
+                                                {pieData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip />
+                                        </PieChart>
+                                    </ResponsiveContainer>
                                 </div>
-                            ))}
-                        </div>
+                                <div className="w-full md:w-[40%] space-y-4">
+                                    {pieData.map((entry, i) => (
+                                        <div key={i} className="flex items-center gap-3">
+                                            <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: entry.color }}></div>
+                                            <div className="flex-1">
+                                                <p className="text-[13px] font-[500] text-general-text">{entry.name}</p>
+                                                <p className="text-[12px] text-[#6B7280]">{entry.amount}</p>
+                                            </div>
+                                            <span className="text-xs font-bold text-gray-400">{entry.value}%</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
+                        ) : (
+                            <div className="w-full h-[300px] flex items-center justify-center text-gray-400">
+                                No data available
+                            </div>
+                        )}
                     </div>
 
-                    <div className="bg-white h-[312px] rounded-[16px] border border-[#00000033]  p-8 shadow-sm h-[400px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={barData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9CA3AF' }} dy={10} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9CA3AF' }} />
-                                <Tooltip cursor={{ fill: '#F9FAFB' }} />
-                                <Bar dataKey="orders" fill="#2BB29C" radius={[4, 4, 0, 0]} barSize={50} />
-                            </BarChart>
-                        </ResponsiveContainer>
+                    <div className="bg-white rounded-[16px] border border-[#00000033] p-8 shadow-sm h-[400px]">
+                        {loading ? (
+                            <div className="w-full h-full flex items-center justify-center">
+                                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                            </div>
+                        ) : barData.length > 0 ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={barData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
+                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9CA3AF' }} dy={10} />
+                                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9CA3AF' }} />
+                                    <Tooltip cursor={{ fill: '#F9FAFB' }} />
+                                    <Bar dataKey="orders" fill="#2BB29C" radius={[4, 4, 0, 0]} barSize={50} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                No data available
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -216,23 +253,43 @@ const OrderReports = ({ onBack }) => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
-                            {recentOrders.map((order, idx) => (
-                                <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
-                                    <td className="px-6 py-4 text-[14px] font-[500] text-nowrap text-primary">{order.id}</td>
-                                    <td className="px-6 py-4 text-[14px] font-[500] text-nowrap text-general-text">{order.customer}</td>
-                                    <td className="px-6 py-4 text-[14px] font-[500] text-nowrap text-general-text text-center">{order.items}</td>
-                                    <td className="px-6 py-4 text-[14px] font-[500] text-nowrap text-general-text">{order.amount}</td>
-                                    <td className="px-6 py-4">
-                                        <span className={`px-3 py-1 rounded-[8px] text-[12px] font-[500] ${order.status === 'Completed' ? 'bg-green-50 text-green-500' : 'bg-red-50 text-red-500'
-                                            }`}>
-                                            {order.status}
-                                        </span>
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={8} className="px-6 py-12 text-center">
+                                        <div className="flex items-center justify-center">
+                                            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                                        </div>
                                     </td>
-                                    <td className="px-6 py-4 text-[14px] font-[500] text-gray-500">{order.source}</td>
-                                    <td className="px-6 py-4 text-[14px] font-[500] text-gray-500">{order.prep}</td>
-                                    <td className="px-6 py-4 text-[14px] font-[500] text-gray-500">{order.delivery}</td>
                                 </tr>
-                            ))}
+                            ) : recentOrders.length > 0 ? (
+                                recentOrders.map((order, idx) => (
+                                    <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
+                                        <td className="px-6 py-4 text-[14px] font-[500] text-nowrap text-primary">{order.id}</td>
+                                        <td className="px-6 py-4 text-[14px] font-[500] text-nowrap text-general-text">{order.customer}</td>
+                                        <td className="px-6 py-4 text-[14px] font-[500] text-nowrap text-general-text text-center">{order.items}</td>
+                                        <td className="px-6 py-4 text-[14px] font-[500] text-nowrap text-general-text">{order.amount}</td>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-3 py-1 rounded-[8px] text-[12px] font-[500] ${
+                                                order.status === 'Completed' ? 'bg-green-50 text-green-500' : 
+                                                order.status === 'Cancelled' ? 'bg-red-50 text-red-500' :
+                                                order.status === 'Pending' ? 'bg-yellow-50 text-yellow-600' :
+                                                'bg-gray-50 text-gray-500'
+                                            }`}>
+                                                {order.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-[14px] font-[500] text-gray-500">{order.source}</td>
+                                        <td className="px-6 py-4 text-[14px] font-[500] text-gray-500">{order.prep}</td>
+                                        <td className="px-6 py-4 text-[14px] font-[500] text-gray-500">{order.delivery}</td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={8} className="px-6 py-12 text-center text-gray-400">
+                                        No orders found
+                                    </td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </div>

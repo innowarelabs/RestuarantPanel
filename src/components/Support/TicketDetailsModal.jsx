@@ -1,64 +1,382 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useSelector } from 'react-redux';
 import { X, Clock, Paperclip, Send, FileText, ChevronRight } from 'lucide-react';
 
 const TicketDetailsModal = ({ isOpen, onClose, ticket }) => {
-    const [activeTab, setActiveTab] = useState('Conversation');
+    const accessToken = useSelector((state) => state.auth.accessToken);
+    const user = useSelector((state) => state.auth.user);
 
-    if (!isOpen || !ticket) return null;
+    const [activeTab, setActiveTab] = useState('Conversation');
+    const [ticketDetails, setTicketDetails] = useState(null);
+    const [messages, setMessages] = useState([]);
+    const [loadingMessages, setLoadingMessages] = useState(false);
+    const [sending, setSending] = useState(false);
+    const [replyText, setReplyText] = useState('');
+    const [error, setError] = useState('');
+
+    const conversationContainerRef = useRef(null);
+
+    const getRestaurantId = () => {
+        const fromUser = user && typeof user === 'object' && typeof user.restaurant_id === 'string' ? user.restaurant_id : '';
+        let fromStorage = '';
+        try {
+            fromStorage = localStorage.getItem('restaurant_id') || '';
+        } catch {
+            fromStorage = '';
+        }
+        return (fromUser || fromStorage).trim();
+    };
+
+    const restaurantId = getRestaurantId();
 
     const tabs = ['Conversation', 'Details', 'Attachments', 'Timeline'];
+
+    const resolveTicketIdForApi = () => {
+        if (!ticket) return '';
+        return encodeURIComponent(ticket.apiId || ticket.raw?.id || ticket.id || '');
+    };
+
+    const effectiveDetails = ticketDetails || ticket;
+
+    const mapApiMessageToUi = (msg) => {
+        if (!msg || typeof msg !== 'object') return null;
+        const id = msg.id || msg.message_id || msg.comment_id || `temp-${Math.random().toString(36).slice(2)}`;
+        const text = msg.comment || msg.message || msg.content || '';
+        const createdAt = msg.created_at || msg.timestamp || null;
+        const role = msg.user_role || msg.sender_role || (msg.is_internal ? 'internal' : 'restaurant');
+
+        return {
+            id,
+            text,
+            createdAt,
+            role,
+        };
+    };
+
+    const fetchMessages = async (ticketId) => {
+        if (!ticketId || !accessToken) return;
+
+        try {
+            setLoadingMessages(true);
+            setError('');
+
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/tickets/${ticketId}/messages`;
+
+            const headers = {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${accessToken}`,
+            };
+            if (restaurantId) {
+                headers['X-Restaurant-Id'] = restaurantId;
+            }
+
+            const res = await fetch(url, { method: 'GET', headers });
+            const json = await res.json();
+
+            const data = json?.data;
+            const rawMessages = Array.isArray(data?.messages)
+                ? data.messages
+                : Array.isArray(data)
+                    ? data
+                    : Array.isArray(json?.messages)
+                        ? json.messages
+                        : Array.isArray(json)
+                            ? json
+                            : [];
+
+            const mapped = rawMessages
+                .map(mapApiMessageToUi)
+                .filter(Boolean);
+
+            setMessages(mapped);
+        } catch (e) {
+            setError(e.message || 'Failed to load messages');
+            setMessages([]);
+        } finally {
+            setLoadingMessages(false);
+        }
+    };
+
+    const fetchTicketDetails = async () => {
+        const apiTicketId = resolveTicketIdForApi();
+        if (!apiTicketId || !accessToken) return;
+
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/tickets/${apiTicketId}`;
+
+            const headers = {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${accessToken}`,
+            };
+            if (restaurantId) {
+                headers['X-Restaurant-Id'] = restaurantId;
+            }
+
+            const res = await fetch(url, { method: 'GET', headers });
+            const json = await res.json();
+
+            const details = json?.data || json || null;
+            setTicketDetails(details);
+
+            if (Array.isArray(details?.conversation)) {
+                const mappedConversation = details.conversation
+                    .map(mapApiMessageToUi)
+                    .filter(Boolean);
+                if (mappedConversation.length) {
+                    setMessages(mappedConversation);
+                }
+            }
+
+            await fetchMessages(apiTicketId);
+        } catch (e) {
+            // If details fail, we still want the list ticket data to show
+            console.error('Failed to load ticket details', e);
+        }
+    };
+
+    useEffect(() => {
+        if (!isOpen || !ticket) return;
+        fetchTicketDetails();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, ticket?.apiId, ticket?.id]);
+
+    useEffect(() => {
+        if (!conversationContainerRef.current) return;
+        const container = conversationContainerRef.current;
+        container.scrollTop = container.scrollHeight;
+    }, [messages.length]);
+
+    // WebSocket for live ticket conversation between restaurant and admin (best-effort)
+    useEffect(() => {
+        if (!isOpen) return;
+        const apiTicketId = resolveTicketIdForApi();
+        if (!apiTicketId || !accessToken) return;
+
+        const rawBase = import.meta.env.VITE_BACKEND_URL || 'https://api.baaie.com/api/v1';
+        const httpBase = rawBase.replace(/\/api\/v1\/?$/, '');
+        const wsBase = httpBase.replace(/^http/, 'ws');
+
+        const wsUrl = `${wsBase.replace(/\/$/, '')}/api/v1/chat/ws/tickets/${encodeURIComponent(
+            apiTicketId,
+        )}?token=${encodeURIComponent(accessToken)}`;
+
+        console.log('[WS RestaurantTicket] connecting to', wsUrl);
+
+        let isMounted = true;
+        let ws;
+        try {
+            ws = new WebSocket(wsUrl);
+        } catch (err) {
+            console.error('[WS RestaurantTicket] failed to create WebSocket', err);
+            return;
+        }
+
+        ws.onopen = () => {
+            console.log('[WS RestaurantTicket] connected');
+        };
+
+        ws.onerror = (event) => {
+            console.error('[WS RestaurantTicket] error', event);
+        };
+
+        ws.onclose = (event) => {
+            console.log('[WS RestaurantTicket] closed', event.code, event.reason);
+        };
+
+        ws.onmessage = (event) => {
+            if (!isMounted) return;
+            try {
+                const data = JSON.parse(event.data);
+                console.log('[WS RestaurantTicket] message', data);
+                if (data.type === 'new_message' && data.message) {
+                    const mapped = mapApiMessageToUi(data.message);
+                    if (!mapped) return;
+
+                    setMessages((prev) => {
+                        const current = Array.isArray(prev) ? prev : [];
+                        const exists = current.some((m) => (m.id || m.message_id) === mapped.id);
+                        return exists ? current : [...current, mapped];
+                    });
+                }
+            } catch (err) {
+                console.error('[WS RestaurantTicket] invalid event data', err);
+            }
+        };
+
+        return () => {
+            isMounted = false;
+            try {
+                ws && ws.close();
+            } catch {
+                // ignore
+            }
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, ticket?.apiId, ticket?.id, accessToken]);
+
+    const handleSendMessage = async () => {
+        const text = (replyText || '').trim();
+        if (!text || !accessToken) return;
+
+        const apiTicketId = resolveTicketIdForApi();
+        if (!apiTicketId) return;
+
+        try {
+            setSending(true);
+            setError('');
+
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/tickets/${apiTicketId}/messages`;
+
+            const headers = {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${accessToken}`,
+            };
+            if (restaurantId) {
+                headers['X-Restaurant-Id'] = restaurantId;
+            }
+
+            const payload = { comment: text };
+
+            const res = await fetch(url, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(payload),
+            });
+
+            const json = await res.json();
+            const code = json?.code;
+            const ok = res.ok || (code && typeof code === 'string' && code.startsWith('SUCCESS_'));
+
+            if (!ok) {
+                const message = json?.message || 'Failed to send message';
+                throw new Error(message);
+            }
+
+            setReplyText('');
+
+            // Refresh messages after successful send
+            await fetchMessages(apiTicketId);
+        } catch (e) {
+            setError(e.message || 'Failed to send message');
+        } finally {
+            setSending(false);
+        }
+    };
 
     const renderContent = () => {
         switch (activeTab) {
             case 'Conversation':
                 return (
                     <div className="flex flex-col max-h-[450px]">
-                        <div className="overflow-y-auto p-6 space-y-6 h-[350px] custom-scrollbar">
-                            {/* User Message */}
-                            <div className="flex flex-col items-end gap-1.5">
-                                <div className="px-5 py-3.5 bg-[#2BB29C] text-white rounded-[18px] rounded-tr-none text-[14px] max-w-[85%] font-[500] leading-relaxed shadow-sm">
-                                    I was supposed to receive my weekly payout on Monday but it hasn't arrived yet. My bank account details are correct.
-                                    <div className="mt-3 p-2.5 bg-white/10 rounded-[8px] flex items-center gap-2 border border-white/10">
-                                        <Paperclip className="w-3.5 h-3.5" />
-                                        <span className="text-[12px] font-medium">bank-statement.pdf</span>
-                                    </div>
-                                </div>
-                                <span className="text-[11px] text-gray-400 font-[500] mr-2">You • 01:54</span>
-                            </div>
+                        <div
+                            ref={conversationContainerRef}
+                            className="overflow-y-auto p-6 space-y-6 h-[350px] custom-scrollbar"
+                        >
+                            {loadingMessages && (
+                                <p className="text-[12px] text-gray-500">Loading conversation…</p>
+                            )}
+                            {!loadingMessages && messages.length === 0 && (
+                                <p className="text-[12px] text-gray-500">No messages yet. Start the conversation.</p>
+                            )}
 
-                            {/* Admin Message */}
-                            <div className="flex flex-col items-start gap-1.5">
-                                <div className="px-5 py-3.5 bg-[#F3F4F6] text-[#111827] rounded-[18px] rounded-tl-none text-[14px] max-w-[85%] font-[500] leading-relaxed">
-                                    Thank you for contacting us. We're looking into your payout issue and will update you within 24 hours.
-                                </div>
-                                <span className="text-[11px] text-gray-400 font-[500] ml-2">Admin Team • 02:30</span>
-                            </div>
+                            {messages.map((msg) => {
+                                const isRestaurant =
+                                    msg.role === 'restaurant' ||
+                                    msg.role === 'owner' ||
+                                    msg.role === 'manager';
+
+                                const timeLabel = msg.createdAt
+                                    ? new Date(msg.createdAt).toLocaleTimeString([], {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                    })
+                                    : '';
+
+                                if (isRestaurant) {
+                                    return (
+                                        <div key={msg.id} className="flex flex-col items-end gap-1.5">
+                                            <div className="px-5 py-3.5 bg-[#2BB29C] text-white rounded-[18px] rounded-tr-none text-[14px] max-w-[85%] font-[500] leading-relaxed shadow-sm">
+                                                {msg.text}
+                                            </div>
+                                            <span className="text-[11px] text-gray-400 font-[500] mr-2">
+                                                You{timeLabel ? ` • ${timeLabel}` : ''}
+                                            </span>
+                                        </div>
+                                    );
+                                }
+
+                                return (
+                                    <div key={msg.id} className="flex flex-col items-start gap-1.5">
+                                        <div className="px-5 py-3.5 bg-[#F3F4F6] text-[#111827] rounded-[18px] rounded-tl-none text-[14px] max-w-[85%] font-[500] leading-relaxed">
+                                            {msg.text}
+                                        </div>
+                                        <span className="text-[11px] text-gray-400 font-[500] ml-2">
+                                            Admin{timeLabel ? ` • ${timeLabel}` : ''}
+                                        </span>
+                                    </div>
+                                );
+                            })}
                         </div>
 
                         {/* Input Area */}
                         <div className="p-6 border-t border-gray-100 bg-[#F9FAFB]/50">
+                            {error && (
+                                <p className="mb-2 text-[12px] text-red-500">
+                                    {error}
+                                </p>
+                            )}
                             <div className="flex items-center gap-2 mb-4">
-                                <button className="px-3 py-1 bg-white border border-gray-200 text-[#6B7280] rounded-[6px] text-[10px] font-[700] uppercase tracking-wider hover:bg-gray-50 transition-all">Internal Notes OFF</button>
+                                <button
+                                    type="button"
+                                    className="px-3 py-1 bg-white border border-gray-200 text-[#6B7280] rounded-[6px] text-[10px] font-[700] uppercase tracking-wider cursor-default"
+                                >
+                                    Internal Notes OFF
+                                </button>
                             </div>
 
                             <div className="bg-white rounded-[12px] p-4 border border-[#E5E7EB] shadow-sm">
                                 <textarea
                                     rows="2"
                                     placeholder="Type your message..."
+                                    value={replyText}
+                                    onChange={(e) => setReplyText(e.target.value)}
                                     className="w-full bg-transparent border-none focus:outline-none text-[14px] font-[500] text-[#111827] placeholder:text-[#9CA3AF] resize-none custom-scrollbar"
                                 ></textarea>
 
                                 <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
                                     <div className="flex items-center gap-5 text-[#9CA3AF]">
-                                        <button className="hover:text-[#2BB29C] transition-colors cursor-pointer active:scale-90"><Paperclip className="w-4 h-4" /></button>
-                                        <button className="flex items-center gap-2 text-[12px] font-[700] text-[#2BB29C] active:scale-95 px-2 py-1 hover:bg-[#2BB29C]/5 rounded-md transition-all">
+                                        <button
+                                            type="button"
+                                            className="hover:text-[#2BB29C] transition-colors cursor-pointer active:scale-90"
+                                        >
+                                            <Paperclip className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="flex items-center gap-2 text-[12px] font-[700] text-[#2BB29C] active:scale-95 px-2 py-1 hover:bg-[#2BB29C]/5 rounded-md transition-all"
+                                        >
                                             Quick Replies
                                         </button>
                                     </div>
                                     <div className="flex items-center gap-3">
-                                        <button className="px-6 py-2 bg-[#2BB29C] text-white rounded-[8px] text-[13px] font-[600] flex items-center gap-2 hover:bg-[#24A18C] active:scale-95 transition-all shadow-md shadow-[#2BB29C]/10">
+                                        <button
+                                            type="button"
+                                            onClick={handleSendMessage}
+                                            disabled={sending || !replyText.trim()}
+                                            className={`px-6 py-2 bg-[#2BB29C] text-white rounded-[8px] text-[13px] font-[600] flex items-center gap-2 hover:bg-[#24A18C] active:scale-95 transition-all shadow-md shadow-[#2BB29C]/10 ${sending || !replyText.trim() ? 'opacity-70 cursor-not-allowed' : ''
+                                                }`}
+                                        >
                                             <Send className="w-4 h-4" />
-                                            Send
+                                            {sending ? 'Sending…' : 'Send'}
                                         </button>
                                     </div>
                                 </div>
@@ -163,6 +481,8 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket }) => {
                 return null;
         }
     };
+
+    if (!isOpen || !ticket) return null;
 
     return (
         <div

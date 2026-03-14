@@ -39,13 +39,34 @@ const CustomerChatWindow = ({ conversation, ticketDetails, messages, onMessagesC
                 accessToken,
             )}`;
 
+        console.log('[WS CustomerChatWindow] connecting to', wsUrl);
+
         let isMounted = true;
-        const ws = new WebSocket(wsUrl);
+        let ws;
+        try {
+            ws = new WebSocket(wsUrl);
+        } catch (err) {
+            console.error('[WS CustomerChatWindow] failed to create WebSocket', err);
+            return;
+        }
+
+        ws.onopen = () => {
+            console.log('[WS CustomerChatWindow] connected');
+        };
+
+        ws.onerror = (event) => {
+            console.error('[WS CustomerChatWindow] error', event);
+        };
+
+        ws.onclose = (event) => {
+            console.log('[WS CustomerChatWindow] closed', event.code, event.reason);
+        };
 
         ws.onmessage = (event) => {
             if (!isMounted) return;
             try {
                 const data = JSON.parse(event.data);
+                console.log('[WS CustomerChatWindow] message', data);
                 if (data.type === 'new_message' && data.message) {
                     const incoming = data.message;
                     const mappedMessage = {
@@ -61,15 +82,15 @@ const CustomerChatWindow = ({ conversation, ticketDetails, messages, onMessagesC
                         return exists ? current : [...current, mappedMessage];
                     });
                 }
-            } catch {
-                // ignore malformed events
+            } catch (err) {
+                console.error('[WS CustomerChatWindow] invalid event data', err);
             }
         };
 
         return () => {
             isMounted = false;
             try {
-                ws.close();
+                ws && ws.close();
             } catch {
                 // ignore
             }
