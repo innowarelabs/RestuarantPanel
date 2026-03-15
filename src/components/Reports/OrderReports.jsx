@@ -6,7 +6,7 @@ import ScheduleReportModal from './ScheduleReportModal';
 
 const CHART_COLORS = ['#2BB29C', '#4F46E5', '#F59E0B', '#94A3B8', '#EF4444', '#8B5CF6'];
 
-const OrderReports = ({ onBack, reportData, loading, onRefresh }) => {
+const OrderReports = ({ onBack, reportData, loading, error, days, onDaysChange, onRefresh, onExportPdf, onExportCsv }) => {
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
     const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
 
@@ -69,7 +69,16 @@ const OrderReports = ({ onBack, reportData, loading, onRefresh }) => {
                 <div className="mb-8">
                     <h1 className="text-[28px] font-bold text-[#111827] mb-1">Order Reports</h1>
                     <p className="text-[14px] text-[#6B7280]">Analyze order volumes, sources, and fulfillment times.</p>
+                    {reportData?.date_range_label && (
+                        <p className="text-[13px] text-[#6B7280] mt-1 font-medium">{reportData.date_range_label}</p>
+                    )}
                 </div>
+
+                {error && (
+                    <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-[10px] text-[14px] text-red-700">
+                        {error}
+                    </div>
+                )}
 
                 {/* Filters Row */}
                 <div className="flex flex-wrap items-end gap-3">
@@ -119,18 +128,26 @@ const OrderReports = ({ onBack, reportData, loading, onRefresh }) => {
                             <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
                                 <Calendar className="w-4 h-4 text-[#9CA3AF]" />
                             </div>
-                            <select className="w-full pl-10 pr-10 py-2.5 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] text-[#4B5563] outline-none appearance-none cursor-pointer">
-                                <option>Last 30 Days</option>
-                                <option>Last 7 Days</option>
-                                <option>Custom Range</option>
+                            <select
+                                value={days}
+                                onChange={(e) => onDaysChange?.(Number(e.target.value))}
+                                className="w-full pl-10 pr-10 py-2.5 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] text-[#4B5563] outline-none appearance-none cursor-pointer"
+                            >
+                                <option value={7}>Last 7 Days</option>
+                                <option value={30}>Last 30 Days</option>
+                                <option value={90}>Last 90 Days</option>
                             </select>
                             <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
                                 <svg className="w-4 h-4 text-[#9CA3AF]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                             </div>
                         </div>
                     </div>
-                    <button className="h-[43px] px-6 bg-[#2BB29C] text-white rounded-[8px] text-[14px] font-medium hover:bg-[#24A18C] transition-all whitespace-nowrap">
-                        Apply Filters
+                    <button
+                        onClick={() => onRefresh?.()}
+                        disabled={loading}
+                        className="h-[43px] px-6 bg-[#2BB29C] text-white rounded-[8px] text-[14px] font-medium hover:bg-[#24A18C] transition-all whitespace-nowrap disabled:opacity-60"
+                    >
+                        {loading ? 'Loading…' : 'Apply Filters'}
                     </button>
                 </div>
             </div>
@@ -298,11 +315,19 @@ const OrderReports = ({ onBack, reportData, loading, onRefresh }) => {
             {/* Actions Footer */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                    <button className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-[8px] text-[14px] font-[400] text-gray-600 hover:bg-gray-50 group active:scale-95 transition-transform w-full sm:w-auto">
+                    <button
+                        type="button"
+                        onClick={onExportCsv}
+                        className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-[8px] text-[14px] font-[400] text-gray-600 hover:bg-gray-50 group active:scale-95 transition-transform w-full sm:w-auto"
+                    >
                         <Download className="w-3.5 h-3.5 text-gray-400 group-hover:text-primary" />
                         Export CSV
                     </button>
-                    <button className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-[8px] text-[14px] font-[400] text-gray-600 hover:bg-gray-50 group active:scale-95 transition-transform w-full sm:w-auto">
+                    <button
+                        type="button"
+                        onClick={onExportPdf}
+                        className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-[8px] text-[14px] font-[400] text-gray-600 hover:bg-gray-50 group active:scale-95 transition-transform w-full sm:w-auto"
+                    >
                         <Download className="w-3.5 h-3.5 text-gray-400 group-hover:text-primary" />
                         Export PDF
                     </button>

@@ -13,6 +13,10 @@ import Customers from './pages/Customers/Customers';
 import Analytics from './pages/Analytics/Analytics';
 import LoyaltyProgram from './pages/LoyaltyProgram/LoyaltyProgram';
 import Reports from './pages/Reports/Reports';
+import OrderReportsPage from './pages/Reports/OrderReportsPage';
+import PayoutCommissionPage from './pages/Reports/PayoutCommissionPage';
+import MenuPerformancePage from './pages/Reports/MenuPerformancePage';
+import SalesReportsPage from './pages/Reports/SalesReportsPage';
 import Supports from './pages/Supports/Supports';
 import Settings from './pages/Settings/Settings';
 import OnboardingStep from './pages/OnboardingStep/OnboardingStep';
@@ -223,6 +227,10 @@ function App() {
             <Route path="/global-analytics" element={<Analytics />} />
             <Route path="/loyalty-program" element={<LoyaltyProgram />} />
             <Route path="/reports" element={<Reports />} />
+            <Route path="/reports/order-reports" element={<OrderReportsPage />} />
+            <Route path="/reports/payout-commission" element={<PayoutCommissionPage />} />
+            <Route path="/reports/menu-performance" element={<MenuPerformancePage />} />
+            <Route path="/reports/sales-reports" element={<SalesReportsPage />} />
             <Route path="/supports" element={<Supports />} />
             <Route path="/settings" element={<Settings />} />
 

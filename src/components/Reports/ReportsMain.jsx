@@ -6,9 +6,7 @@ import {
     Receipt,
     UtensilsCrossed,
     Users,
-    UserCheck,
     Truck,
-    Calculator,
     Zap,
     Calendar,
     FileSpreadsheet,
@@ -17,7 +15,7 @@ import {
 import ReportsStats from './ReportsStats';
 import ReportCategoryCard from './ReportCategoryCard';
 
-const ReportsMain = ({ onSelectReport }) => {
+const ReportsMain = ({ onSelectReport, dashboardCards }) => {
     const reportCategories = [
         {
             id: 'order',
@@ -75,20 +73,6 @@ const ReportsMain = ({ onSelectReport }) => {
             icon: UtensilsCrossed,
             color: "bg-amber-500",
         },
-        {
-            id: 'staff',
-            title: "Staff Performance Reports",
-            description: "Measure team efficiency and service quality",
-            icon: UserCheck,
-            color: "bg-teal-500",
-        },
-        {
-            id: 'accounting',
-            title: "Accounting & Tax Reports",
-            description: "Generate VAT reports and financial statements",
-            icon: Calculator,
-            color: "bg-gray-500",
-        }
     ];
 
     return (
@@ -115,7 +99,7 @@ const ReportsMain = ({ onSelectReport }) => {
                 </div>
             </div>
 
-            <ReportsStats />
+            <ReportsStats dashboardCards={dashboardCards} />
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
                 {reportCategories.map(cat => (

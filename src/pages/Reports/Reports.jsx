@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import ReportsMain from '../../components/Reports/ReportsMain';
-import OrderReports from '../../components/Reports/OrderReports';
-import SalesReports from '../../components/Reports/SalesReports';
+
+const REPORTS_API_BASE = 'https://api.baaie.com';
 
 const Reports = () => {
-    const [view, setView] = useState('main'); // 'main', 'order', 'sales'
-    const [orderReportData, setOrderReportData] = useState(null);
-    const [orderReportLoading, setOrderReportLoading] = useState(false);
+    const navigate = useNavigate();
+    const [dashboardCards, setDashboardCards] = useState(null);
     const accessToken = useSelector((state) => state.auth.accessToken);
     const user = useSelector((state) => state.auth.user);
 
@@ -22,59 +22,50 @@ const Reports = () => {
         return fromUser || fromStorage;
     }, [user]);
 
-    const fetchOrderReport = useCallback(async (days = 30) => {
-        try {
-            setOrderReportLoading(true);
-            const baseUrl = import.meta.env.VITE_BACKEND_URL;
-            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
-            const restaurantId = getRestaurantId();
-            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/reports/order-report?days=${days}`;
-            const res = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
-                },
-            });
-            const data = await res.json();
-            if (data.code === 'SUCCESS_200' && data.data) {
-                setOrderReportData(data.data);
+    useEffect(() => {
+        const fetchDashboardCards = async () => {
+            try {
+                const baseUrl = (import.meta.env.VITE_BACKEND_URL || REPORTS_API_BASE).replace(/\/$/, '');
+                const restaurantId = getRestaurantId();
+                const url = `${baseUrl}/api/v1/restaurants/dashboard/cards`;
+                const res = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                        ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
+                    },
+                });
+                const data = await res.json();
+                if (data?.data) {
+                    setDashboardCards(data.data);
+                }
+            } catch (err) {
+                console.error('Dashboard cards API error:', err);
             }
-        } catch (error) {
-            console.error('Error fetching order report:', error);
-        } finally {
-            setOrderReportLoading(false);
-        }
+        };
+        fetchDashboardCards();
     }, [accessToken, getRestaurantId]);
 
-    useEffect(() => {
-        fetchOrderReport();
-    }, [fetchOrderReport]);
-
-    const renderView = () => {
-        switch (view) {
-            case 'main':
-                return <ReportsMain onSelectReport={(id) => setView(id)} />;
-            case 'order':
-                return (
-                    <OrderReports 
-                        onBack={() => setView('main')} 
-                        reportData={orderReportData}
-                        loading={orderReportLoading}
-                        onRefresh={fetchOrderReport}
-                    />
-                );
-            case 'sales':
-                return <SalesReports onBack={() => setView('main')} />;
-            default:
-                return <ReportsMain onSelectReport={(id) => setView(id)} />;
+    const handleSelectReport = (id) => {
+        if (id === 'order') {
+            navigate('/reports/order-reports');
         }
+        if (id === 'payout') {
+            navigate('/reports/payout-commission');
+        }
+        if (id === 'menu') {
+            navigate('/reports/menu-performance');
+        }
+        if (id === 'sales') {
+            navigate('/reports/sales-reports');
+        }
+        // Other report types can be wired to their routes later
     };
 
     return (
         <div className="max-w-[1600px] mx-auto pb-12">
-            {renderView()}
+            <ReportsMain onSelectReport={handleSelectReport} dashboardCards={dashboardCards} />
         </div>
     );
 };
