@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import Sidebar from './components/Sidebar/Sidebar';
 import Header from './components/Header/Header';
+import { OrderNotificationsProvider } from './context/OrderNotificationsContext';
 import { toggleSidebar, setCollapsed, setRestaurantName } from './redux/store';
 
 // Page Imports
@@ -32,6 +33,7 @@ function App() {
   const isCollapsed = useSelector((state) => state.sidebar.isCollapsed);
   const dispatch = useDispatch();
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Initialize sidebar state based on screen width
   useEffect(() => {
@@ -190,30 +192,31 @@ function App() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden text-general-text">
-      {/* Sidebar - Mobile Drawer */}
-      <div className={`fixed inset-0 z-[100] md:hidden transition-all duration-300 ${!isCollapsed ? 'visible' : 'invisible'}`}>
-        {/* Backdrop */}
-        <div
-          className={`absolute inset-0 bg-black/50 transition-opacity duration-300 ${!isCollapsed ? 'opacity-100' : 'opacity-0'}`}
-          onClick={handleToggleSidebar}
-        />
-        {/* Sidebar container */}
-        <div className={`absolute left-0 top-0 bottom-0 w-[261px] transform transition-transform duration-300 ${!isCollapsed ? 'translate-x-0' : '-translate-x-full'}`}>
-          <Sidebar isCollapsed={false} onToggleCollapse={handleToggleSidebar} />
+    <OrderNotificationsProvider onViewOrder={() => navigate('/orders')}>
+      <div className="flex h-screen bg-gray-50 overflow-hidden text-general-text">
+        {/* Sidebar - Mobile Drawer */}
+        <div className={`fixed inset-0 z-[100] md:hidden transition-all duration-300 ${!isCollapsed ? 'visible' : 'invisible'}`}>
+          {/* Backdrop */}
+          <div
+            className={`absolute inset-0 bg-black/50 transition-opacity duration-300 ${!isCollapsed ? 'opacity-100' : 'opacity-0'}`}
+            onClick={handleToggleSidebar}
+          />
+          {/* Sidebar container */}
+          <div className={`absolute left-0 top-0 bottom-0 w-[261px] transform transition-transform duration-300 ${!isCollapsed ? 'translate-x-0' : '-translate-x-full'}`}>
+            <Sidebar isCollapsed={false} onToggleCollapse={handleToggleSidebar} />
+          </div>
         </div>
-      </div>
 
-      {/* Sidebar - Desktop */}
-      <div className="hidden md:block h-full transition-all duration-300">
-        <Sidebar isCollapsed={isCollapsed} onToggleCollapse={handleToggleSidebar} />
-      </div>
+        {/* Sidebar - Desktop */}
+        <div className="hidden md:block h-full transition-all duration-300">
+          <Sidebar isCollapsed={isCollapsed} onToggleCollapse={handleToggleSidebar} />
+        </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <Header
-          onMobileMenuClick={handleToggleSidebar} // Simplified for demo
-        />
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <Header
+            onMobileMenuClick={handleToggleSidebar} // Simplified for demo
+          />
 
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">
           <Routes>
@@ -240,6 +243,7 @@ function App() {
         </main>
       </div>
     </div>
+    </OrderNotificationsProvider>
   );
 }
 

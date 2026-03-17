@@ -1,3 +1,5 @@
+import { useEffect, useState, useMemo } from 'react';
+import { useSelector } from 'react-redux';
 import StatCard from '../../components/AdminDashboard/StatCard';
 import HighlightStats from '../../components/AdminDashboard/HighlightStats';
 import ActiveOrders from '../../components/AdminDashboard/ActiveOrders';
@@ -8,71 +10,106 @@ import MarketingSnapshot from '../../components/AdminDashboard/MarketingSnapshot
 
 import { ShoppingBag, Clock, CheckCircle, XCircle, Gift } from 'lucide-react';
 
-const mockRevenueData = [
-    { date: 'Mon', value: 1200 },
-    { date: 'Tue', value: 2100 },
-    { date: 'Wed', value: 1800 },
-    { date: 'Thu', value: 2400 },
-    { date: 'Fri', value: 1900 },
-    { date: 'Sat', value: 2800 },
-    { date: 'Sun', value: 2500 },
-];
-
-const mockOrdersData = [
-    { day: 'Mon', total: 45 },
-    { day: 'Tue', total: 62 },
-    { day: 'Wed', total: 58 },
-    { day: 'Thu', total: 75 },
-    { day: 'Fri', total: 68 },
-    { day: 'Sat', total: 95 },
-    { day: 'Sun', total: 82 },
-];
+const API_BASE = 'https://api.baaie.com';
 
 // Main Dashboard Component
 export default function AdminDashboard() {
-    const statCardsData = [
-        {
-            Icon: ShoppingBag,
-            title: "New Orders",
-            value: "28",
-            change: "+12.5%",
-            growthValue: 12.5
-        },
-        {
-            Icon: Clock,
-            title: "Orders in Progress",
-            value: "15",
-            change: "-3.2%",
-            growthValue: -3.2
-        },
-        {
-            Icon: CheckCircle,
-            title: "Completed Orders",
-            value: "184",
-            change: "+18.7%",
-            growthValue: 18.7
-        },
-        {
-            Icon: XCircle,
-            title: "Cancelled Returns",
-            value: "8",
-            change: "-15.3%",
-            growthValue: -15.3
-        },
-        {
-            Icon: Gift,
-            title: "Loyalty Points Issued",
-            value: "2,847",
-            change: "+22.4%",
-            growthValue: 22.4
-        }
-    ];
+    const accessToken = useSelector((state) => state.auth.accessToken);
+    const user = useSelector((state) => state.auth.user);
+    const [dashboardData, setDashboardData] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchDashboard = async () => {
+            try {
+                const baseUrl = (import.meta.env.VITE_BACKEND_URL || API_BASE).replace(/\/$/, '');
+                const restaurantId = (user?.restaurant_id) || localStorage.getItem('restaurant_id') || '';
+                const res = await fetch(`${baseUrl}/api/v1/restaurants/analytics/dashboard`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                        ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
+                    },
+                });
+                const data = await res.json();
+                if (data?.data) {
+                    setDashboardData(data.data);
+                }
+            } catch (err) {
+                console.error('Dashboard API error:', err);
+            }
+            setLoading(false);
+        };
+        fetchDashboard();
+    }, [accessToken, user?.restaurant_id]);
+
+    const statCardsData = useMemo(() => {
+        const summary = dashboardData?.summary_cards;
+        if (!summary) return [];
+        return [
+            {
+                Icon: ShoppingBag,
+                title: "New Orders This Week",
+                value: summary.new_orders_this_week ?? 0,
+                change: `${summary.new_orders_pct_change ?? 0}%`,
+                growthValue: summary.new_orders_pct_change ?? 0
+            },
+            {
+                Icon: Clock,
+                title: "Orders in Progress",
+                value: summary.orders_in_progress ?? 0,
+                change: `${summary.orders_in_progress_pct_change ?? 0}%`,
+                growthValue: summary.orders_in_progress_pct_change ?? 0
+            },
+            {
+                Icon: CheckCircle,
+                title: "Completed This Week",
+                value: summary.completed_this_week ?? 0,
+                change: `${summary.completed_pct_change ?? 0}%`,
+                growthValue: summary.completed_pct_change ?? 0
+            },
+            {
+                Icon: XCircle,
+                title: "Cancelled / Returns",
+                value: summary.cancelled_returns_this_week ?? 0,
+                change: `${summary.cancelled_pct_change ?? 0}%`,
+                growthValue: summary.cancelled_pct_change ?? 0
+            },
+            {
+                Icon: Gift,
+                title: "Loyalty Points Issued",
+                value: summary.loyalty_points_issued_this_week ?? 0,
+                change: `${summary.loyalty_pct_change ?? 0}%`,
+                growthValue: summary.loyalty_pct_change ?? 0
+            }
+        ];
+    }, [dashboardData]);
+
+    const revenueData = useMemo(() => {
+        const daily = dashboardData?.revenue_overview?.daily || [];
+        return daily.map(d => ({
+            date: d.date,
+            value: d.revenue
+        }));
+    }, [dashboardData]);
+
+    const ordersData = useMemo(() => {
+        // Backend currently does not provide per-day order counts in revenue_overview,
+        // so keep this empty for now. Chart will still work for Revenue tab.
+        return [];
+    }, []);
+
+    const totalRevenue7d = dashboardData?.revenue_overview?.total_revenue_7d ?? 0;
+    const pctVsLastWeek = dashboardData?.revenue_overview?.pct_vs_last_week ?? 0;
 
     return (
         <div className="max-w-[1600px] mx-auto animate-in fade-in duration-500">
             <div className="mb-6">
                 <h1 className="text-[28px] sm:text-[28px]  font-[800] font-Avenir text-[#111111]">Dashboard</h1>
-                <p className="text-[14px] text-[#6B7280] mt-[-4px]">Welcome back! Here's what's happening today.</p>
+                <p className="text-[14px] text-[#6B7280] mt-[-4px]">
+                    {loading ? "Loading your latest performance..." : "Welcome back! Here's what's happening today."}
+                </p>
             </div>
 
             {/* Row 1: Stat Cards */}
@@ -91,19 +128,24 @@ export default function AdminDashboard() {
             </div>
 
             {/* Row 2: Highlights (Best Seller, Rising Stars) */}
-            <HighlightStats />
+            <HighlightStats
+                bestSeller={dashboardData?.top_sellers?.best_seller_today}
+                topSellers={dashboardData?.top_sellers?.top_sellers_this_week || []}
+            />
 
             {/* Row 3: Active Orders & Overview Chart */}
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 mb-6">
                 {/* Active Orders - 4 columns (roughly 1/3) */}
                 <div className="xl:col-span-6">
-                    <ActiveOrders />
+                    <ActiveOrders orders={dashboardData?.active_orders || []} loading={loading} />
                 </div>
                 {/* Overview Chart - 8 columns (roughly 2/3) */}
                 <div className="xl:col-span-6">
                     <OverviewChart
-                        revenueData={mockRevenueData}
-                        ordersData={mockOrdersData}
+                        revenueData={revenueData}
+                        ordersData={ordersData}
+                        totalRevenue={totalRevenue7d}
+                        pctChange={pctVsLastWeek}
                     />
                 </div>
             </div>
@@ -111,10 +153,10 @@ export default function AdminDashboard() {
             {/* Row 4: Recent Activities & Support Tickets */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
                 <div className='lg:col-span-5'>
-                    <RecentActivities />
+                    <RecentActivities activities={dashboardData?.recent_activities || []} loading={loading} />
                 </div>
                 <div className='lg:col-span-7'>
-                    <SupportTicketsWidget />
+                    <SupportTicketsWidget tickets={dashboardData?.support_tickets || []} loading={loading} />
                 </div>
             </div>
 

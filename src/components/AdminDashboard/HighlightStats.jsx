@@ -4,7 +4,10 @@ import zingerImg from '../../assets/DashbordImage/zinger.jpg';
 import loadedFriesImg from '../../assets/DashbordImage/loaded fries.jpg';
 import trophyVector from '../../assets/DashbordImage/Vector.png';
 
-const HighlightStats = () => {
+const HighlightStats = ({ bestSeller, topSellers = [] }) => {
+    const firstTopSeller = topSellers[0];
+    const secondTopSeller = topSellers[1];
+
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             {/* Best Seller Card */}
@@ -21,8 +24,14 @@ const HighlightStats = () => {
                         <img src={trophyVector} alt="trophy" className="w-[12px] h-[12px]" />
                         <span className="text-[10px] text-[#9CA3AF] uppercase tracking-wider">BEST SELLER TODAY</span>
                     </div>
-                    <h3 className="text-[16px] font-[400] text-[#0F1724]">Zinger Burger</h3>
-                    <p className="text-[12px] text-[#6B7280]">324 orders today</p>
+                    <h3 className="text-[16px] font-[400] text-[#0F1724]">
+                        {bestSeller?.name || 'No best seller yet'}
+                    </h3>
+                    <p className="text-[12px] text-[#6B7280]">
+                        {bestSeller?.orders_count
+                            ? `${bestSeller.orders_count} orders today`
+                            : 'Once you start getting orders, your best seller will appear here.'}
+                    </p>
                 </div>
             </div>
 
@@ -40,8 +49,14 @@ const HighlightStats = () => {
                         <TrendingUp className="w-3.5 h-3.5 text-[#15B99E]" />
                         <span className="text-[10px]  text-[#9CA3AF] uppercase tracking-wider">RISING STAR</span>
                     </div>
-                    <h3 className="text-[16px] font-[400] text-[#0F1724]">Loaded Fries</h3>
-                    <p className="text-[12px] text-[#15B99E]">+27% growth this week</p>
+                    <h3 className="text-[16px] font-[400] text-[#0F1724]">
+                        {firstTopSeller?.name || 'No item yet'}
+                    </h3>
+                    <p className="text-[12px] text-[#15B99E]">
+                        {firstTopSeller?.orders_count
+                            ? `${firstTopSeller.orders_count} orders this week`
+                            : 'Your top-performing items will show here.'}
+                    </p>
                 </div>
             </div>
 
@@ -59,8 +74,14 @@ const HighlightStats = () => {
                         <TrendingUp className="w-3.5 h-3.5 text-[#15B99E]" />
                         <span className="text-[10px] text-[#9CA3AF] uppercase tracking-wider">RISING STAR</span>
                     </div>
-                    <h3 className="text-[16px] font-[400] text-[#111827]">Loaded Fries</h3>
-                    <p className="text-[12px] text-[#15B99E]">+15% growth this week</p>
+                    <h3 className="text-[16px] font-[400] text-[#111827]">
+                        {secondTopSeller?.name || 'Waiting for more data'}
+                    </h3>
+                    <p className="text-[12px] text-[#15B99E]">
+                        {secondTopSeller?.orders_count
+                            ? `${secondTopSeller.orders_count} orders this week`
+                            : 'As your menu performs, more highlights will appear.'}
+                    </p>
                 </div>
             </div>
         </div>

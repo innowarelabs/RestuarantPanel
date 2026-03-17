@@ -16,7 +16,12 @@ const CustomTooltip = ({ active, payload, label, type }) => {
     return null;
 };
 
-const OverviewChart = ({ revenueData = [], ordersData = [] }) => {
+const OverviewChart = ({
+    revenueData = [],
+    ordersData = [],
+    totalRevenue = 0,
+    pctChange = 0
+}) => {
     const [activeTab, setActiveTab] = useState('Revenue');
 
     // Prepare data based on active tab
@@ -92,11 +97,16 @@ const OverviewChart = ({ revenueData = [], ordersData = [] }) => {
                 <div className="text-center">
                     <p className="text-[13px]-ml-[2px] text-gray-500">Total {activeTab}</p>
                     <p className="text-[20px] font-[400] text-gray-900">
-                        {activeTab === 'Revenue' ? '$12,847.50' : '3,450'}
+                        {activeTab === 'Revenue'
+                            ? `$${Number(totalRevenue || 0).toLocaleString()}`
+                            : ordersData.reduce((sum, d) => sum + (d.total || d.value || 0), 0).toLocaleString()}
                     </p>
                 </div>
                 <div className="text-right">
-                    <span className="text-[12px] text-[#15B99E] font-[400">+12.5% vs last week</span>
+                    <span className={`text-[12px] font-[400] ${pctChange >= 0 ? 'text-[#15B99E]' : 'text-[#EF4444]'}`}>
+                        {pctChange >= 0 ? '+' : ''}
+                        {pctChange}% vs last week
+                    </span>
                 </div>
             </div>
         </div>

@@ -1,18 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { logout } from "../../redux/store";
 import toast from "react-hot-toast";
 import { Search, Bell, Plus, Menu, LogOut } from "lucide-react";
 import NotificationPanel from "./NotificationPanel";
-import OrderToast from "./OrderToast";
 import AddMenuItemModal from "./AddMenuItemModal";
+import { useOrderNotifications } from "../../context/OrderNotificationsContext";
 
 export default function Header({ onMobileMenuClick }) {
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const user = useSelector((state) => state.auth?.user);
     const restaurantName = useSelector((state) => state.auth?.restaurantName);
+    const { unreadCount } = useOrderNotifications();
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isAddMenuItemModalOpen, setIsAddMenuItemModalOpen] = useState(false);
     const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
@@ -26,21 +27,6 @@ export default function Header({ onMobileMenuClick }) {
         .map((p) => p[0])
         .join("")
         .toUpperCase();
-
-    // Demo: Show Order Toast on mount
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            toast.custom((t) => (
-                <OrderToast
-                    t={t}
-                    orderId="ORD-2310"
-                    onViewOrder={() => console.log('View Order Clicked')}
-                />
-            ), { duration: 5000, position: 'top-right' });
-        }, 1500);
-
-        return () => clearTimeout(timer);
-    }, []);
 
     const handleLogout = () => {
         dispatch(logout());
@@ -93,7 +79,11 @@ export default function Header({ onMobileMenuClick }) {
                         className="relative p-1.5 sm:p-2 rounded-lg hover:bg-gray-100 transition"
                     >
                         <Bell className="w-5 h-5 sm:w-6 sm:h-6 text-[#1A1A1A]" />
-                        <span className="absolute top-0 right-0 w-3.5 h-3.5 sm:w-4 sm:h-4 bg-[#FF4B4B] rounded-full flex items-center justify-center text-[9px] sm:text-[10px] text-white font-bold border-2 border-white box-content">3</span>
+                        {unreadCount > 0 && (
+                            <span className="absolute top-0 right-0 w-3.5 h-3.5 sm:w-4 sm:h-4 bg-[#FF4B4B] rounded-full flex items-center justify-center text-[9px] sm:text-[10px] text-white font-bold border-2 border-white box-content min-w-[14px]">
+                                {unreadCount > 99 ? '99+' : unreadCount}
+                            </span>
+                        )}
                     </button>
 
                     <NotificationPanel
