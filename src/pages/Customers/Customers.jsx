@@ -42,7 +42,7 @@ export default function Customers() {
             if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
             
             const skip = (page - 1) * 20;
-            let url = `${baseUrl.replace(/\/$/, '')}/api/v1/orders/customers?skip=${skip}&limit=20`;
+            let url = `${baseUrl}/api/v1/orders/customers?skip=${skip}&limit=20`;
             if (search) url += `&search=${encodeURIComponent(search)}`;
             if (sort) url += `&sort=${sort}`;
             
@@ -94,7 +94,7 @@ export default function Customers() {
             try {
                 const baseUrl = import.meta.env.VITE_BACKEND_URL;
                 if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
-                const url = `${baseUrl.replace(/\/$/, '')}/api/v1/orders/customers/cards`;
+                const url = `${baseUrl}/api/v1/orders/customers/cards`;
                 const res = await fetch(url, {
                     method: 'GET',
                     headers: {
@@ -141,7 +141,7 @@ export default function Customers() {
             try {
                 const baseUrl = import.meta.env.VITE_BACKEND_URL;
                 if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
-                const url = `${baseUrl.replace(/\/$/, '')}/api/v1/orders/customers/${encodeURIComponent(customer.customer_id)}`;
+                const url = `${baseUrl}/api/v1/orders/customers/${encodeURIComponent(customer.customer_id)}`;
                 const res = await fetch(url, {
                     method: 'GET',
                     headers: {

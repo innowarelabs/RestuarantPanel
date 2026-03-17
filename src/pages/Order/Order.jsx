@@ -15,6 +15,13 @@ export default function OrderManagement() {
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [tabCounts, setTabCounts] = useState({
+        pending: 0,
+        in_progress: 0,
+        completed: 0,
+        cancelled: 0,
+        refunded: 0,
+    });
 
     const accessToken = useSelector((state) => state.auth.accessToken);
     const user = useSelector((state) => state.auth.user);
@@ -49,17 +56,29 @@ export default function OrderManagement() {
         setIsRejectModalOpen(true);
     };
 
-    // Map tabs to backend status values
+    // Map tabs to backend list status values (query param)
+    // Backend spec:
+    // - New Orders → status=pending
+    // - In Progress / Ready for Pickup / On the Way → status=in-progress
+    // - Completed → status=completed
+    // - Cancelled → status=cancelled
+    // - Refunds → status=refunded
     const getStatusFromTab = (tab) => {
         switch (tab) {
-            case 'New Orders': return 'PENDING';
-            case 'In Progress': return 'PREPARING';
-            case 'Ready for Pickup': return 'READY';
-            case 'On the Way': return 'ON_THE_WAY';
-            case 'Completed': return 'COMPLETED';
-            case 'Cancelled': return 'CANCELLED';
-            case 'Refunds': return 'REFUNDED';
-            default: return 'PENDING';
+            case 'New Orders':
+                return 'pending';
+            case 'In Progress':
+            case 'Ready for Pickup':
+            case 'On the Way':
+                return 'in-progress';
+            case 'Completed':
+                return 'completed';
+            case 'Cancelled':
+                return 'cancelled';
+            case 'Refunds':
+                return 'refunded';
+            default:
+                return 'pending';
         }
     };
 
@@ -71,10 +90,7 @@ export default function OrderManagement() {
         }
         setLoading(true);
         try {
-            const baseUrl = import.meta.env.VITE_BACKEND_URL;
-            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
-            const trimmedBaseUrl = baseUrl.replace(/\/$/, '');
-            const url = `${trimmedBaseUrl}/api/v1/orders/?skip=0&limit=50&status=${encodeURIComponent(currentStatus)}`;
+            const url = `https://api.baaie.com/api/v1/orders?status=${encodeURIComponent(currentStatus)}&skip=0&limit=20`;
 
             const res = await fetch(url, {
                 method: 'GET',
@@ -87,8 +103,10 @@ export default function OrderManagement() {
             const data = await res.json();
             console.log('Orders Data:', data);
 
-            if (data.code === 'SUCCESS_200' && Array.isArray(data.data?.orders)) {
-                const mappedOrders = data.data.orders.map((order) => ({
+            const payload = data?.data && typeof data.data === 'object' ? data.data : data;
+
+            if (Array.isArray(payload?.orders)) {
+                const mappedOrders = payload.orders.map((order) => ({
                     id: order.order_number || order.order_id || order.id,
                     rawId: order.order_id || order.id,
                     status: order.status || currentStatus,
@@ -105,9 +123,9 @@ export default function OrderManagement() {
                     cancelledBy: order.cancelled_by || '',
                 }));
                 setOrders(mappedOrders);
-            } else if (Array.isArray(data.data)) {
+            } else if (Array.isArray(payload)) {
                 // Fallback if API returns array directly in data
-                const mappedOrders = data.data.map((order) => ({
+                const mappedOrders = payload.map((order) => ({
                     id: order.order_number || order.order_id || order.id,
                     rawId: order.order_id || order.id,
                     status: order.status || currentStatus,
@@ -136,41 +154,141 @@ export default function OrderManagement() {
         }
     }, [accessToken, restaurantId, currentStatus]);
 
+    const fetchTabCounts = useCallback(async () => {
+        if (!restaurantId) {
+            return;
+        }
+        try {
+            const url = `https://api.baaie.com/api/v1/orders/counts`;
+
+            const res = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
+                },
+            });
+
+            const data = await res.json();
+            const payload = data?.data && typeof data.data === 'object' ? data.data : data;
+            const counts = payload?.counts && typeof payload.counts === 'object' ? payload.counts : payload;
+
+            if (counts && typeof counts === 'object') {
+                setTabCounts((prev) => ({
+                    ...prev,
+                    pending: counts.pending ?? counts.new_orders ?? prev.pending,
+                    in_progress: counts.in_progress ?? counts.inProgress ?? prev.in_progress,
+                    completed: counts.completed ?? prev.completed,
+                    cancelled: counts.cancelled ?? prev.cancelled,
+                    refunded: counts.refunded ?? prev.refunded,
+                }));
+            }
+        } catch (error) {
+            console.error('Error fetching order counts:', error);
+        }
+    }, [accessToken, restaurantId]);
+
     useEffect(() => {
         fetchOrders();
     }, [fetchOrders]);
 
-    // Tab counts – for now, show count from currently loaded list for active tab
+    useEffect(() => {
+        fetchTabCounts();
+    }, [fetchTabCounts]);
+
+    // Tab counts – prefer backend counts, fall back to active list length
     const tabs = [
-        { name: 'New Orders', count: activeTab === 'New Orders' ? orders.length : 0 },
-        { name: 'In Progress', count: activeTab === 'In Progress' ? orders.length : 0 },
-        { name: 'Ready for Pickup', count: activeTab === 'Ready for Pickup' ? orders.length : 0 },
-        { name: 'On the Way', count: activeTab === 'On the Way' ? orders.length : 0 },
-        { name: 'Completed', count: activeTab === 'Completed' ? orders.length : 0 },
-        { name: 'Cancelled', count: activeTab === 'Cancelled' ? orders.length : 0 },
-        { name: 'Refunds', count: activeTab === 'Refunds' ? orders.length : 0 },
+        {
+            name: 'New Orders',
+            count: typeof tabCounts.pending === 'number'
+                ? tabCounts.pending
+                : activeTab === 'New Orders'
+                    ? orders.length
+                    : 0,
+        },
+        {
+            name: 'In Progress',
+            count: typeof tabCounts.in_progress === 'number'
+                ? tabCounts.in_progress
+                : activeTab === 'In Progress'
+                    ? orders.length
+                    : 0,
+        },
+        {
+            name: 'Ready for Pickup',
+            count: typeof tabCounts.in_progress === 'number'
+                ? tabCounts.in_progress
+                : activeTab === 'Ready for Pickup'
+                    ? orders.length
+                    : 0,
+        },
+        {
+            name: 'On the Way',
+            count: typeof tabCounts.in_progress === 'number'
+                ? tabCounts.in_progress
+                : activeTab === 'On the Way'
+                    ? orders.length
+                    : 0,
+        },
+        {
+            name: 'Completed',
+            count: typeof tabCounts.completed === 'number'
+                ? tabCounts.completed
+                : activeTab === 'Completed'
+                    ? orders.length
+                    : 0,
+        },
+        {
+            name: 'Cancelled',
+            count: typeof tabCounts.cancelled === 'number'
+                ? tabCounts.cancelled
+                : activeTab === 'Cancelled'
+                    ? orders.length
+                    : 0,
+        },
+        {
+            name: 'Refunds',
+            count: typeof tabCounts.refunded === 'number'
+                ? tabCounts.refunded
+                : activeTab === 'Refunds'
+                    ? orders.length
+                    : 0,
+        },
     ];
 
     const getStatusColor = (status) => {
         switch (status) {
             case 'PENDING':
             case 'Pending':
+            case 'pending':
                 return 'bg-[#FFF7ED] text-[#ea580c] border-[#FFEDD5]';
             case 'PREPARING':
             case 'Preparing':
+            case 'IN_PROGRESS':
+            case 'in-progress':
+            case 'In Progress':
                 return 'bg-[#DBEAFE] text-[#2563EB] border-[#BFDBFE]';
             case 'READY':
             case 'Ready':
+            case 'ready':
                 return 'bg-[#E0E7FF] text-[#4F46E5] border-[#C7D2FE]';
             case 'ON_THE_WAY':
             case 'On the Way':
+            case 'on-the-way':
                 return 'bg-[#F3E8FF] text-[#9333EA] border-[#E9D5FF]';
             case 'COMPLETED':
             case 'Completed':
+            case 'completed':
                 return 'bg-[#DCFCE7] text-[#16A34A] border-[#BBF7D0]';
             case 'CANCELLED':
             case 'Cancelled':
+            case 'cancelled':
                 return 'bg-[#FEE2E2] text-[#DC2626] border-[#FECACA]';
+            case 'REFUNDED':
+            case 'Refunded':
+            case 'refunded':
+                return 'bg-[#E0F2FE] text-[#0284C7] border-[#BAE6FD]';
             default: return 'bg-gray-100 text-gray-600 border-gray-200';
         }
     };
@@ -178,13 +296,10 @@ export default function OrderManagement() {
     const updateOrderStatus = async (orderId, newStatus, extraPayload = {}) => {
         if (!orderId) return;
         try {
-            const baseUrl = import.meta.env.VITE_BACKEND_URL;
-            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
-            const trimmedBaseUrl = baseUrl.replace(/\/$/, '');
-            const url = `${trimmedBaseUrl}/api/v1/orders/${encodeURIComponent(orderId)}`;
+            const url = `https://api.baaie.com/api/v1/orders/${encodeURIComponent(orderId)}/status`;
 
             const res = await fetch(url, {
-                method: 'PUT',
+                method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
                     ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
@@ -199,9 +314,10 @@ export default function OrderManagement() {
             const data = await res.json();
             console.log('Update Order Response:', data);
 
-            if (res.ok && (data.code === 'SUCCESS_200' || data.code === 'SUCCESS_201')) {
+            if (res.ok) {
                 toast.success('Order updated successfully');
                 fetchOrders();
+                fetchTabCounts();
             } else {
                 toast.error(data.message || 'Failed to update order');
             }
@@ -314,7 +430,7 @@ export default function OrderManagement() {
                                     )}
                                 </div>
 
-                                {(order.status === 'PENDING' || order.status === 'Pending') && (
+                                {(order.status === 'PENDING' || order.status === 'Pending' || order.status === 'pending') && (
                                     <div className="flex items-center gap-3">
                                         <button
                                             onClick={(e) => handleRejectClick(e, order)}
@@ -356,29 +472,34 @@ export default function OrderManagement() {
                 }}
             />
 
-                <AcceptOrderModal
-                    isOpen={isAcceptModalOpen}
-                    onClose={() => setIsAcceptModalOpen(false)}
-                    onConfirm={() => {
-                        if (selectedOrder?.rawId) {
-                            updateOrderStatus(selectedOrder.rawId, 'PREPARING');
-                        }
-                        setIsAcceptModalOpen(false);
-                    }}
-                    orderId={selectedOrder?.id}
-                />
+            <AcceptOrderModal
+                isOpen={isAcceptModalOpen}
+                onClose={() => setIsAcceptModalOpen(false)}
+                onConfirm={() => {
+                    if (selectedOrder?.rawId) {
+                        // Accept → move to in-progress per backend spec
+                        updateOrderStatus(selectedOrder.rawId, 'in-progress');
+                    }
+                    setIsAcceptModalOpen(false);
+                }}
+                orderId={selectedOrder?.id}
+            />
 
-                <RejectOrderModal
-                    isOpen={isRejectModalOpen}
-                    onClose={() => setIsRejectModalOpen(false)}
-                    onConfirm={(reason) => {
-                        if (selectedOrder?.rawId) {
-                            updateOrderStatus(selectedOrder.rawId, 'CANCELLED', reason ? { cancel_reason: reason } : {});
-                        }
-                        setIsRejectModalOpen(false);
-                    }}
-                    orderId={selectedOrder?.id}
-                />
+            <RejectOrderModal
+                isOpen={isRejectModalOpen}
+                onClose={() => setIsRejectModalOpen(false)}
+                onConfirm={(reason) => {
+                    if (selectedOrder?.rawId) {
+                        updateOrderStatus(
+                            selectedOrder.rawId,
+                            'cancelled',
+                            reason ? { cancel_reason: reason } : {},
+                        );
+                    }
+                    setIsRejectModalOpen(false);
+                }}
+                orderId={selectedOrder?.id}
+            />
         </div>
     );
 }
