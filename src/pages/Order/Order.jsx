@@ -215,22 +215,22 @@ export default function OrderManagement() {
                     ? orders.length
                     : 0,
         },
-        {
-            name: 'Ready for Pickup',
-            count: typeof tabCounts.in_progress === 'number'
-                ? tabCounts.in_progress
-                : activeTab === 'Ready for Pickup'
-                    ? orders.length
-                    : 0,
-        },
-        {
-            name: 'On the Way',
-            count: typeof tabCounts.in_progress === 'number'
-                ? tabCounts.in_progress
-                : activeTab === 'On the Way'
-                    ? orders.length
-                    : 0,
-        },
+        // {
+        //     name: 'Ready for Pickup',
+        //     count: typeof tabCounts.in_progress === 'number'
+        //         ? tabCounts.in_progress
+        //         : activeTab === 'Ready for Pickup'
+        //             ? orders.length
+        //             : 0,
+        // },
+        // {
+        //     name: 'On the Way',
+        //     count: typeof tabCounts.in_progress === 'number'
+        //         ? tabCounts.in_progress
+        //         : activeTab === 'On the Way'
+        //             ? orders.length
+        //             : 0,
+        // },
         {
             name: 'Completed',
             count: typeof tabCounts.completed === 'number'
