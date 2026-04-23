@@ -72,8 +72,8 @@ const VerifyAccount = () => {
                                         value={digit}
                                         onChange={(e) => handleChange(index, e.target.value)}
                                         onKeyDown={(e) => handleKeyDown(index, e)}
-                                        className={`w-[42px] h-[50px] sm:w-[62px] sm:h-[62px] text-center text-[20px] sm:text-[24px] font-bold border rounded-[10px] sm:rounded-[12px] focus:outline-none transition-all bg-white text-[#1F2937] ${digit ? 'border-[#24B99E]' : 'border-[#DCDBDD]'
-                                            } focus:border-[#24B99E] focus:ring-1 focus:ring-[#24B99E]`}
+                                        className={`w-[42px] h-[50px] sm:w-[62px] sm:h-[62px] text-center text-[20px] sm:text-[24px] font-bold border rounded-[10px] sm:rounded-[12px] focus:outline-none transition-all bg-white text-[#1F2937] ${digit ? 'border-[#DD2F26]' : 'border-[#DCDBDD]'
+                                            } focus:border-[#DD2F26] focus:ring-1 focus:ring-[#DD2F26]`}
                                     />
                                 ))}
                             </div>

@@ -3,7 +3,7 @@ import { AlertCircle, RotateCcw, DollarSign, Activity } from 'lucide-react';
 
 const stats = [
     { label: 'Total Refunds', value: '20', Icon: AlertCircle, color: 'text-orange-500', bg: 'bg-orange-50' },
-    { label: 'Refund Value', value: '$312', Icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+    { label: 'Refund Value', value: '$312', Icon: DollarSign, color: 'text-primary', bg: 'bg-red-50' },
     { label: 'Total Returns', value: '12', Icon: RotateCcw, color: 'text-blue-500', bg: 'bg-blue-50' },
     { label: 'Issues Rate', value: '7.8%', Icon: Activity, color: 'text-rose-500', bg: 'bg-rose-50' },
 ];

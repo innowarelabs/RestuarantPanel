@@ -1189,7 +1189,7 @@ export default function OnboardingStep() {
                                 </div>
                             </section>
                         </div>
-                        <div className="p-8 pt-4"><button onClick={() => setShowPreviewModal(false)} className="w-full h-[56px] bg-[#24B99E] text-white rounded-[16px] font-bold">Close Preview</button></div>
+                        <div className="p-8 pt-4"><button onClick={() => setShowPreviewModal(false)} className="w-full h-[56px] bg-[#DD2F26] text-white rounded-[16px] font-bold">Close Preview</button></div>
                     </div>
                 </div>
             )}
@@ -1374,7 +1374,7 @@ export default function OnboardingStep() {
                             <button
                                 disabled={!canSaveReward || savingReward}
                                 onClick={handleSaveReward}
-                                className={`h-[44px] font-[500] rounded-[10px] transition-colors text-[13px] ${(!canSaveReward || savingReward) ? 'bg-[#E5E7EB] text-[#6B6B6B]' : 'bg-primary text-white hover:bg-[#20a38b]'}`}
+                                className={`h-[44px] font-[500] rounded-[10px] transition-colors text-[13px] ${(!canSaveReward || savingReward) ? 'bg-[#E5E7EB] text-[#6B6B6B]' : 'bg-primary text-white hover:bg-[#C52820]'}`}
                             >
                                 {savingReward ? 'Saving...' : editingReward ? 'Update Reward' : 'Save Reward'}
                             </button>
@@ -1392,7 +1392,7 @@ export default function OnboardingStep() {
                 .onboarding-textarea:focus { border-color: var(--color-primary); box-shadow: 0 0 0 4px rgba(36, 185, 158, 0.05); }
                 .next-btn { height: 45px; min-width: 103px; padding: 0px 16px 0px 20px; font-weight: 500; font-size: 14px; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 10px; border: none; }
                 .next-btn:disabled { background: #E5E7EB; color: #6B7280; cursor: not-allowed; }
-                .next-btn:not(:disabled) { background: #24B99E; color: white; cursor: pointer; }
+                .next-btn:not(:disabled) { background: #DD2F26; color: white; cursor: pointer; }
                 .prev-btn { height: 45px; min-width: 20px; padding: 0px 20px 0px 12px; background: white; border: 1px solid #E5E7EB; color: #6B6B6B; font-weight: 500; font-size: 14px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
                 
                 .custom-scrollbar::-webkit-scrollbar { width: 6px; }

@@ -120,7 +120,7 @@ export default function Step4({ formData, setFormData, handlePrev, handleNext })
                     <Toggle active={formData.autoAccept} onClick={() => setFormData({ ...formData, autoAccept: !formData.autoAccept })} />
                 </div>
             </div>
-            <div className="bg-[#E6F7F4] p-5 rounded-[8px] border border-[#E6F7F4] space-y-3">
+            <div className="bg-[#FEF2F2] p-5 rounded-[8px] border border-[#FEF2F2] space-y-3">
                 <label className="block text-[14px] font-[500] text-[#1A1A1A]">Accept Order Time Limit (minutes)</label>
                 <input type="text" value={formData.timeLimit} onChange={(e) => setFormData({ ...formData, timeLimit: e.target.value })} className="onboarding-input h-11" />
                 <p className="text-[12px] text-[#6B7280]">Orders will be auto-cancelled if not accepted within this time</p>

@@ -391,7 +391,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                             value={form.name}
                             maxLength={100}
                             onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                            className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors placeholder-gray-400 shadow-sm"
+                            className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] transition-colors placeholder-gray-400 shadow-sm"
                         />
                     </div>
 
@@ -401,7 +401,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                             <select
                                 value={form.categoryId}
                                 onChange={(e) => setForm((prev) => ({ ...prev, categoryId: e.target.value }))}
-                                className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors appearance-none cursor-pointer shadow-sm"
+                                className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] transition-colors appearance-none cursor-pointer shadow-sm"
                             >
                                 <option value="">{loadingCategories ? 'Loading categories...' : 'Select a category...'}</option>
                                 {categories.map((category) => (
@@ -425,7 +425,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                             placeholder="Describe your menu item..."
                             value={form.description}
                             onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                            className="w-full p-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors placeholder-gray-400 resize-none shadow-sm"
+                            className="w-full p-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] transition-colors placeholder-gray-400 resize-none shadow-sm"
                         />
                     </div>
 
@@ -435,7 +435,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                             <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm mb-3 group-hover:scale-110 transition-transform">
                                 <Upload className="w-5 h-5 text-[#6B7280]" />
                             </div>
-                            <p className="text-[14px] text-[#374151] font-medium">Drag & drop images here or <span className="text-[#2BB29C]">browse</span></p>
+                            <p className="text-[14px] text-[#374151] font-medium">Drag & drop images here or <span className="text-[#DD2F26]">browse</span></p>
                             <p className="text-[12px] text-gray-400 mt-1">Square images preferred • Max 8 images • 3MB each</p>
                             {!!imageFiles.length && (
                                 <p className="text-[12px] text-gray-500 mt-2">{imageFiles.length} file(s) selected</p>
@@ -456,7 +456,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                             <p className="text-[12px] text-gray-500">E.g., Small, Medium, Large</p>
                         </div>
                         <div
-                            className={`w-[44px] h-[24px] rounded-full p-1 cursor-pointer transition-colors ${form.hasVariants ? 'bg-[#2BB29C]' : 'bg-gray-300'}`}
+                            className={`w-[44px] h-[24px] rounded-full p-1 cursor-pointer transition-colors ${form.hasVariants ? 'bg-[#DD2F26]' : 'bg-gray-300'}`}
                             onClick={() => setForm((prev) => ({ ...prev, hasVariants: !prev.hasVariants }))}
                         >
                             <div className={`w-[16px] h-[16px] bg-white rounded-full shadow-sm transform transition-transform ${form.hasVariants ? 'translate-x-[20px]' : 'translate-x-0'}`} />
@@ -473,7 +473,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                                         placeholder="Size name"
                                         value={variant.name}
                                         onChange={(e) => updateVariant(idx, 'name', e.target.value)}
-                                        className="flex-1 h-[42px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#2BB29C] shadow-sm"
+                                        className="flex-1 h-[42px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#DD2F26] shadow-sm"
                                     />
                                     <div className="relative w-[120px]">
                                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-[14px]">$</span>
@@ -482,12 +482,12 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                                             placeholder="0.00"
                                             value={variant.price}
                                             onChange={(e) => updateVariant(idx, 'price', e.target.value)}
-                                            className="w-full h-[42px] pl-7 pr-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#2BB29C] shadow-sm"
+                                            className="w-full h-[42px] pl-7 pr-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#DD2F26] shadow-sm"
                                         />
                                     </div>
                                 </div>
                             ))}
-                            <button onClick={addVariant} className="flex items-center gap-1 text-[13px] font-medium text-[#2BB29C] hover:text-[#249A88] active:scale-95 transition-transform">
+                            <button onClick={addVariant} className="flex items-center gap-1 text-[13px] font-medium text-[#DD2F26] hover:text-[#249A88] active:scale-95 transition-transform">
                                 <Plus size={14} /> Add variant
                             </button>
                         </div>
@@ -501,7 +501,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                                     placeholder="0.00"
                                     value={form.price}
                                     onChange={(e) => setForm((prev) => ({ ...prev, price: e.target.value }))}
-                                    className="w-full h-[46px] pl-8 pr-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors shadow-sm"
+                                    className="w-full h-[46px] pl-8 pr-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] transition-colors shadow-sm"
                                 />
                             </div>
                         </div>
@@ -509,7 +509,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
 
                     <div>
                         <label className="block text-[14px] font-[500] text-[#374151] mb-1.5">Add-ons (Modifiers)</label>
-                        <button type="button" onClick={addAddOn} className="flex items-center gap-1 text-[13px] font-medium text-[#2BB29C] hover:text-[#249A88] active:scale-95 transition-transform">
+                        <button type="button" onClick={addAddOn} className="flex items-center gap-1 text-[13px] font-medium text-[#DD2F26] hover:text-[#249A88] active:scale-95 transition-transform">
                             <Plus size={14} /> Add an add-on
                         </button>
                         {!!addons.length && (
@@ -521,7 +521,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                                             placeholder="Add-on name"
                                             value={addon.name}
                                             onChange={(e) => updateAddOn(addon.id, 'name', e.target.value)}
-                                            className="flex-1 h-[42px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#2BB29C] shadow-sm"
+                                            className="flex-1 h-[42px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#DD2F26] shadow-sm"
                                         />
                                         <div className="relative w-[120px]">
                                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-[14px]">$</span>
@@ -530,7 +530,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                                                 placeholder="0.00"
                                                 value={addon.price}
                                                 onChange={(e) => updateAddOn(addon.id, 'price', e.target.value)}
-                                                className="w-full h-[42px] pl-7 pr-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#2BB29C] shadow-sm"
+                                                className="w-full h-[42px] pl-7 pr-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#DD2F26] shadow-sm"
                                             />
                                         </div>
                                     </div>
@@ -546,7 +546,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                             placeholder="15"
                             value={form.prepTimeMinutes}
                             onChange={(e) => setForm((prev) => ({ ...prev, prepTimeMinutes: e.target.value }))}
-                            className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors shadow-sm"
+                            className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] transition-colors shadow-sm"
                         />
                     </div>
 
@@ -559,7 +559,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                             onChange={(e) => setTagInput(e.target.value)}
                             onKeyDown={handleTagKeyDown}
                             onBlur={() => addTag(tagInput)}
-                            className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors shadow-sm"
+                            className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] transition-colors shadow-sm"
                         />
                         {selectedTags.length > 0 && (
                             <div className="flex flex-wrap gap-2 mt-3">
@@ -581,7 +581,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                             <p className="text-[12px] text-gray-500">Monitor stock levels for this item</p>
                         </div>
                         <div
-                            className={`w-[44px] h-[24px] rounded-full p-1 cursor-pointer transition-colors ${form.trackInventory ? 'bg-[#2BB29C]' : 'bg-gray-300'}`}
+                            className={`w-[44px] h-[24px] rounded-full p-1 cursor-pointer transition-colors ${form.trackInventory ? 'bg-[#DD2F26]' : 'bg-gray-300'}`}
                             onClick={() => setForm((prev) => ({ ...prev, trackInventory: !prev.trackInventory }))}
                         >
                             <div className={`w-[16px] h-[16px] bg-white rounded-full shadow-sm transform transition-transform ${form.trackInventory ? 'translate-x-[20px]' : 'translate-x-0'}`} />
@@ -597,7 +597,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                                     placeholder="100"
                                     value={form.stockQuantity}
                                     onChange={(e) => setForm((prev) => ({ ...prev, stockQuantity: e.target.value }))}
-                                    className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] shadow-sm"
+                                    className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] shadow-sm"
                                 />
                             </div>
                             <div className="flex-1">
@@ -607,7 +607,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                                     placeholder="10"
                                     value={form.lowStockAlert}
                                     onChange={(e) => setForm((prev) => ({ ...prev, lowStockAlert: e.target.value }))}
-                                    className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] shadow-sm"
+                                    className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] shadow-sm"
                                 />
                             </div>
                         </div>
@@ -619,7 +619,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                             <p className="text-[12px] text-gray-500">Enable minimum order for catering</p>
                         </div>
                         <div
-                            className={`w-[44px] h-[24px] rounded-full p-1 cursor-pointer transition-colors ${form.catering ? 'bg-[#2BB29C]' : 'bg-gray-300'}`}
+                            className={`w-[44px] h-[24px] rounded-full p-1 cursor-pointer transition-colors ${form.catering ? 'bg-[#DD2F26]' : 'bg-gray-300'}`}
                             onClick={() =>
                                 setForm((prev) => ({
                                     ...prev,
@@ -640,7 +640,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                                 placeholder="0"
                                 value={form.cateringMinimumOrder}
                                 onChange={(e) => setForm((prev) => ({ ...prev, cateringMinimumOrder: e.target.value }))}
-                                className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] shadow-sm"
+                                className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] shadow-sm"
                             />
                         </div>
                     )}
@@ -651,7 +651,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                             <p className="text-[12px] text-gray-500">Show this item to customers</p>
                         </div>
                         <div
-                            className={`w-[44px] h-[24px] rounded-full p-1 cursor-pointer transition-colors ${form.isAvailable ? 'bg-[#2BB29C]' : 'bg-gray-300'}`}
+                            className={`w-[44px] h-[24px] rounded-full p-1 cursor-pointer transition-colors ${form.isAvailable ? 'bg-[#DD2F26]' : 'bg-gray-300'}`}
                             onClick={() => setForm((prev) => ({ ...prev, isAvailable: !prev.isAvailable }))}
                         >
                             <div className={`w-[16px] h-[16px] bg-white rounded-full shadow-sm transform transition-transform ${form.isAvailable ? 'translate-x-[20px]' : 'translate-x-0'}`} />
@@ -677,7 +677,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                     <button
                         onClick={() => handleSubmit(false)}
                         disabled={saving}
-                        className="w-full sm:w-auto order-2 sm:order-3 px-6 py-2.5 text-[16px] font-[400] text-white bg-[#2BB29C] rounded-[8px] shadow-lg shadow-[#2BB29C]/20 hover:bg-[#24A18C] active:scale-95 transition-all"
+                        className="w-full sm:w-auto order-2 sm:order-3 px-6 py-2.5 text-[16px] font-[400] text-white bg-[#DD2F26] rounded-[8px] shadow-lg shadow-[#DD2F26]/20 hover:bg-[#C52820] active:scale-95 transition-all"
                     >
                         {saving ? 'Saving...' : 'Save Item'}
                     </button>

@@ -40,7 +40,7 @@ const OperatingHours = () => {
                                 </div>
                                 <div className="flex items-center gap-4 flex-1">
                                     <button
-                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none flex-shrink-0 ${day.isOpen ? 'bg-[#24B99E]' : 'bg-gray-200'
+                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none flex-shrink-0 ${day.isOpen ? 'bg-[#DD2F26]' : 'bg-gray-200'
                                             }`}
                                     >
                                         <span
@@ -54,13 +54,13 @@ const OperatingHours = () => {
                                             <input
                                                 type="text"
                                                 defaultValue={day.hours[0]}
-                                                className="w-20 sm:w-24 px-2 py-1 border border-[#E8E8E8] rounded-[8px] text-[14px] text-center focus:outline-none focus:ring-1 focus:ring-[#24B99E]"
+                                                className="w-20 sm:w-24 px-2 py-1 border border-[#E8E8E8] rounded-[8px] text-[14px] text-center focus:outline-none focus:ring-1 focus:ring-[#DD2F26]"
                                             />
                                             <span className="text-[#9CA3AF]">-</span>
                                             <input
                                                 type="text"
                                                 defaultValue={day.hours[1]}
-                                                className="w-20 sm:w-24 px-3 py-1 border border-[#E8E8E8] rounded-[8px] text-[14px] text-center focus:outline-none focus:ring-1 focus:ring-[#24B99E]"
+                                                className="w-20 sm:w-24 px-3 py-1 border border-[#E8E8E8] rounded-[8px] text-[14px] text-center focus:outline-none focus:ring-1 focus:ring-[#DD2F26]"
                                             />
                                         </div>
                                     ) : (
@@ -89,7 +89,7 @@ const OperatingHours = () => {
                     </div>
                 </div>
                 <div className="mt-8 flex justify-end">
-                    <button className="flex items-center gap-2 bg-[#24B99E] text-white text-[14px] px-6 py-2.5 rounded-[8px] font-[500] hover:bg-[#20a68d] transition">
+                    <button className="flex items-center gap-2 bg-[#DD2F26] text-white text-[14px] px-6 py-2.5 rounded-[8px] font-[500] hover:bg-[#C52820] transition">
                         <Save className="w-4 h-4" />
                         Save Hours
                     </button>
@@ -102,7 +102,7 @@ const OperatingHours = () => {
                     <h3 className="text-[18px] font-[800] text-[#1A1A1A]">Special Days</h3>
                     <button
                         onClick={() => setIsAddSpecialDayModalOpen(true)}
-                        className="flex items-center gap-2 bg-[#24B99E] text-white px-4 py-2 rounded-[8px] text-[14px] font-[500] hover:bg-[#20a68d] transition"
+                        className="flex items-center gap-2 bg-[#DD2F26] text-white px-4 py-2 rounded-[8px] text-[14px] font-[500] hover:bg-[#C52820] transition"
                     >
                         <Plus className="w-4 h-4" />
                         Add Special Day
@@ -116,7 +116,7 @@ const OperatingHours = () => {
                                 <p className={`text-[13px] ${special.color}`}>{special.status || special.hours}</p>
                             </div>
                             <div className="flex items-center gap-2">
-                                <button className="p-2 text-[#9CA3AF] hover:text-[#24B99E] transition rounded-lg hover:bg-gray-50">
+                                <button className="p-2 text-[#9CA3AF] hover:text-[#DD2F26] transition rounded-lg hover:bg-gray-50">
                                     <Edit2 className="w-4 h-4" />
                                 </button>
                                 <button className="p-2 text-[#9CA3AF] hover:text-red-500 transition rounded-lg hover:bg-gray-50">

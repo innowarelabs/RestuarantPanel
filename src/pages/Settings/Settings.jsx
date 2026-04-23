@@ -72,13 +72,13 @@ const Settings = () => {
                             key={tab}
                             onClick={() => setActiveTab(tab)}
                             className={`px-4 py-4 text-[14px] font-medium transition-all relative ${activeTab === tab
-                                ? tab === 'Danger Zone' ? 'text-red-500' : 'text-[#24B99E]'
+                                ? tab === 'Danger Zone' ? 'text-red-500' : 'text-[#DD2F26]'
                                 : tab === 'Danger Zone' ? 'text-red-400 opacity-80 hover:opacity-100' : 'text-[#6B6B6B] hover:text-[#1A1A1A]'
                                 }`}
                         >
                             {tab}
                             {activeTab === tab && (
-                                <div className={`absolute bottom-0 left-0 right-0 h-0.5 ${tab === 'Danger Zone' ? 'bg-red-500' : 'bg-[#24B99E]'}`} />
+                                <div className={`absolute bottom-0 left-0 right-0 h-0.5 ${tab === 'Danger Zone' ? 'bg-red-500' : 'bg-[#DD2F26]'}`} />
                             )}
                         </button>
                     ))}

@@ -323,7 +323,7 @@ const CreateTicketModal = ({ isOpen, onClose, onSuccess }) => {
                     <button
                         onClick={handleSubmit}
                         disabled={submitting}
-                        className={`px-6 py-2.5 bg-[#2BB29C] text-white text-[14px] font-[500] rounded-[8px] hover:bg-[#24A18C] transition-colors shadow-sm ${submitting ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        className={`px-6 py-2.5 bg-[#DD2F26] text-white text-[14px] font-[500] rounded-[8px] hover:bg-[#C52820] transition-colors shadow-sm ${submitting ? 'opacity-70 cursor-not-allowed' : ''}`}
                     >
                         {submitting ? 'Submitting…' : 'Submit Ticket'}
                     </button>

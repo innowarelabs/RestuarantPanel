@@ -147,7 +147,7 @@ export default function Step7({ formData, setFormData, handlePrev, handleNext })
                 </div>
             </div>
 
-            <div className="bg-[#E6F7F4] p-5 rounded-[8px] mt-2">
+            <div className="bg-[#FEF2F2] p-5 rounded-[8px] mt-2">
                 <p className="text-[13px] text-[#475569]">
                     You have {enabledChannels} notification {enabledChannels === 1 ? 'channel' : 'channels'} enabled
                 </p>

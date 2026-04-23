@@ -80,7 +80,7 @@ const PointsEarningSettings = ({ loyaltySettings, onSettingsUpdate }) => {
                 {/* Points per Dollar */}
                 <div>
                     <label className="block text-sm font-medium text-[#0F1724] mb-3">Points per $1 spent</label>
-                    <div className="bg-[#E6F7F4] p-4 rounded-[6px]">
+                    <div className="bg-[#FEF2F2] p-4 rounded-[6px]">
                         <label className="block text-[13px] text-[#374151] mb-1">Points earned per dollar</label>
                         <input
                             type="number"
@@ -109,7 +109,7 @@ const PointsEarningSettings = ({ loyaltySettings, onSettingsUpdate }) => {
                     </label>
                 </div>
                 {localSettings.first_order_bonus_points > 0 && (
-                    <div className="bg-[#E6F7F4] p-4 rounded-[6px]">
+                    <div className="bg-[#FEF2F2] p-4 rounded-[6px]">
                         <label className="block text-[13px] text-[#374151] mb-1">Bonus points amount</label>
                         <input
                             type="number"
@@ -137,7 +137,7 @@ const PointsEarningSettings = ({ loyaltySettings, onSettingsUpdate }) => {
                     </label>
                 </div>
                 {localSettings.min_order_to_earn_points > 0 && (
-                    <div className="bg-[#E6F7F4] p-4 rounded-[6px]">
+                    <div className="bg-[#FEF2F2] p-4 rounded-[6px]">
                         <label className="block text-xs text-gray-600 mb-1">Minimum amount ($)</label>
                         <input
                             type="number"
@@ -166,7 +166,7 @@ const PointsEarningSettings = ({ loyaltySettings, onSettingsUpdate }) => {
                     </label>
                 </div>
                 {localSettings.points_expiry_days > 0 && (
-                    <div className="bg-[#E6F7F4] p-4 rounded-[6px]">
+                    <div className="bg-[#FEF2F2] p-4 rounded-[6px]">
                         <label className="block text-xs text-gray-600 mb-1">Expiry period (days)</label>
                         <input
                             type="number"

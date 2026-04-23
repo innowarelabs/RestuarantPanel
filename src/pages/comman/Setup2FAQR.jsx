@@ -198,7 +198,7 @@ function Setup2FAQR() {
 
               <div className="space-y-6">
                 <div className="flex items-start gap-4">
-                  <div className="w-6 h-6 rounded-full bg-gray-100 text-[#24B99E] flex items-center justify-center text-sm font-semibold">
+                  <div className="w-6 h-6 rounded-full bg-gray-100 text-[#DD2F26] flex items-center justify-center text-sm font-semibold">
                     1
                   </div>
                   <p className="text-gray-700">
@@ -208,14 +208,14 @@ function Setup2FAQR() {
                 </div>
 
                 <div className="flex items-start gap-4">
-                  <div className="w-6 h-6 rounded-full bg-gray-100 text-[#24B99E] flex items-center justify-center text-sm font-semibold">
+                  <div className="w-6 h-6 rounded-full bg-gray-100 text-[#DD2F26] flex items-center justify-center text-sm font-semibold">
                     2
                   </div>
                   <p className="text-gray-700">Scan the QR code below using the app.</p>
                 </div>
 
                 <div className="flex items-start gap-4">
-                  <div className="w-6 h-6 rounded-full bg-gray-100 text-[#24B99E] flex items-center justify-center text-sm font-semibold">
+                  <div className="w-6 h-6 rounded-full bg-gray-100 text-[#DD2F26] flex items-center justify-center text-sm font-semibold">
                     3
                   </div>
                   <p className="text-gray-700">Enter the 6-digit code shown in your app to confirm setup.</p>
@@ -252,11 +252,11 @@ function Setup2FAQR() {
         <div className="absolute inset-x-0 bottom-2 md:bottom-4 px-6 pointer-events-none">
           <p className="text-center text-sm text-gray-500 max-w-md mx-auto leading-relaxed pointer-events-auto">
             Protected by reCAPTCHA and subject to the Rekntek{" "}
-            <Link to="/privacy-policy" className="underline text-[#24B99E] hover:text-[#24B99E]/80">
+            <Link to="/privacy-policy" className="underline text-[#DD2F26] hover:text-[#DD2F26]/80">
               Privacy Policy
             </Link>{" "}
             and{" "}
-            <Link to="/terms-of-service" className="underline text-[#24B99E] hover:text-[#24B99E]/80">
+            <Link to="/terms-of-service" className="underline text-[#DD2F26] hover:text-[#DD2F26]/80">
               Terms of Service
             </Link>
             .

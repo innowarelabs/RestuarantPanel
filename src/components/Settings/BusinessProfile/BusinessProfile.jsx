@@ -20,7 +20,7 @@ const BusinessProfile = () => {
                             <input
                                 type="text"
                                 defaultValue="The Spice House"
-                                className="w-full px-4 py-2 bg-white text-[14px] border border-[#E5E7EB] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#24B99E]/20 focus:border-[#24B99E] transition"
+                                className="w-full px-4 py-2 bg-white text-[14px] border border-[#E5E7EB] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#DD2F26]/20 focus:border-[#DD2F26] transition"
                             />
                         </div>
                         <div>
@@ -28,7 +28,7 @@ const BusinessProfile = () => {
                             <input
                                 type="text"
                                 placeholder="e.g. Indian, Italian"
-                                className="w-full px-4 py-2 bg-white text-[14px] border border-[#E5E7EB] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#24B99E]/20 focus:border-[#24B99E] transition"
+                                className="w-full px-4 py-2 bg-white text-[14px] border border-[#E5E7EB] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#DD2F26]/20 focus:border-[#DD2F26] transition"
                             />
                         </div>
                         <div>
@@ -36,7 +36,7 @@ const BusinessProfile = () => {
                             <input
                                 type="email"
                                 defaultValue="support@spicehouse.co.uk"
-                                className="w-full px-4 py-2 bg-white text-[14px] border border-[#E5E7EB] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#24B99E]/20 focus:border-[#24B99E] transition"
+                                className="w-full px-4 py-2 bg-white text-[14px] border border-[#E5E7EB] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#DD2F26]/20 focus:border-[#DD2F26] transition"
                             />
                         </div>
                         <div>
@@ -44,7 +44,7 @@ const BusinessProfile = () => {
                             <input
                                 type="text"
                                 defaultValue="+44 20 7946 0958"
-                                className="w-full px-4 py-2 bg-white text-[14px] border border-[#E5E7EB] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#24B99E]/20 focus:border-[#24B99E] transition"
+                                className="w-full px-4 py-2 bg-white text-[14px] border border-[#E5E7EB] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#DD2F26]/20 focus:border-[#DD2F26] transition"
                             />
                         </div>
                     </div>
@@ -81,7 +81,7 @@ const BusinessProfile = () => {
                     </div>
                 </div>
                 <div className="mt-8 flex justify-end px-0">
-                    <button className="flex items-center gap-2 bg-[#24B99E] text-white text-[14px] px-6 py-2.5 rounded-[8px] font-[500] hover:bg-[#20a68d] transition">
+                    <button className="flex items-center gap-2 bg-[#DD2F26] text-white text-[14px] px-6 py-2.5 rounded-[8px] font-[500] hover:bg-[#C52820] transition">
                         <Save className="w-4 h-4" />
                         Save Changes
                     </button>
@@ -97,7 +97,7 @@ const BusinessProfile = () => {
                         <input
                             type="text"
                             defaultValue="124 High Street"
-                            className="w-full px-4 py-2 bg-white text-[14px] border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#24B99E]/20 focus:border-[#24B99E] transition"
+                            className="w-full px-4 py-2 bg-white text-[14px] border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#DD2F26]/20 focus:border-[#DD2F26] transition"
                         />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -106,7 +106,7 @@ const BusinessProfile = () => {
                             <input
                                 type="text"
                                 defaultValue="London"
-                                className="w-full px-4 py-2 bg-white text-[14px] border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#24B99E]/20 focus:border-[#24B99E] transition"
+                                className="w-full px-4 py-2 bg-white text-[14px] border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#DD2F26]/20 focus:border-[#DD2F26] transition"
                             />
                         </div>
                         <div>
@@ -114,7 +114,7 @@ const BusinessProfile = () => {
                             <input
                                 type="text"
                                 defaultValue="SW1A 1AA"
-                                className="w-full px-4 py-2 bg-white text-[14px] border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#24B99E]/20 focus:border-[#24B99E] transition"
+                                className="w-full px-4 py-2 bg-white text-[14px] border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#DD2F26]/20 focus:border-[#DD2F26] transition"
                             />
                         </div>
                     </div>
@@ -123,7 +123,7 @@ const BusinessProfile = () => {
                         <input
                             type="text"
                             placeholder="e.g. United Kingdom"
-                            className="w-full px-4 py-2 bg-white text-[14px] border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#24B99E]/20 focus:border-[#24B99E] transition"
+                            className="w-full px-4 py-2 bg-white text-[14px] border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#DD2F26]/20 focus:border-[#DD2F26] transition"
                         />
                     </div>
 
@@ -138,7 +138,7 @@ const BusinessProfile = () => {
                     </div>
                 </div>
                 <div className="mt-8 flex justify-end">
-                    <button className="flex items-center gap-2 bg-[#24B99E] text-white text-[14px] px-6 py-2.5 rounded-[8px]  hover:bg-[#20a68d] transition">
+                    <button className="flex items-center gap-2 bg-[#DD2F26] text-white text-[14px] px-6 py-2.5 rounded-[8px]  hover:bg-[#C52820] transition">
                         <Save className="w-4 h-4" />
                         Save Address
                     </button>

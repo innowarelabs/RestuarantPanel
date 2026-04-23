@@ -40,7 +40,7 @@ const ConnectIntegrationModal = ({ isOpen, onClose, platformName }) => {
                             placeholder="Enter API key"
                             value={formData.apiKey}
                             onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
-                            className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors placeholder-gray-400 shadow-sm"
+                            className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] transition-colors placeholder-gray-400 shadow-sm"
                         />
                     </div>
 
@@ -52,7 +52,7 @@ const ConnectIntegrationModal = ({ isOpen, onClose, platformName }) => {
                             placeholder="Enter store ID"
                             value={formData.storeId}
                             onChange={(e) => setFormData({ ...formData, storeId: e.target.value })}
-                            className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors placeholder-gray-400 shadow-sm"
+                            className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] transition-colors placeholder-gray-400 shadow-sm"
                         />
                     </div>
 
@@ -64,7 +64,7 @@ const ConnectIntegrationModal = ({ isOpen, onClose, platformName }) => {
                             placeholder="Enter secret token"
                             value={formData.secretToken}
                             onChange={(e) => setFormData({ ...formData, secretToken: e.target.value })}
-                            className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors placeholder-gray-400 shadow-sm"
+                            className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] transition-colors placeholder-gray-400 shadow-sm"
                         />
                     </div>
                 </div>
@@ -79,7 +79,7 @@ const ConnectIntegrationModal = ({ isOpen, onClose, platformName }) => {
                     </button>
                     <button
                         onClick={onClose}
-                        className="px-6 py-2.5 text-[16px] font-[400] text-white bg-[#2BB29C] rounded-[8px] shadow-lg shadow-[#2BB29C]/20 hover:bg-[#24A18C] active:scale-95 transition-all"
+                        className="px-6 py-2.5 text-[16px] font-[400] text-white bg-[#DD2F26] rounded-[8px] shadow-lg shadow-[#DD2F26]/20 hover:bg-[#C52820] active:scale-95 transition-all"
                     >
                         Connect {platformName}
                     </button>

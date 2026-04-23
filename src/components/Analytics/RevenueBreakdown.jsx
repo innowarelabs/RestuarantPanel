@@ -12,7 +12,7 @@ export default function RevenueBreakdown() {
                         <span className="text-gray-500">Delivery vs Collection</span>
                     </div>
                     <div className="w-full h-8 flex rounded-lg overflow-hidden border border-gray-100">
-                        <div className="bg-[#2BB29C] h-full flex items-center justify-center text-white text-[11px] font-bold" style={{ width: '73%' }}>73%</div>
+                        <div className="bg-[#DD2F26] h-full flex items-center justify-center text-white text-[11px] font-bold" style={{ width: '73%' }}>73%</div>
                         <div className="bg-[#E0E7FF] h-full flex items-center justify-center text-[#4338CA] text-[11px] font-bold" style={{ width: '27%' }}>27%</div>
                     </div>
                     <div className="flex justify-between mt-1.5 text-[10px] text-gray-400 font-medium">
@@ -28,7 +28,7 @@ export default function RevenueBreakdown() {
                     </div>
                     <div className="w-full h-8 flex rounded-lg overflow-hidden border border-gray-100">
                         <div className="bg-[#6366F1] h-full flex items-center justify-center text-white text-[11px] font-bold" style={{ width: '78%' }}>78%</div>
-                        <div className="bg-[#F0FDFA] h-full flex items-center justify-center text-[#2BB29C] text-[11px] font-bold" style={{ width: '22%' }}>22%</div>
+                        <div className="bg-[#FEF2F2] h-full flex items-center justify-center text-[#DD2F26] text-[11px] font-bold" style={{ width: '22%' }}>22%</div>
                     </div>
                     <div className="flex justify-between mt-1.5 text-[10px] text-gray-400 font-medium">
                         <span>Card ($6,560)</span>
@@ -41,7 +41,7 @@ export default function RevenueBreakdown() {
                     <p className="text-[12px] text-gray-500 font-medium mb-4">Platform Sources</p>
                     <div className="space-y-3">
                         {[
-                            { name: 'Direct App', value: '60%', color: 'bg-[#2BB29C]' },
+                            { name: 'Direct App', value: '60%', color: 'bg-[#DD2F26]' },
                             { name: 'Uber Eats', value: '25%', color: 'bg-[#059669]' },
                             { name: 'Deliveroo', value: '10%', color: 'bg-[#4F46E5]' },
                             { name: 'Just Eat', value: '5%', color: 'bg-[#D97706]' },

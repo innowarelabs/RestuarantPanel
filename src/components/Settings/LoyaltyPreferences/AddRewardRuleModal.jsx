@@ -50,7 +50,7 @@ const AddRewardRuleModalInner = ({ onClose, rule }) => {
                             placeholder="e.g. Pepperoni Pizza"
                             value={formData.item}
                             onChange={(e) => setFormData({ ...formData, item: e.target.value })}
-                            className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors placeholder-gray-400 shadow-sm"
+                            className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] transition-colors placeholder-gray-400 shadow-sm"
                         />
                     </div>
 
@@ -62,7 +62,7 @@ const AddRewardRuleModalInner = ({ onClose, rule }) => {
                             value={formData.points}
                             onChange={(e) => setFormData({ ...formData, points: e.target.value })}
                             placeholder="120"
-                            className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors placeholder-gray-400 shadow-sm"
+                            className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] transition-colors placeholder-gray-400 shadow-sm"
                         />
                     </div>
 
@@ -73,7 +73,7 @@ const AddRewardRuleModalInner = ({ onClose, rule }) => {
                             <p className="text-[12px] text-gray-500">Enable this reward for customers</p>
                         </div>
                         <div
-                            className={`w-[44px] h-[24px] rounded-full p-1 cursor-pointer transition-colors ${formData.status ? 'bg-[#2BB29C]' : 'bg-gray-300'}`}
+                            className={`w-[44px] h-[24px] rounded-full p-1 cursor-pointer transition-colors ${formData.status ? 'bg-[#DD2F26]' : 'bg-gray-300'}`}
                             onClick={() => setFormData({ ...formData, status: !formData.status })}
                         >
                             <div className={`w-[16px] h-[16px] bg-white rounded-full shadow-sm transform transition-transform ${formData.status ? 'translate-x-[20px]' : 'translate-x-0'}`} />
@@ -91,7 +91,7 @@ const AddRewardRuleModalInner = ({ onClose, rule }) => {
                     </button>
                     <button
                         onClick={onClose}
-                        className="px-6 py-2.5 text-[16px] font-[400] text-white bg-[#2BB29C] rounded-[8px] shadow-lg shadow-[#2BB29C]/20 hover:bg-[#24A18C] active:scale-95 transition-all"
+                        className="px-6 py-2.5 text-[16px] font-[400] text-white bg-[#DD2F26] rounded-[8px] shadow-lg shadow-[#DD2F26]/20 hover:bg-[#C52820] active:scale-95 transition-all"
                     >
                         {rule ? 'Save Changes' : 'Add Reward'}
                     </button>

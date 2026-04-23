@@ -260,8 +260,8 @@ const CustomerChatWindow = ({ conversation, ticketDetails, messages, onMessagesC
                                 <h3 className="text-[18px] font-bold text-[#111827]">{conversation.name}</h3>
                                 {conversation.online && (
                                     <div className="flex items-center gap-1.5 mt-1">
-                                        <div className="w-2.5 h-2.5 bg-[#2BB29C] rounded-full mb-1"></div>
-                                        <span className="text-[12px] text-[#2BB29C]">Online</span>
+                                        <div className="w-2.5 h-2.5 bg-[#DD2F26] rounded-full mb-1"></div>
+                                        <span className="text-[12px] text-[#DD2F26]">Online</span>
                                     </div>
                                 )}
                             </div>
@@ -292,7 +292,7 @@ const CustomerChatWindow = ({ conversation, ticketDetails, messages, onMessagesC
                                         </p>
                                     </div>
                                 </div>
-                                <button className="text-[13px] font-[500] text-[#2BB29C] hover:underline text-left sm:text-right">
+                                <button className="text-[13px] font-[500] text-[#DD2F26] hover:underline text-left sm:text-right">
                                     View Full Order
                                 </button>
                             </div>
@@ -334,7 +334,7 @@ const CustomerChatWindow = ({ conversation, ticketDetails, messages, onMessagesC
                                 <button
                                     type="button"
                                     onClick={() => handleResolveTicket(false)}
-                                    className="w-full sm:flex-1 py-3 bg-[#2BB29C] text-white rounded-[8px] text-[13px] hover:bg-[#24A18C] active:scale-[0.98] transition-all"
+                                    className="w-full sm:flex-1 py-3 bg-[#DD2F26] text-white rounded-[8px] text-[13px] hover:bg-[#C52820] active:scale-[0.98] transition-all"
                                 >
                                     Mark Resolved
                                 </button>
@@ -377,7 +377,7 @@ const CustomerChatWindow = ({ conversation, ticketDetails, messages, onMessagesC
                                         <div
                                             className={`px-6 py-3 rounded-[12px] text-[14px] max-w-[90%] sm:max-w-[85%] font-medium leading-relaxed ${
                                                 isRestaurant
-                                                    ? 'bg-[#2BB29C] text-white rounded-tr-[4px] shadow-sm text-right'
+                                                    ? 'bg-[#DD2F26] text-white rounded-tr-[4px] shadow-sm text-right'
                                                     : 'bg-[#F3F4F6] text-[#111827] rounded-tl-[4px]'
                                             }`}
                                         >
@@ -402,7 +402,7 @@ const CustomerChatWindow = ({ conversation, ticketDetails, messages, onMessagesC
                             Internal Notes OFF
                         </div>
 
-                        <div className="bg-white border border-[#E5E7EB] min-h-[80px] rounded-[6px] p-4 focus-within:border-[#2BB29C] transition-all">
+                        <div className="bg-white border border-[#E5E7EB] min-h-[80px] rounded-[6px] p-4 focus-within:border-[#DD2F26] transition-all">
                             <textarea
                                 rows="2"
                                 placeholder="Type your message..."
@@ -413,13 +413,13 @@ const CustomerChatWindow = ({ conversation, ticketDetails, messages, onMessagesC
 
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2 mt-2">
-                                    <button className="text-[#9CA3AF] hover:text-[#2BB29C] transition-colors active:scale-90" type="button">
+                                    <button className="text-[#9CA3AF] hover:text-[#DD2F26] transition-colors active:scale-90" type="button">
                                         <Paperclip className="w-4 h-4" />
                                     </button>
-                                    <button className="text-[#9CA3AF] hover:text-[#2BB29C] transition-colors active:scale-90" type="button">
+                                    <button className="text-[#9CA3AF] hover:text-[#DD2F26] transition-colors active:scale-90" type="button">
                                         <Smile className="w-4 h-4" />
                                     </button>
-                                    <button className="text-[12px] text-[#2BB29C] active:scale-95 transition-all hover:opacity-80" type="button">
+                                    <button className="text-[12px] text-[#DD2F26] active:scale-95 transition-all hover:opacity-80" type="button">
                                         Quick Replies
                                     </button>
                                 </div>
@@ -431,7 +431,7 @@ const CustomerChatWindow = ({ conversation, ticketDetails, messages, onMessagesC
                                 type="button"
                                 onClick={() => handleSendMessage(false)}
                                 disabled={sending || !newMessage.trim()}
-                                className="w-full sm:w-auto px-5 py-3 bg-[#2BB29C] text-white rounded-[8px] text-[13px] font-[500] flex items-center justify-center gap-2 hover:bg-[#24A18C] active:scale-95 transition-all shadow-sm order-1 sm:order-1 disabled:opacity-60 disabled:cursor-not-allowed"
+                                className="w-full sm:w-auto px-5 py-3 bg-[#DD2F26] text-white rounded-[8px] text-[13px] font-[500] flex items-center justify-center gap-2 hover:bg-[#C52820] active:scale-95 transition-all shadow-sm order-1 sm:order-1 disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                                 <Send className="w-5 h-5 fill-current" />
                                 {sending ? 'Sending…' : 'Send'}
@@ -440,7 +440,7 @@ const CustomerChatWindow = ({ conversation, ticketDetails, messages, onMessagesC
                                 type="button"
                                 onClick={() => handleSendMessage(true)}
                                 disabled={sending || !newMessage.trim()}
-                                className="w-full sm:w-auto px-6 py-3 bg-white border border-[#2BB29C] text-[#2BB29C] rounded-[8px] text-[13px] font-[500] flex items-center justify-center hover:bg-[#F0FDF9] active:scale-95 transition-all order-2 sm:order-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                                className="w-full sm:w-auto px-6 py-3 bg-white border border-[#DD2F26] text-[#DD2F26] rounded-[8px] text-[13px] font-[500] flex items-center justify-center hover:bg-[#FEF2F2] active:scale-95 transition-all order-2 sm:order-2 disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                                 Send & Resolve
                             </button>

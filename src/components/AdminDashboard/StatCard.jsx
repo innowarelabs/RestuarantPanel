@@ -7,7 +7,7 @@ const StatCard = ({ Icon, icon, title, value, change, growthValue }) => {
         <div className="bg-white rounded-[12px] h-[166px] p-5 border border-[#00000033]  flex flex-col justify-between">
             <div className="flex items-start justify-between mb-4">
                 {/* Icon Container - Teal Green color from image */}
-                <div className="w-[40px] h-[40px] bg-[#2BB29C] rounded-[8px] flex items-center justify-center text-white">
+                <div className="w-[40px] h-[40px] bg-[#DD2F26] rounded-[8px] flex items-center justify-center text-white">
                     {Icon ? (
                         <Icon size={20} strokeWidth={2} />
                     ) : icon ? (
@@ -18,11 +18,11 @@ const StatCard = ({ Icon, icon, title, value, change, growthValue }) => {
                 {/* Growth Indicator */}
                 <div className="flex items-center gap-1.5">
                     {isPositive ? (
-                        <TrendingUp size={16} className={`text-[#2BB29C]`} />
+                        <TrendingUp size={16} className={`text-[#DD2F26]`} />
                     ) : (
                         <TrendingDown size={16} className={`text-[#EF4444]`} />
                     )}
-                    <span className={`text-[12px]  ${isPositive ? 'text-[#2BB29C]' : 'text-[#EF4444]'}`}>
+                    <span className={`text-[12px]  ${isPositive ? 'text-[#DD2F26]' : 'text-[#EF4444]'}`}>
                         {change}
                     </span>
                 </div>

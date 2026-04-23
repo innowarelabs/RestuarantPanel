@@ -38,7 +38,7 @@ const DeliverySettings = () => {
                             <input
                                 type="text"
                                 defaultValue="3.50"
-                                className="w-full pl-7 pr-4 py-2 border border-[#E5E7EB] rounded-[8px] text-[14px] focus:outline-none focus:ring-1 focus:ring-[#24B99E]"
+                                className="w-full pl-7 pr-4 py-2 border border-[#E5E7EB] rounded-[8px] text-[14px] focus:outline-none focus:ring-1 focus:ring-[#DD2F26]"
                             />
                         </div>
                     </div>
@@ -62,7 +62,7 @@ const DeliverySettings = () => {
                             <input
                                 type="text"
                                 defaultValue="20.00"
-                                className="w-full pl-7 pr-4 py-2 border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#24B99E]"
+                                className="w-full pl-7 pr-4 py-2 border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#DD2F26]"
                             />
                         </div>
                         <p className="text-[13px] text-[#9CA3AF] mt-1">Orders above this amount get free delivery</p>
@@ -85,7 +85,7 @@ const DeliverySettings = () => {
                 </div>
 
                 <div className="mt-8 flex justify-end">
-                    <button className="flex items-center gap-2 bg-[#24B99E] text-white text-[14px] px-6 py-2.5 rounded-[8px] font-[500] hover:bg-[#20a68d] transition">
+                    <button className="flex items-center gap-2 bg-[#DD2F26] text-white text-[14px] px-6 py-2.5 rounded-[8px] font-[500] hover:bg-[#C52820] transition">
                         <Save className="w-4 h-4" />
                         Save Settings
                     </button>
@@ -100,7 +100,7 @@ const DeliverySettings = () => {
                         <p className="font-[500] text-[14px] text-[#1A1A1A]">Enable Pickup Orders</p>
                         <p className="text-[13px] text-[#9CA3AF]">Allow customers to collect orders from your restaurant</p>
                     </div>
-                    <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-[#24B99E] focus:outline-none">
+                    <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-[#DD2F26] focus:outline-none">
                         <span className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-6" />
                     </button>
                 </div>

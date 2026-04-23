@@ -165,7 +165,7 @@ export default function Step6({ formData, setFormData, handlePrev, handleNext })
                 </div>
             </div>
 
-            <div className="bg-[#E6F7F4] p-5 rounded-[12px] mt-4">
+            <div className="bg-[#FEF2F2] p-5 rounded-[12px] mt-4">
                 <p className="text-[13px] text-[#475569]">
                     <span className="font-[600]">Expected payout:</span> {normalizedPayoutFreq ? `${normalizedPayoutFreq} settlement` : 'Select frequency above'}
                 </p>

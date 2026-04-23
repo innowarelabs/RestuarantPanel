@@ -63,7 +63,7 @@ export default function Header({ onMobileMenuClick }) {
                 {/* Quick Add — visible on mobile as icon, label on lg+ */}
                 <button
                     onClick={() => setIsAddMenuItemModalOpen(true)}
-                    className="flex lg:gap-2 bg-[#24B99E] p-2 lg:px-4 h-[38px] sm:h-[40px] justify-center items-center rounded-[8px] hover:bg-[#24B99E]/90 cursor-pointer shadow-sm active:scale-95 transition-all"
+                    className="flex lg:gap-2 bg-[#DD2F26] p-2 lg:px-4 h-[38px] sm:h-[40px] justify-center items-center rounded-[8px] hover:bg-[#DD2F26]/90 cursor-pointer shadow-sm active:scale-95 transition-all"
                 >
                     <Plus className="w-5 h-5 text-white" />
                     <p className="hidden lg:block text-[14px] font-[500] text-white">Add Menu Item</p>
@@ -101,12 +101,12 @@ export default function Header({ onMobileMenuClick }) {
                         className="flex items-center gap-2 sm:gap-3 transition hover:cursor-pointer group"
                     >
                         <div className="text-right hidden sm:block">
-                            <p className="text-[14px] font-bold text-[#1A1A1A] leading-tight mb-0.5 group-hover:text-[#24B99E] transition-colors">
+                            <p className="text-[14px] font-bold text-[#1A1A1A] leading-tight mb-0.5 group-hover:text-[#DD2F26] transition-colors">
                                 {displayName}
                             </p>
                             <p className="text-[12px] text-[#6B6B6B] leading-tight font-medium">Restaurant Owner</p>
                         </div>
-                        <div className="w-[32px] h-[32px] sm:w-[40px] sm:h-[40px] bg-[#24B99E] rounded-full flex items-center justify-center text-white font-bold text-[13px] sm:text-[14px] shadow-sm group-hover:shadow-md transition-all">
+                        <div className="w-[32px] h-[32px] sm:w-[40px] sm:h-[40px] bg-[#DD2F26] rounded-full flex items-center justify-center text-white font-bold text-[13px] sm:text-[14px] shadow-sm group-hover:shadow-md transition-all">
                             {initials || "JB"}
                         </div>
                     </button>

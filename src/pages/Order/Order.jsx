@@ -337,17 +337,17 @@ export default function OrderManagement() {
                             key={tab.name}
                             onClick={() => setActiveTab(tab.name)}
                             className={`flex items-center gap-2 text-[14px] font-semibold whitespace-nowrap transition-all cursor-pointer relative pb-4
-                  ${activeTab === tab.name ? 'text-[#2bb29c]' : 'text-[#6B7280] hover:text-[#374151]'}`}
+                  ${activeTab === tab.name ? 'text-[#DD2F26]' : 'text-[#6B7280] hover:text-[#374151]'}`}
                         >
                             {tab.name}
                             <span className={`w-6 h-6 flex items-center justify-center rounded-full text-[11px] font-bold
-                  ${activeTab === tab.name ? 'bg-[#E0F2F1] text-[#2BB29C]' : 'bg-[#F3F4F6] text-[#6B7280]'}`}>
+                  ${activeTab === tab.name ? 'bg-[#FEF2F2] text-[#DD2F26]' : 'bg-[#F3F4F6] text-[#6B7280]'}`}>
                                 {tab.count}
                             </span>
 
                             {/* Active Tab Indicator */}
                             {activeTab === tab.name && (
-                                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#2BB29C] rounded-t-full animate-in slide-in-from-bottom-1 duration-300" />
+                                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#DD2F26] rounded-t-full animate-in slide-in-from-bottom-1 duration-300" />
                             )}
                         </button>
                     ))}
@@ -384,7 +384,7 @@ export default function OrderManagement() {
 
                                 <div className="text-right">
                                     <p className="text-[20px]  text-[#111827]">{order.total}</p>
-                                    <p className={`text-[13px] font-medium ${order.paymentStatus === 'Paid' ? 'text-[#2BB29C]' : 'text-[#ea580c]'}`}>
+                                    <p className={`text-[13px] font-medium ${order.paymentStatus === 'Paid' ? 'text-[#DD2F26]' : 'text-[#ea580c]'}`}>
                                         {order.paymentStatus}
                                     </p>
                                 </div>
@@ -403,7 +403,7 @@ export default function OrderManagement() {
                                     <span className="text-[14px] text-[#6B7280]">{order.customerPhone}</span>
                                 </div>
                                 <div className={`flex items-center gap-2 px-5 py-2 rounded-[8px] text-[12px] font-medium w-fit
-                                    ${order.type === 'Delivery' ? 'bg-[#E6F7F4] text-[#2BB29C]' : 'bg-[#F3F4F6] text-gray-600'}`}>
+                                    ${order.type === 'Delivery' ? 'bg-[#FEF2F2] text-[#DD2F26]' : 'bg-[#F3F4F6] text-gray-600'}`}>
                                     <MapPin size={14} />
                                     {order.type}
                                 </div>
@@ -417,7 +417,7 @@ export default function OrderManagement() {
                                     <Box size={18} />
                                     <span className="text-[14px]">{order.itemsCount} items</span>
                                     {order.estTime && (
-                                        <span className="text-[14px] text-[#2BB29C] font-medium ml-4">{order.estTime}</span>
+                                        <span className="text-[14px] text-[#DD2F26] font-medium ml-4">{order.estTime}</span>
                                     )}
                                     {order.riderStatus && (
                                         <span className="text-[14px] text-gray-500 ml-4">{order.riderStatus}</span>
@@ -440,7 +440,7 @@ export default function OrderManagement() {
                                         </button>
                                         <button
                                             onClick={(e) => handleAcceptClick(e, order)}
-                                            className="px-6 py-2.5 rounded-[8px] bg-[#2BB29C] text-white font-medium text-[13px] hover:bg-[#259D89] transition-colors shadow-sm cursor-pointer"
+                                            className="px-6 py-2.5 rounded-[8px] bg-[#DD2F26] text-white font-medium text-[13px] hover:bg-[#C52820] transition-colors shadow-sm cursor-pointer"
                                         >
                                             Accept
                                         </button>

@@ -71,7 +71,7 @@ export default function CustomerDetailsModal({ isOpen, onClose, customer, custom
                             </div>
                         </div>
                         <div className="pt-1">
-                            <span className="px-4 py-1.5 rounded-lg text-[14px] font-medium bg-[#E0F2F1] text-[#2BB29C]">
+                            <span className="px-4 py-1.5 rounded-lg text-[14px] font-medium bg-[#FEF2F2] text-[#DD2F26]">
                                 Active
                             </span>
                         </div>
@@ -118,12 +118,12 @@ export default function CustomerDetailsModal({ isOpen, onClose, customer, custom
                                         </div>
                                         <p className="text-[20px] font-bold text-[#111827]">{averageOrderValue}</p>
                                     </div>
-                                    <div className="bg-[#E6F7F4]/30 p-5 rounded-[16px] border border-[#2BB29C]/10">
-                                        <div className="flex items-center gap-2 text-[#2BB29C] mb-2">
+                                    <div className="bg-[#FEF2F2]/30 p-5 rounded-[16px] border border-[#DD2F26]/10">
+                                        <div className="flex items-center gap-2 text-[#DD2F26] mb-2">
                                             <Award size={16} />
                                             <span className="text-[13px]">Loyalty Points</span>
                                         </div>
-                                        <p className="text-[20px] font-bold text-[#2BB29C]">{displayData.loyalty_points || 0}</p>
+                                        <p className="text-[20px] font-bold text-[#DD2F26]">{displayData.loyalty_points || 0}</p>
                                     </div>
                                 </div>
 
@@ -137,7 +137,7 @@ export default function CustomerDetailsModal({ isOpen, onClose, customer, custom
                                             <p className="text-[14px] text-gray-600">Rewards Available:</p>
                                             <div className="flex flex-wrap gap-2">
                                                 {displayData.rewards_available.map((reward, i) => (
-                                                    <span key={i} className="px-3 py-1 bg-[#E0F2F1] text-[#2BB29C] rounded-lg text-[13px]">
+                                                    <span key={i} className="px-3 py-1 bg-[#FEF2F2] text-[#DD2F26] rounded-lg text-[13px]">
                                                         {reward}
                                                     </span>
                                                 ))}
@@ -153,7 +153,7 @@ export default function CustomerDetailsModal({ isOpen, onClose, customer, custom
                                     <h3 className="text-[16px] font-bold text-[#111827] mb-4">Delivery Addresses</h3>
                                     <div className="space-y-3">
                                         {customerDetails.delivery_addresses.map((addr) => (
-                                            <div key={addr.id} className={`p-4 rounded-[16px] flex items-start gap-4 border ${addr.is_default ? 'bg-[#E0F2F1] border-[#2BB29C]' : 'bg-[#F9FAFB] border-gray-50'}`}>
+                                            <div key={addr.id} className={`p-4 rounded-[16px] flex items-start gap-4 border ${addr.is_default ? 'bg-[#FEF2F2] border-[#DD2F26]' : 'bg-[#F9FAFB] border-gray-50'}`}>
                                                 <div className="p-2 bg-white rounded-lg shadow-sm">
                                                     <MapPin size={18} className="text-gray-400" />
                                                 </div>
@@ -173,7 +173,7 @@ export default function CustomerDetailsModal({ isOpen, onClose, customer, custom
                                                     )}
                                                 </div>
                                                 {addr.is_default && (
-                                                    <span className="px-2 py-1 bg-[#2BB29C] text-white rounded text-[12px] font-medium whitespace-nowrap mt-1">
+                                                    <span className="px-2 py-1 bg-[#DD2F26] text-white rounded text-[12px] font-medium whitespace-nowrap mt-1">
                                                         Default
                                                     </span>
                                                 )}

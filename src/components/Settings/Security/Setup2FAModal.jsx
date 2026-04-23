@@ -38,11 +38,11 @@ const Setup2FAModal = ({ isOpen, onClose, method }) => {
                                     type="text"
                                     value={phone}
                                     onChange={(e) => setPhone(e.target.value)}
-                                    className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors shadow-sm"
+                                    className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] transition-colors shadow-sm"
                                 />
                             </div>
                             <button
-                                className="w-full py-2.5 border border-[#2BB29C] text-[#2BB29C] rounded-[8px] text-[14px] font-[500] hover:bg-[#F0FDFA] transition-all active:scale-[0.98]"
+                                className="w-full py-2.5 border border-[#DD2F26] text-[#DD2F26] rounded-[8px] text-[14px] font-[500] hover:bg-[#FEF2F2] transition-all active:scale-[0.98]"
                             >
                                 Send Code
                             </button>
@@ -57,7 +57,7 @@ const Setup2FAModal = ({ isOpen, onClose, method }) => {
                             placeholder="000000"
                             value={code}
                             onChange={(e) => setCode(e.target.value)}
-                            className="w-full h-[52px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[20px] outline-none focus:border-[#2BB29C] transition-all text-center font-mono tracking-[0.5em] placeholder:tracking-normal shadow-sm"
+                            className="w-full h-[52px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[20px] outline-none focus:border-[#DD2F26] transition-all text-center font-mono tracking-[0.5em] placeholder:tracking-normal shadow-sm"
                         />
                     </div>
                 </div>
@@ -72,7 +72,7 @@ const Setup2FAModal = ({ isOpen, onClose, method }) => {
                     </button>
                     <button
                         onClick={onClose}
-                        className="px-6 py-2.5 text-[16px] font-[400] text-white bg-[#2BB29C] rounded-[8px] shadow-lg shadow-[#2BB29C]/20 hover:bg-[#24A18C] active:scale-95 transition-all"
+                        className="px-6 py-2.5 text-[16px] font-[400] text-white bg-[#DD2F26] rounded-[8px] shadow-lg shadow-[#DD2F26]/20 hover:bg-[#C52820] active:scale-95 transition-all"
                     >
                         Enable 2FA
                     </button>

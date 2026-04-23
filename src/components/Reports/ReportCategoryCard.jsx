@@ -22,14 +22,14 @@ const ReportCategoryCard = ({ title, description, icon: Icon, color, onViewRepor
             <div className="flex gap-2">
                 <button
                     onClick={onViewReport}
-                    className="flex-1 h-[40px] bg-[#2BB29C] text-white rounded-[8px] text-[14px] font-medium hover:bg-[#24A18C] active:scale-[0.98] transition-all"
+                    className="flex-1 h-[40px] bg-[#DD2F26] text-white rounded-[8px] text-[14px] font-medium hover:bg-[#C52820] active:scale-[0.98] transition-all"
                 >
                     View Report
                 </button>
-                <button className="w-[44px] h-[40px] flex items-center justify-center bg-white border border-[#E8E8E8] rounded-[8px] text-[#6B7280] hover:text-[#2BB29C] hover:bg-gray-50 transition-colors">
+                <button className="w-[44px] h-[40px] flex items-center justify-center bg-white border border-[#E8E8E8] rounded-[8px] text-[#6B7280] hover:text-[#DD2F26] hover:bg-gray-50 transition-colors">
                     <Download className="w-5 h-5" />
                 </button>
-                <button className="w-[44px] h-[40px] flex items-center justify-center bg-white border border-[#E8E8E8] rounded-[8px] text-[#6B7280] hover:text-[#2BB29C] hover:bg-gray-50 transition-colors">
+                <button className="w-[44px] h-[40px] flex items-center justify-center bg-white border border-[#E8E8E8] rounded-[8px] text-[#6B7280] hover:text-[#DD2F26] hover:bg-gray-50 transition-colors">
                     <FileText className="w-5 h-5" />
                 </button>
             </div>

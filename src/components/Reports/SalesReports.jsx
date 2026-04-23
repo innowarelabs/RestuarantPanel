@@ -111,7 +111,7 @@ const SalesReports = ({ onBack }) => {
                             </div>
                         </div>
                     </div>
-                    <button className="h-[43px] px-6 bg-[#2BB29C] text-white rounded-[8px] text-[14px] font-medium hover:bg-[#24A18C] transition-all whitespace-nowrap">
+                    <button className="h-[43px] px-6 bg-[#DD2F26] text-white rounded-[8px] text-[14px] font-medium hover:bg-[#C52820] transition-all whitespace-nowrap">
                         Apply Filters
                     </button>
                 </div>
@@ -152,8 +152,8 @@ const SalesReports = ({ onBack }) => {
                         <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                             <defs>
                                 <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#2BB29C" stopOpacity={0.15} />
-                                    <stop offset="95%" stopColor="#2BB29C" stopOpacity={0} />
+                                    <stop offset="5%" stopColor="#DD2F26" stopOpacity={0.15} />
+                                    <stop offset="95%" stopColor="#DD2F26" stopOpacity={0} />
                                 </linearGradient>
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
@@ -171,7 +171,7 @@ const SalesReports = ({ onBack }) => {
                             <Area
                                 type="monotone"
                                 dataKey="sales"
-                                stroke="#2BB29C"
+                                stroke="#DD2F26"
                                 strokeWidth={3}
                                 fillOpacity={1}
                                 fill="url(#colorSales)"
@@ -236,7 +236,7 @@ const SalesReports = ({ onBack }) => {
                 </div>
                 <button
                     onClick={() => setIsScheduleModalOpen(true)}
-                    className="flex items-center justify-center gap-2 px-6 py-2.5 bg-[#2BB29C] text-white rounded-[8px] text-[14px] font-[400] shadow-[#2BB29C]/20 hover:bg-[#24A18C] active:scale-95 transition-all w-full sm:w-auto"
+                    className="flex items-center justify-center gap-2 px-6 py-2.5 bg-[#DD2F26] text-white rounded-[8px] text-[14px] font-[400] shadow-[#DD2F26]/20 hover:bg-[#C52820] active:scale-95 transition-all w-full sm:w-auto"
                 >
                     <Calendar className="w-4 h-4" />
                     Schedule Monthly Report

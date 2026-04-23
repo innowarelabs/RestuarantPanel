@@ -85,7 +85,7 @@ const CustomerSupportLayout = ({ refreshKey }) => {
                         hasAttachment: false,
                         isBot: false,
                         progress: undefined,
-                        statusColor: '#2BB29C',
+                        statusColor: '#DD2F26',
                     };
                 });
 

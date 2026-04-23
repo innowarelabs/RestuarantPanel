@@ -2,7 +2,7 @@ import React from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 
 const data = [
-    { name: 'Completed', value: 82, color: '#2BB29C' },
+    { name: 'Completed', value: 82, color: '#DD2F26' },
     { name: 'Cancelled', value: 3, color: '#EF4444' },
     { name: 'Refunded', value: 5, color: '#F59E0B' },
     { name: 'Returned', value: 3, color: '#6366F1' },

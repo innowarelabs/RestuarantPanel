@@ -48,7 +48,7 @@ const LoyaltyPreferences = () => {
                                 <p className="text-[13px] text-[#6B6B6B] mt-0.5">{item.description}</p>
                             </div>
                             <button
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none shrink-0 ${item.enabled ? 'bg-[#24B99E]' : 'bg-gray-200'
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none shrink-0 ${item.enabled ? 'bg-[#DD2F26]' : 'bg-gray-200'
                                     }`}
                             >
                                 <span
@@ -60,7 +60,7 @@ const LoyaltyPreferences = () => {
                     ))}
                 </div>
                 <div className="mt-8 flex justify-end">
-                    <button className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#24B99E] text-white text-[14px] px-6 py-2.5 rounded-[12px] font-[500] hover:bg-[#20a68d] transition shadow-lg shadow-[#24B99E]/20 active:scale-95">
+                    <button className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#DD2F26] text-white text-[14px] px-6 py-2.5 rounded-[12px] font-[500] hover:bg-[#C52820] transition shadow-lg shadow-[#DD2F26]/20 active:scale-95">
                         <Save className="w-4 h-4" />
                         Save Settings
                     </button>
@@ -76,7 +76,7 @@ const LoyaltyPreferences = () => {
                     </div>
                     <button
                         onClick={handleAddRule}
-                        className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#24B99E] text-white px-4 py-2.5 rounded-[12px] text-[14px] font-[500] hover:bg-[#20a68d] transition shadow-lg shadow-[#24B99E]/10 active:scale-95"
+                        className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#DD2F26] text-white px-4 py-2.5 rounded-[12px] text-[14px] font-[500] hover:bg-[#C52820] transition shadow-lg shadow-[#DD2F26]/10 active:scale-95"
                     >
                         <Plus className="w-4 h-4" />
                         Add Reward Rule
@@ -85,10 +85,10 @@ const LoyaltyPreferences = () => {
 
                 <div className="space-y-3">
                     {rewardRules.map((rule, index) => (
-                        <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border border-[#E5E7EB] rounded-2xl hover:border-[#24B99E]/30 transition group gap-4">
+                        <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border border-[#E5E7EB] rounded-2xl hover:border-[#DD2F26]/30 transition group gap-4">
                             <div className="flex items-center gap-4">
-                                <div className="p-2 bg-[#F0FDFA] rounded-xl shrink-0">
-                                    <Gift className="w-5 h-5 text-[#24B99E]" />
+                                <div className="p-2 bg-[#FEF2F2] rounded-xl shrink-0">
+                                    <Gift className="w-5 h-5 text-[#DD2F26]" />
                                 </div>
                                 <div className="min-w-0">
                                     <p className="font-[600] text-[15px] text-[#1A1A1A] truncate">{rule.name}</p>
@@ -96,14 +96,14 @@ const LoyaltyPreferences = () => {
                                 </div>
                             </div>
                             <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto mt-2 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-100">
-                                <span className={`px-3 py-1.5 rounded-[8px] text-[11px] font-[600] uppercase tracking-wider ${rule.status === 'Active' ? 'bg-[#E6F7F4] text-[#24B99E]' : 'bg-gray-100 text-[#6B6B6B]'
+                                <span className={`px-3 py-1.5 rounded-[8px] text-[11px] font-[600] uppercase tracking-wider ${rule.status === 'Active' ? 'bg-[#FEF2F2] text-[#DD2F26]' : 'bg-gray-100 text-[#6B6B6B]'
                                     }`}>
                                     {rule.status}
                                 </span>
                                 <div className="flex items-center gap-1">
                                     <button
                                         onClick={() => handleEditRule(rule)}
-                                        className="p-2 text-[#9CA3AF] hover:text-[#24B99E] transition hover:bg-gray-50 rounded-lg"
+                                        className="p-2 text-[#9CA3AF] hover:text-[#DD2F26] transition hover:bg-gray-50 rounded-lg"
                                     >
                                         <Edit2 className="w-4 h-4" />
                                     </button>

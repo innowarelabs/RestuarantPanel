@@ -4,7 +4,7 @@ const Button = ({ children, className, type = "button", ...props }) => {
     return (
         <button
             type={type}
-            className={`bg-[#24B99E] text-white rounded-[12px] font-[800] transition-all hover:bg-[#1e9d86] disabled:bg-[#979797] disabled:cursor-not-allowed ${className}`}
+            className={`bg-[#DD2F26] text-white rounded-[12px] font-[800] transition-all hover:bg-[#C52820] disabled:bg-[#979797] disabled:cursor-not-allowed ${className}`}
             {...props}
         >
             {children}

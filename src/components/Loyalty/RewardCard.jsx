@@ -25,7 +25,7 @@ const RewardCard = ({ reward, onEdit, onReactivate, onDelete }) => {
 
     return (
         <div className="bg-white rounded-[16px] border border-[#E5E7EB] p-5 flex flex-col items-start relative shadow-sm">
-            <span className={`absolute top-3 right-3 px-3 py-1 rounded-[8px] text-[12px] font-medium ${displayStatus === 'Active' ? 'bg-[#E6F7F4] text-[#0D9488]' : 'bg-gray-100 text-gray-500'}`}>
+            <span className={`absolute top-3 right-3 px-3 py-1 rounded-[8px] text-[12px] font-medium ${displayStatus === 'Active' ? 'bg-[#FEF2F2] text-[#B91C1C]' : 'bg-gray-100 text-gray-500'}`}>
                 {displayStatus}
             </span>
 
@@ -36,7 +36,7 @@ const RewardCard = ({ reward, onEdit, onReactivate, onDelete }) => {
             <h3 className="text-[#1F2937] text-[18px] font-semibold mb-1">{displayName}</h3>
             <p className="text-[14px] text-[#6B7280] mb-4">{description}</p>
 
-            <div className="bg-[#E6F7F4] text-[#0D9488] text-[14px] font-semibold px-3 py-1.5 rounded-[8px] mb-5 inline-block">
+            <div className="bg-[#FEF2F2] text-[#B91C1C] text-[14px] font-semibold px-3 py-1.5 rounded-[8px] mb-5 inline-block">
                 {displayPoints} points
             </div>
 

@@ -19,7 +19,7 @@ export default function AnalyticsHeader() {
                     <span>Export CSV</span>
                 </button>
 
-                <button className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-[#2BB29C] text-white rounded-[8px] text-[14px] font-medium hover:bg-[#259D89] transition-colors shadow-sm cursor-pointer">
+                <button className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-[#DD2F26] text-white rounded-[8px] text-[14px] font-medium hover:bg-[#C52820] transition-colors shadow-sm cursor-pointer">
                     <Download size={18} />
                     <span>Export PDF</span>
                 </button>

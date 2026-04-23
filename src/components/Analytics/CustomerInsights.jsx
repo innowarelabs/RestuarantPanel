@@ -8,8 +8,8 @@ export default function CustomerInsights() {
 
             <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-[#F0FDFA] p-4 rounded-[8px] ">
-                        <div className="flex items-center gap-2 text-[#2BB29C] mb-1">
+                    <div className="bg-[#FEF2F2] p-4 rounded-[8px] ">
+                        <div className="flex items-center gap-2 text-[#DD2F26] mb-1">
                             <Award size={14} />
                             <span className="text-[12px]  uppercase">Loyalty Members</span>
                         </div>
@@ -24,16 +24,16 @@ export default function CustomerInsights() {
                     </div>
                 </div>
 
-                <div className="bg-[#F0FDFA] p-4 rounded-[8px]  relative overflow-hidden group">
+                <div className="bg-[#FEF2F2] p-4 rounded-[8px]  relative overflow-hidden group">
                     <div className="flex items-center justify-between mb-2">
-                        <p className="text-[12px] text-[#2BB29C]  uppercase">Most redeemed reward</p>
+                        <p className="text-[12px] text-[#DD2F26]  uppercase">Most redeemed reward</p>
                         <Star size={16} className="text-orange-400 fill-orange-400" />
                     </div>
                     <p className="text-[16px] font-bold text-[#111827]">Free Ice Cream</p>
                     <p className="text-[12px] text-gray-500 mt-1">Redeemed 87 times</p>
                 </div>
 
-                <div className="bg-[#F0FDFA] rounded-[8px] p-4  mt-auto">
+                <div className="bg-[#FEF2F2] rounded-[8px] p-4  mt-auto">
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-[12px] text-gray-400 font-medium">Avg Points Redeemed per Order</p>

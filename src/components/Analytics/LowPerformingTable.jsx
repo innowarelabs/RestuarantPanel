@@ -1,7 +1,7 @@
 import React from 'react';
 
 const lowItems = [
-    { name: 'Garlic Bread', category: 'Sides', orders: 3, revenue: '$9', recommendation: 'Run promotion', color: 'bg-[#F0FDFA] text-[#2BB29C] border-[#CCFBF1]' },
+    { name: 'Garlic Bread', category: 'Sides', orders: 3, revenue: '$9', recommendation: 'Run promotion', color: 'bg-[#FEF2F2] text-[#DD2F26] border-[#FEE2E2]' },
     { name: 'Milkshake', category: 'Drinks', orders: 5, revenue: '$15', recommendation: 'Update photo', color: 'bg-[#FFF7ED] text-[#F59E0B] border-[#FFEDD5]' },
     { name: 'Fish Wrap', category: 'Mains', orders: 2, revenue: '$18', recommendation: 'Consider removing', color: 'bg-[#FEF2F2] text-[#EF4444] border-[#FEE2E2]' },
     { name: 'Onion Rings', category: 'Sides', orders: 4, revenue: '$12', recommendation: 'Bundle with mains', color: 'bg-[#EFF6FF] text-[#3B82F6] border-[#DBEAFE]' },

@@ -194,7 +194,7 @@ export default function AddTodaysDealModal({ isOpen, onClose, categories, access
                                 <select
                                     value={selectedCategoryId}
                                     onChange={(e) => setSelectedCategoryId(e.target.value)}
-                                    className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors appearance-none cursor-pointer shadow-sm"
+                                    className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] transition-colors appearance-none cursor-pointer shadow-sm"
                                 >
                                     <option value="">Select category...</option>
                                     {categories.map((category) => (
@@ -214,7 +214,7 @@ export default function AddTodaysDealModal({ isOpen, onClose, categories, access
                                     value={selectedItemId}
                                     onChange={(e) => setSelectedItemId(e.target.value)}
                                     disabled={!selectedCategoryId}
-                                    className={`w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors appearance-none cursor-pointer shadow-sm ${!selectedCategoryId ? 'bg-[#F3F4F6] text-[#9CA3AF]' : ''}`}
+                                    className={`w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] transition-colors appearance-none cursor-pointer shadow-sm ${!selectedCategoryId ? 'bg-[#F3F4F6] text-[#9CA3AF]' : ''}`}
                                 >
                                     <option value="">{selectedCategoryId ? 'Select item...' : 'Select category first'}</option>
                                     {items.map((item) => (
@@ -251,7 +251,7 @@ export default function AddTodaysDealModal({ isOpen, onClose, categories, access
                                                     placeholder="0.00"
                                                     value={variantDiscounts[String(variant.id)] ?? ''}
                                                     onChange={(e) => setVariantDiscounts((prev) => ({ ...prev, [String(variant.id)]: e.target.value }))}
-                                                    className="w-full h-[40px] pl-7 pr-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[13px] outline-none focus:border-[#2BB29C] transition-colors shadow-sm"
+                                                    className="w-full h-[40px] pl-7 pr-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[13px] outline-none focus:border-[#DD2F26] transition-colors shadow-sm"
                                                 />
                                             </div>
                                         </div>
@@ -269,7 +269,7 @@ export default function AddTodaysDealModal({ isOpen, onClose, categories, access
                                         value={discountedPrice}
                                         onChange={(e) => setDiscountedPrice(e.target.value)}
                                         disabled={!selectedItem}
-                                        className={`w-full h-[46px] pl-8 pr-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors shadow-sm ${!selectedItem ? 'bg-[#F3F4F6] text-[#9CA3AF]' : ''}`}
+                                        className={`w-full h-[46px] pl-8 pr-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] transition-colors shadow-sm ${!selectedItem ? 'bg-[#F3F4F6] text-[#9CA3AF]' : ''}`}
                                     />
                                 </div>
                             </div>
@@ -283,7 +283,7 @@ export default function AddTodaysDealModal({ isOpen, onClose, categories, access
                                     value={dealStartsAt}
                                     onChange={(e) => setDealStartsAt(e.target.value)}
                                     disabled={!selectedItem}
-                                    className={`w-full h-[46px] px-3 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] ${!selectedItem ? 'bg-[#F3F4F6] text-[#9CA3AF]' : ''}`}
+                                    className={`w-full h-[46px] px-3 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] ${!selectedItem ? 'bg-[#F3F4F6] text-[#9CA3AF]' : ''}`}
                                 />
                             </div>
                             <div>
@@ -293,7 +293,7 @@ export default function AddTodaysDealModal({ isOpen, onClose, categories, access
                                     value={dealEndsAt}
                                     onChange={(e) => setDealEndsAt(e.target.value)}
                                     disabled={!selectedItem}
-                                    className={`w-full h-[46px] px-3 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] ${!selectedItem ? 'bg-[#F3F4F6] text-[#9CA3AF]' : ''}`}
+                                    className={`w-full h-[46px] px-3 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] ${!selectedItem ? 'bg-[#F3F4F6] text-[#9CA3AF]' : ''}`}
                                 />
                             </div>
                         </div>
@@ -309,7 +309,7 @@ export default function AddTodaysDealModal({ isOpen, onClose, categories, access
                         <button
                             onClick={handleSubmit}
                             disabled={saving}
-                            className="px-6 py-2.5 text-[14px] font-[500] text-white bg-[#2BB29C] rounded-[8px] shadow-lg shadow-[#2BB29C]/20 hover:bg-[#24A18C] transition-all disabled:opacity-70"
+                            className="px-6 py-2.5 text-[14px] font-[500] text-white bg-[#DD2F26] rounded-[8px] shadow-lg shadow-[#DD2F26]/20 hover:bg-[#C52820] transition-all disabled:opacity-70"
                         >
                             {saving ? 'Saving...' : 'Save Deal'}
                         </button>

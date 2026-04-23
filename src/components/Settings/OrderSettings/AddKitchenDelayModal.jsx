@@ -43,8 +43,8 @@ const AddKitchenDelayModal = ({ isOpen, onClose }) => {
                                         setCustomDelay('');
                                     }}
                                     className={`flex-1 py-4 px-2 rounded-[12px] border font-[500] text-[14px] transition-all ${selectedDelay === min && customDelay === ''
-                                        ? 'bg-[#2BB29C] border-[#2BB29C] text-white shadow-lg shadow-[#2BB29C]/20'
-                                        : 'bg-white border-[#E5E7EB] text-[#111827] hover:border-[#2BB29C]'
+                                        ? 'bg-[#DD2F26] border-[#DD2F26] text-white shadow-lg shadow-[#DD2F26]/20'
+                                        : 'bg-white border-[#E5E7EB] text-[#111827] hover:border-[#DD2F26]'
                                         }`}
                                 >
                                     +{min} min
@@ -65,7 +65,7 @@ const AddKitchenDelayModal = ({ isOpen, onClose }) => {
                                     setCustomDelay(e.target.value);
                                     setSelectedDelay(null);
                                 }}
-                                className="w-full h-[46px] px-4 pr-20 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors placeholder-gray-400 shadow-sm"
+                                className="w-full h-[46px] px-4 pr-20 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] transition-colors placeholder-gray-400 shadow-sm"
                             />
                             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[13px] text-gray-400">minutes</span>
                         </div>
@@ -82,7 +82,7 @@ const AddKitchenDelayModal = ({ isOpen, onClose }) => {
                     </button>
                     <button
                         onClick={onClose}
-                        className="px-6 py-2.5 text-[16px] font-[400] text-white bg-[#2BB29C] rounded-[8px] shadow-lg shadow-[#2BB29C]/20 hover:bg-[#24A18C] active:scale-95 transition-all"
+                        className="px-6 py-2.5 text-[16px] font-[400] text-white bg-[#DD2F26] rounded-[8px] shadow-lg shadow-[#DD2F26]/20 hover:bg-[#C52820] active:scale-95 transition-all"
                     >
                         Apply Delay
                     </button>

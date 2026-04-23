@@ -14,7 +14,7 @@ const CustomerSupportInbox = ({ conversations, activeId, onSelect }) => {
                     <div
                         key={conv.id}
                         onClick={() => onSelect(conv)}
-                        className={`p-6 flex gap-4 cursor-pointer transition-colors relative border-b border-gray-100 last:border-0 ${activeId === conv.id ? 'bg-[#F0FDF9]' : 'hover:bg-gray-50/50'
+                        className={`p-6 flex gap-4 cursor-pointer transition-colors relative border-b border-gray-100 last:border-0 ${activeId === conv.id ? 'bg-[#FEF2F2]' : 'hover:bg-gray-50/50'
                             }`}
                     >
                         <div className="relative flex-shrink-0">
@@ -25,7 +25,7 @@ const CustomerSupportInbox = ({ conversations, activeId, onSelect }) => {
                             <div className="flex justify-between items-center mb-1">
                                 <div className="flex items-center gap-2">
                                     <h3 className="text-[16px] font-bold text-[#111827] truncate">{conv.name}</h3>
-                                    {conv.online && <div className="w-2.5 h-2.5 bg-[#2BB29C] rounded-full"></div>}
+                                    {conv.online && <div className="w-2.5 h-2.5 bg-[#DD2F26] rounded-full"></div>}
                                 </div>
                                 <span className="text-[14px] text-gray-400 whitespace-nowrap ml-2">{conv.time}</span>
                             </div>

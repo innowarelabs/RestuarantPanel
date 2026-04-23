@@ -21,7 +21,7 @@ const AuthLayout = ({ children, imageType = 'charge' }) => {
     return (
         <div className="flex flex-col md:flex-row min-h-screen font-avenir">
             {/* Left Side - Teal Background */}
-            <div className="hidden md:flex md:w-1/2 bg-[#24B99E] text-white overflow-hidden">
+            <div className="hidden md:flex md:w-1/2 bg-[#DD2F26] text-white overflow-hidden">
                 <div className="flex flex-col justify-center h-screen px-8 lg:px-12 w-full relative pb-24">
                     {/* Main content block - vertically centered */}
                     <div className="flex items-center justify-start">

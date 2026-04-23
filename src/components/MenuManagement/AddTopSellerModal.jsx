@@ -107,7 +107,7 @@ export default function AddTopSellerModal({ isOpen, onClose, categories, accessT
                                 <select
                                     value={selectedCategoryId}
                                     onChange={(e) => setSelectedCategoryId(e.target.value)}
-                                    className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors appearance-none cursor-pointer shadow-sm"
+                                    className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] transition-colors appearance-none cursor-pointer shadow-sm"
                                 >
                                     <option value="">Select category...</option>
                                     {categories.map((category) => (
@@ -127,7 +127,7 @@ export default function AddTopSellerModal({ isOpen, onClose, categories, accessT
                                     value={selectedItemId}
                                     onChange={(e) => setSelectedItemId(e.target.value)}
                                     disabled={!selectedCategoryId}
-                                    className={`w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors appearance-none cursor-pointer shadow-sm ${!selectedCategoryId ? 'bg-[#F3F4F6] text-[#9CA3AF]' : ''}`}
+                                    className={`w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] transition-colors appearance-none cursor-pointer shadow-sm ${!selectedCategoryId ? 'bg-[#F3F4F6] text-[#9CA3AF]' : ''}`}
                                 >
                                     <option value="">{selectedCategoryId ? 'Select item...' : 'Select category first'}</option>
                                     {items.map((item) => (
@@ -148,7 +148,7 @@ export default function AddTopSellerModal({ isOpen, onClose, categories, accessT
                             <button
                                 type="button"
                                 onClick={() => setIsBestSeller((prev) => !prev)}
-                                className={`w-[44px] h-[24px] rounded-full p-1 transition-colors ${isBestSeller ? 'bg-[#2BB29C]' : 'bg-gray-300'}`}
+                                className={`w-[44px] h-[24px] rounded-full p-1 transition-colors ${isBestSeller ? 'bg-[#DD2F26]' : 'bg-gray-300'}`}
                             >
                                 <div className={`w-[16px] h-[16px] bg-white rounded-full shadow-sm transform transition-transform ${isBestSeller ? 'translate-x-[20px]' : 'translate-x-0'}`} />
                             </button>
@@ -165,7 +165,7 @@ export default function AddTopSellerModal({ isOpen, onClose, categories, accessT
                         <button
                             onClick={handleSubmit}
                             disabled={saving}
-                            className="px-6 py-2.5 text-[14px] font-[500] text-white bg-[#2BB29C] rounded-[8px] shadow-lg shadow-[#2BB29C]/20 hover:bg-[#24A18C] transition-all disabled:opacity-70"
+                            className="px-6 py-2.5 text-[14px] font-[500] text-white bg-[#DD2F26] rounded-[8px] shadow-lg shadow-[#DD2F26]/20 hover:bg-[#C52820] transition-all disabled:opacity-70"
                         >
                             {saving ? 'Saving...' : 'Save'}
                         </button>

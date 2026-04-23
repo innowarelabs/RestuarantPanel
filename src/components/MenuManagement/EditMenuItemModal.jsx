@@ -234,7 +234,7 @@ export default function EditMenuItemModal({ isOpen, onClose, item, categories, o
                                         type="text"
                                         value={form.name}
                                         onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                                        className="w-full h-[40px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#2BB29C]"
+                                        className="w-full h-[40px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#DD2F26]"
                                         disabled={saving}
                                     />
                                 </div>
@@ -246,7 +246,7 @@ export default function EditMenuItemModal({ isOpen, onClose, item, categories, o
                                         <select
                                             value={form.categoryId}
                                             onChange={(e) => setForm((prev) => ({ ...prev, categoryId: e.target.value }))}
-                                            className="w-full h-[40px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#2BB29C] appearance-none cursor-pointer"
+                                            className="w-full h-[40px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#DD2F26] appearance-none cursor-pointer"
                                             disabled={saving}
                                         >
                                             <option value="">Select a category...</option>
@@ -267,7 +267,7 @@ export default function EditMenuItemModal({ isOpen, onClose, item, categories, o
                                         rows={3}
                                         value={form.description}
                                         onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                                        className="w-full p-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#2BB29C] resize-none"
+                                        className="w-full p-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#DD2F26] resize-none"
                                         disabled={saving}
                                     />
                                 </div>
@@ -290,7 +290,7 @@ export default function EditMenuItemModal({ isOpen, onClose, item, categories, o
                                     </div>
                                     <button
                                         type="button"
-                                        className={`w-[44px] h-[24px] rounded-full p-1 transition-colors ${form.hasVariants ? 'bg-[#2BB29C]' : 'bg-gray-300'} ${saving ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
+                                        className={`w-[44px] h-[24px] rounded-full p-1 transition-colors ${form.hasVariants ? 'bg-[#DD2F26]' : 'bg-gray-300'} ${saving ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
                                         onClick={() => {
                                             if (saving) return;
                                             setForm((prev) => ({ ...prev, hasVariants: !prev.hasVariants }));
@@ -313,7 +313,7 @@ export default function EditMenuItemModal({ isOpen, onClose, item, categories, o
                                                 type="text"
                                                 value={form.price}
                                                 onChange={(e) => setForm((prev) => ({ ...prev, price: e.target.value }))}
-                                                className="w-full h-[40px] pl-7 pr-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#2BB29C]"
+                                                className="w-full h-[40px] pl-7 pr-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#DD2F26]"
                                                 disabled={saving}
                                             />
                                         </div>
@@ -342,7 +342,7 @@ export default function EditMenuItemModal({ isOpen, onClose, item, categories, o
                                                         value={variant.name}
                                                         onChange={(e) => setVariants((prev) => prev.map((v) => (v.clientId === variant.clientId ? { ...v, name: e.target.value } : v)))}
                                                         placeholder="Variant name"
-                                                        className="col-span-7 h-[40px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#2BB29C]"
+                                                        className="col-span-7 h-[40px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#DD2F26]"
                                                         disabled={saving}
                                                     />
                                                     <div className="col-span-4 relative">
@@ -352,7 +352,7 @@ export default function EditMenuItemModal({ isOpen, onClose, item, categories, o
                                                             value={variant.price}
                                                             onChange={(e) => setVariants((prev) => prev.map((v) => (v.clientId === variant.clientId ? { ...v, price: e.target.value } : v)))}
                                                             placeholder="Price"
-                                                            className="w-full h-[40px] pl-7 pr-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#2BB29C]"
+                                                            className="w-full h-[40px] pl-7 pr-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#DD2F26]"
                                                             disabled={saving}
                                                         />
                                                     </div>
@@ -402,7 +402,7 @@ export default function EditMenuItemModal({ isOpen, onClose, item, categories, o
                                                 value={addon.name}
                                                 onChange={(e) => setAddons((prev) => prev.map((a) => (a.clientId === addon.clientId ? { ...a, name: e.target.value } : a)))}
                                                 placeholder="Add-on name"
-                                                className="col-span-6 h-[40px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#2BB29C]"
+                                                className="col-span-6 h-[40px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#DD2F26]"
                                                 disabled={saving}
                                             />
                                             <input
@@ -410,7 +410,7 @@ export default function EditMenuItemModal({ isOpen, onClose, item, categories, o
                                                 value={addon.price}
                                                 onChange={(e) => setAddons((prev) => prev.map((a) => (a.clientId === addon.clientId ? { ...a, price: e.target.value } : a)))}
                                                 placeholder="Price"
-                                                className="col-span-3 h-[40px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#2BB29C]"
+                                                className="col-span-3 h-[40px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#DD2F26]"
                                                 disabled={saving}
                                             />
                                             <input
@@ -418,7 +418,7 @@ export default function EditMenuItemModal({ isOpen, onClose, item, categories, o
                                                 value={addon.image}
                                                 onChange={(e) => setAddons((prev) => prev.map((a) => (a.clientId === addon.clientId ? { ...a, image: e.target.value } : a)))}
                                                 placeholder="Image URL"
-                                                className="col-span-2 h-[40px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#2BB29C]"
+                                                className="col-span-2 h-[40px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#DD2F26]"
                                                 disabled={saving}
                                             />
                                             <button
@@ -459,7 +459,7 @@ export default function EditMenuItemModal({ isOpen, onClose, item, categories, o
                                     </div>
                                     <button
                                         type="button"
-                                        className={`w-[44px] h-[24px] rounded-full p-1 transition-colors ${form.trackInventory ? 'bg-[#2BB29C]' : 'bg-gray-300'} ${saving ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
+                                        className={`w-[44px] h-[24px] rounded-full p-1 transition-colors ${form.trackInventory ? 'bg-[#DD2F26]' : 'bg-gray-300'} ${saving ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
                                         onClick={() => {
                                             if (saving) return;
                                             setForm((prev) => ({ ...prev, trackInventory: !prev.trackInventory }));
@@ -477,7 +477,7 @@ export default function EditMenuItemModal({ isOpen, onClose, item, categories, o
                                             type="text"
                                             value={form.stockQuantity}
                                             onChange={(e) => setForm((prev) => ({ ...prev, stockQuantity: e.target.value }))}
-                                            className={`w-full h-[40px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#2BB29C] ${form.trackInventory ? '' : 'bg-gray-50 text-gray-400'}`}
+                                            className={`w-full h-[40px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#DD2F26] ${form.trackInventory ? '' : 'bg-gray-50 text-gray-400'}`}
                                             disabled={saving || !form.trackInventory}
                                         />
                                     </div>
@@ -487,7 +487,7 @@ export default function EditMenuItemModal({ isOpen, onClose, item, categories, o
                                             type="text"
                                             value={form.lowStockAlert}
                                             onChange={(e) => setForm((prev) => ({ ...prev, lowStockAlert: e.target.value }))}
-                                            className={`w-full h-[40px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#2BB29C] ${form.trackInventory ? '' : 'bg-gray-50 text-gray-400'}`}
+                                            className={`w-full h-[40px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#DD2F26] ${form.trackInventory ? '' : 'bg-gray-50 text-gray-400'}`}
                                             disabled={saving || !form.trackInventory}
                                         />
                                     </div>
@@ -508,7 +508,7 @@ export default function EditMenuItemModal({ isOpen, onClose, item, categories, o
                                     rows={4}
                                     value={imagesText}
                                     onChange={(e) => setImagesText(e.target.value)}
-                                    className="w-full p-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[13px] outline-none focus:border-[#2BB29C] resize-none"
+                                    className="w-full p-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[13px] outline-none focus:border-[#DD2F26] resize-none"
                                     disabled={saving}
                                 />
                             </div>
@@ -534,13 +534,13 @@ export default function EditMenuItemModal({ isOpen, onClose, item, categories, o
                                             }
                                         }}
                                         placeholder="Type and press Enter"
-                                        className="flex-1 h-[40px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#2BB29C]"
+                                        className="flex-1 h-[40px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#DD2F26]"
                                         disabled={saving}
                                     />
                                     <button
                                         type="button"
                                         onClick={() => addTag(tagInput)}
-                                        className={`h-[40px] px-4 rounded-[8px] bg-[#2BB29C] text-white text-[13px] font-[600] hover:bg-[#259D89] transition-colors ${saving ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                        className={`h-[40px] px-4 rounded-[8px] bg-[#DD2F26] text-white text-[13px] font-[600] hover:bg-[#C52820] transition-colors ${saving ? 'opacity-60 cursor-not-allowed' : ''}`}
                                         disabled={saving}
                                     >
                                         Add
@@ -578,7 +578,7 @@ export default function EditMenuItemModal({ isOpen, onClose, item, categories, o
                                             type="text"
                                             value={form.prepTimeMinutes}
                                             onChange={(e) => setForm((prev) => ({ ...prev, prepTimeMinutes: e.target.value }))}
-                                            className="w-full h-[40px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#2BB29C]"
+                                            className="w-full h-[40px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#DD2F26]"
                                             disabled={saving}
                                         />
                                     </div>
@@ -589,7 +589,7 @@ export default function EditMenuItemModal({ isOpen, onClose, item, categories, o
                                         </div>
                                         <button
                                             type="button"
-                                            className={`w-[44px] h-[24px] rounded-full p-1 transition-colors ${form.isAvailable ? 'bg-[#2BB29C]' : 'bg-gray-300'} ${saving ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
+                                            className={`w-[44px] h-[24px] rounded-full p-1 transition-colors ${form.isAvailable ? 'bg-[#DD2F26]' : 'bg-gray-300'} ${saving ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
                                             onClick={() => {
                                                 if (saving) return;
                                                 setForm((prev) => ({ ...prev, isAvailable: !prev.isAvailable }));
@@ -608,7 +608,7 @@ export default function EditMenuItemModal({ isOpen, onClose, item, categories, o
                                     </div>
                                     <button
                                         type="button"
-                                        className={`w-[44px] h-[24px] rounded-full p-1 transition-colors ${form.catering ? 'bg-[#2BB29C]' : 'bg-gray-300'} ${saving ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
+                                        className={`w-[44px] h-[24px] rounded-full p-1 transition-colors ${form.catering ? 'bg-[#DD2F26]' : 'bg-gray-300'} ${saving ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
                                         onClick={() => {
                                             if (saving) return;
                                             setForm((prev) => ({ ...prev, catering: !prev.catering }));
@@ -625,7 +625,7 @@ export default function EditMenuItemModal({ isOpen, onClose, item, categories, o
                                         type="text"
                                         value={form.cateringMinimumOrder}
                                         onChange={(e) => setForm((prev) => ({ ...prev, cateringMinimumOrder: e.target.value }))}
-                                        className={`w-full h-[40px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#2BB29C] ${form.catering ? '' : 'bg-gray-50 text-gray-400'}`}
+                                        className={`w-full h-[40px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#DD2F26] ${form.catering ? '' : 'bg-gray-50 text-gray-400'}`}
                                         disabled={saving || !form.catering}
                                     />
                                 </div>
@@ -646,7 +646,7 @@ export default function EditMenuItemModal({ isOpen, onClose, item, categories, o
                     <button
                         type="button"
                         onClick={submit}
-                        className={`px-4 py-2.5 rounded-[8px] text-[13px] font-medium text-white transition-colors ${canSave ? 'bg-[#2BB29C] hover:bg-[#259D89]' : 'bg-gray-300 cursor-not-allowed'}`}
+                        className={`px-4 py-2.5 rounded-[8px] text-[13px] font-medium text-white transition-colors ${canSave ? 'bg-[#DD2F26] hover:bg-[#C52820]' : 'bg-gray-300 cursor-not-allowed'}`}
                         disabled={!canSave}
                     >
                         {saving ? 'Saving...' : 'Save Changes'}

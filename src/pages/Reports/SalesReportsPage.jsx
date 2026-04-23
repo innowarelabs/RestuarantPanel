@@ -7,7 +7,7 @@ import { ChevronLeft, DollarSign, ShoppingCart, Receipt, Wallet, Percent, Downlo
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const REPORTS_API_BASE = 'https://api.baaie.com';
-const PDF_PRIMARY = [43, 178, 156]; // #2BB29C
+const PDF_PRIMARY = [221, 47, 38]; // #DD2F26
 
 const formatCurrency = (val) => (val != null ? `$${Number(val).toLocaleString()}` : '--');
 
@@ -318,7 +318,7 @@ const SalesReportsPage = () => {
                                             <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#6B7280' }} />
                                             <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#6B7280' }} tickFormatter={(v) => `$${v}`} />
                                             <Tooltip formatter={(v) => [`$${Number(v).toLocaleString()}`, 'Sales']} cursor={{ fill: '#F9FAFB' }} />
-                                            <Bar dataKey="sales" fill="#2BB29C" radius={[4, 4, 0, 0]} name="Sales" />
+                                            <Bar dataKey="sales" fill="#DD2F26" radius={[4, 4, 0, 0]} name="Sales" />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </div>

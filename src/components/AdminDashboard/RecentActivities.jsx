@@ -8,7 +8,7 @@ const getIconConfig = (type) => {
         case 'order_completed':
             return { icon: CheckCircle2, iconColor: 'text-[#10B981]', iconBg: 'bg-[#ECFDF5]' };
         case 'payment_received':
-            return { icon: DollarSign, iconColor: 'text-[#15B99E]', iconBg: 'bg-[#F0FDF9]' };
+            return { icon: DollarSign, iconColor: 'text-[#15B99E]', iconBg: 'bg-[#FEF2F2]' };
         case 'order_cancelled':
             return { icon: XCircle, iconColor: 'text-[#EF4444]', iconBg: 'bg-[#FEF2F2]' };
         default:

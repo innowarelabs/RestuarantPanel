@@ -18,7 +18,7 @@ export default function Step9({ handlePrev, handleNext }) {
                         <div className="space-y-4">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 bg-[#E6F7F4] rounded-[8px] flex items-center justify-center text-[22px]">
+                                    <div className="w-12 h-12 bg-[#FEF2F2] rounded-[8px] flex items-center justify-center text-[22px]">
                                         {item.icon}
                                     </div>
                                     <h4 className="text-[16px] font-[400] text-[#111111]">{item.title}</h4>
@@ -31,7 +31,7 @@ export default function Step9({ handlePrev, handleNext }) {
                                 {item.desc}
                             </p>
                         </div>
-                        <button className="w-full h-[45px] bg-[#24B99E] text-white rounded-[8px] font-[500] text-[16px] hover:bg-[#20a38b] transition-all">
+                        <button className="w-full h-[45px] bg-[#DD2F26] text-white rounded-[8px] font-[500] text-[16px] hover:bg-[#C52820] transition-all">
                             Connect
                         </button>
                     </div>

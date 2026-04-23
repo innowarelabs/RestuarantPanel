@@ -221,7 +221,7 @@ export default function Step5({
                             setEditingReward(null);
                             setShowAddRewardModal(true);
                         }}
-                        className="h-10 w-full sm:w-auto px-4 bg-primary text-white rounded-[8px] text-[14px] font-[500] flex items-center justify-center gap-2 hover:bg-[#20a38b] transition-colors shadow-sm"
+                        className="h-10 w-full sm:w-auto px-4 bg-primary text-white rounded-[8px] text-[14px] font-[500] flex items-center justify-center gap-2 hover:bg-[#C52820] transition-colors shadow-sm"
                     >
                         <Plus size={16} /> Add Reward Item
                     </button>
@@ -249,7 +249,7 @@ export default function Step5({
                                         <h4 className="text-[15px] font-[400] text-[#1A1A1A] truncate">{reward.reward_name}</h4>
                                         <p className="text-[13px] text-[#6B7280] truncate">{reward.description || '—'}</p>
                                         <div className="flex items-center gap-2 pt-0.5">
-                                            <span className="text-[12px] font-[500] text-primary bg-[#E6F7F4] px-2 py-0.5 rounded-[4px]">{reward.points_required} points</span>
+                                            <span className="text-[12px] font-[500] text-primary bg-[#FEF2F2] px-2 py-0.5 rounded-[4px]">{reward.points_required} points</span>
                                             <span className={`text-[12px] font-[500] px-2 py-0.5 rounded-[4px] ${reward.is_active ? 'text-[#10B981] bg-[#ECFDF5]' : 'text-gray-400 bg-gray-100'}`}>
                                                 {reward.is_active ? 'Active' : 'Inactive'}
                                             </span>
@@ -275,7 +275,7 @@ export default function Step5({
                 </div>
             </div>
 
-            <div className="bg-[#E6F7F4] border border-[#24B99E] p-5 rounded-[12px] space-y-3">
+            <div className="bg-[#FEF2F2] border border-[#DD2F26] p-5 rounded-[12px] space-y-3">
                 <h4 className="text-[13px] font-[500] text-primary">Loyalty Program Summary</h4>
                 <ul className="space-y-2">
                     <li className="text-[12px] text-[#475569] flex items-start gap-2">

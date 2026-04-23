@@ -56,7 +56,7 @@ export default function MenuPreviewModal({ isOpen, onClose }) {
                         <div className="mb-6">
                             <h2 className="text-[20px] font-bold text-[#111827] mb-2">Burgers</h2>
                             <div className="h-[2px] w-full bg-[#E5E7EB]">
-                                <div className="h-full w-[100px] bg-[#2BB29C]"></div>
+                                <div className="h-full w-[100px] bg-[#DD2F26]"></div>
                             </div>
                         </div>
 
@@ -74,7 +74,7 @@ export default function MenuPreviewModal({ isOpen, onClose }) {
                                             <h3 className="text-[16px] font-medium text-[#111827]">{item.name}</h3>
                                             <p className="text-[13px] text-gray-500 mt-1">{item.description}</p>
                                         </div>
-                                        <span className="text-[15px] font-bold text-[#2BB29C]">{item.price}</span>
+                                        <span className="text-[15px] font-bold text-[#DD2F26]">{item.price}</span>
                                     </div>
                                 </div>
                             ))}
@@ -87,7 +87,7 @@ export default function MenuPreviewModal({ isOpen, onClose }) {
                 <div className="px-6 py-5 border-t border-gray-100 bg-white shrink-0">
                     <button
                         onClick={onClose}
-                        className="w-full py-3 bg-[#2BB29C] text-white rounded-[8px] text-[14px] font-medium hover:bg-[#259D89] transition-colors shadow-sm cursor-pointer"
+                        className="w-full py-3 bg-[#DD2F26] text-white rounded-[8px] text-[14px] font-medium hover:bg-[#C52820] transition-colors shadow-sm cursor-pointer"
                     >
                         Close Preview
                     </button>

@@ -113,9 +113,9 @@ export default function OrderRequestModal({ isOpen, onClose, order, onAccept, on
                                         <div key={index} className="relative pl-6">
                                             {/* Dot/Icon */}
                                             <div className={`absolute -left-[11px] top-0 w-6 h-6 rounded-full border-2 flex items-center justify-center bg-white
-                                                ${event.active ? 'border-[#2BB29C] text-[#2BB29C]' : 'border-gray-200 text-gray-300'}`}>
+                                                ${event.active ? 'border-[#DD2F26] text-[#DD2F26]' : 'border-gray-200 text-gray-300'}`}>
                                                 {event.active ? (
-                                                    <div className="w-6 h-6 rounded-full bg-[#2BB29C] flex items-center justify-center">
+                                                    <div className="w-6 h-6 rounded-full bg-[#DD2F26] flex items-center justify-center">
                                                         <Check size={14} className="text-white" />
                                                     </div>
                                                 ) : (
@@ -201,7 +201,7 @@ export default function OrderRequestModal({ isOpen, onClose, order, onAccept, on
                                         </p>
                                         <span className={`font-medium mt-1 block ${order.paymentStatus === 'Cash'
                                             ? 'text-[#ea580c]'
-                                            : 'text-[#2BB29C]'
+                                            : 'text-[#DD2F26]'
                                             }`}>
                                             {order.paymentStatus}
                                         </span>
@@ -254,7 +254,7 @@ export default function OrderRequestModal({ isOpen, onClose, order, onAccept, on
                     </button>
                     <button
                         onClick={() => onAccept(order)}
-                        className="flex-1 py-2.5 bg-[#2BB29C] text-white rounded-[8px] font-medium text-[14px] hover:bg-[#259D89] transition-colors shadow-sm cursor-pointer"
+                        className="flex-1 py-2.5 bg-[#DD2F26] text-white rounded-[8px] font-medium text-[14px] hover:bg-[#C52820] transition-colors shadow-sm cursor-pointer"
                     >
                         Accept Order
                     </button>

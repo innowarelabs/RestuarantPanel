@@ -69,12 +69,12 @@ const OTPInput = ({ otp, setOtp, onSubmit, loading, error = "" }) => {
                 text-center text-[19px]
                 text-general-text caret-black
                 rounded-[12px] transition-all duration-200
-                focus:outline-none focus:ring-1 focus:ring-[#24B99E]/20 focus:border-[#24B99E]
+                focus:outline-none focus:ring-1 focus:ring-[#DD2F26]/20 focus:border-[#DD2F26]
                 cursor-text
                 ${otpError
                   ? "border border-red-500 bg-red-50 text-red-900"
                   : digit
-                    ? "border border-[#24B99E] bg-[#24B99E]/5 text-general-text"
+                    ? "border border-[#DD2F26] bg-[#DD2F26]/5 text-general-text"
                     : "border border-black/70 bg-white text-general-text"
                 }
               `}

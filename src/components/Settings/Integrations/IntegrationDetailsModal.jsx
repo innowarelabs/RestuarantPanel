@@ -79,7 +79,7 @@ const IntegrationDetailsModal = ({ isOpen, onClose, platform }) => {
                     </button>
                     <button
                         onClick={() => { }}
-                        className="flex items-center gap-2 px-6 py-2.5 text-[16px] font-[400] text-white bg-[#2BB29C] rounded-[8px] shadow-lg shadow-[#2BB29C]/20 hover:bg-[#24A18C] active:scale-95 transition-all"
+                        className="flex items-center gap-2 px-6 py-2.5 text-[16px] font-[400] text-white bg-[#DD2F26] rounded-[8px] shadow-lg shadow-[#DD2F26]/20 hover:bg-[#C52820] active:scale-95 transition-all"
                     >
                         <RefreshCcw size={18} />
                         Resync Now

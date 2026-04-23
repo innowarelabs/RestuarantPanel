@@ -9,7 +9,7 @@ export default function Step10({ setShowPreviewModal, onComplete, handlePrev }) 
                 </p>
                 <button
                     onClick={() => setShowPreviewModal(true)}
-                    className="w-full h-[56px] bg-[#24B99E] text-white rounded-[8px] font-[500] text-[16px] flex items-center justify-center gap-2 hover:bg-[#20a38b] transition-all shadow-sm"
+                    className="w-full h-[56px] bg-[#DD2F26] text-white rounded-[8px] font-[500] text-[16px] flex items-center justify-center gap-2 hover:bg-[#C52820] transition-all shadow-sm"
                 >
                     <Eye size={20} /> Preview All Information
                 </button>
@@ -23,13 +23,13 @@ export default function Step10({ setShowPreviewModal, onComplete, handlePrev }) 
                     <div key={idx} className="bg-white border border-[#E5E7EB] rounded-[12px] p-5">
                         <h4 className="text-[15px] font-[400] text-[#1A1A1A] mb-1.5">{name}</h4>
                         <p className="text-[13px] text-[#6B7280] flex items-center gap-1.5 font-[400]">
-                            <Check size={14} className="text-[#24B99E]" strokeWidth={3} /> Completed
+                            <Check size={14} className="text-[#DD2F26]" strokeWidth={3} /> Completed
                         </p>
                     </div>
                 ))}
             </div>
 
-            <div className="bg-[#E6F7F4] border border-[#24B99E]/20 p-5 rounded-[8px]">
+            <div className="bg-[#FEF2F2] border border-[#DD2F26]/20 p-5 rounded-[8px]">
                 <p className="text-[14px] text-[#111827]">
                     <span className="font-[600]">Ready to go!</span> Click "Complete Setup" below to finish and access your dashboard.
                 </p>
@@ -37,7 +37,7 @@ export default function Step10({ setShowPreviewModal, onComplete, handlePrev }) 
 
             <button
                 type="button"
-                className="sm:hidden mt-4 h-[52px] w-full bg-[#24B99E] text-white rounded-[10px] font-bold text-[15px] flex items-center justify-center gap-2 hover:bg-[#20a38b] transition-all"
+                className="sm:hidden mt-4 h-[52px] w-full bg-[#DD2F26] text-white rounded-[10px] font-bold text-[15px] flex items-center justify-center gap-2 hover:bg-[#C52820] transition-all"
                 onClick={onComplete}
             >
                 Complete Setup <ChevronRight size={18} />
@@ -49,7 +49,7 @@ export default function Step10({ setShowPreviewModal, onComplete, handlePrev }) 
                 </button>
                 <button
                     type="button"
-                    className="hidden sm:flex h-[52px] min-w-[180px] bg-[#24B99E] text-white rounded-[10px] font-bold text-[15px] items-center justify-center gap-2 hover:bg-[#20a38b] transition-all"
+                    className="hidden sm:flex h-[52px] min-w-[180px] bg-[#DD2F26] text-white rounded-[10px] font-bold text-[15px] items-center justify-center gap-2 hover:bg-[#C52820] transition-all"
                     onClick={onComplete}
                 >
                     Complete Setup <ChevronRight size={18} />

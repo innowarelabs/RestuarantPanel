@@ -11,7 +11,7 @@ const TextInput = ({ label, id, className, ...props }) => {
             </label>
             <input
                 id={id}
-                className={`w-full h-[56px] px-5 py-4.5 rounded-[12px] border border-[#DCDBDD] focus:outline-none focus:border-[#24B99E] transition-colors bg-white text-[#1F2937] placeholder-[#D1D5DB] text-[16px] relative z-0 ${className}`}
+                className={`w-full h-[56px] px-5 py-4.5 rounded-[12px] border border-[#DCDBDD] focus:outline-none focus:border-[#DD2F26] transition-colors bg-white text-[#1F2937] placeholder-[#D1D5DB] text-[16px] relative z-0 ${className}`}
                 {...props}
             />
         </div>

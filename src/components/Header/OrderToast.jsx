@@ -20,7 +20,7 @@ export default function OrderToast({ t, orderId, onViewOrder }) {
                             onViewOrder();
                             toast.dismiss(t.id);
                         }}
-                        className="flex-1 sm:flex-none h-[38px] sm:h-[44px] px-4 sm:px-6 bg-[#24B99E] text-white text-[13px] sm:text-[14px] font-bold rounded-xl hover:bg-[#20a38b] transition-all shadow-lg shadow-[#24B99E]/20"
+                        className="flex-1 sm:flex-none h-[38px] sm:h-[44px] px-4 sm:px-6 bg-[#DD2F26] text-white text-[13px] sm:text-[14px] font-bold rounded-xl hover:bg-[#C52820] transition-all shadow-lg shadow-[#DD2F26]/20"
                     >
                         View Order
                     </button>

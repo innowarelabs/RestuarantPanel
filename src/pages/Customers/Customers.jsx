@@ -127,7 +127,7 @@ export default function Customers() {
 
     const stats = [
         { label: 'Total Customers', value: customerCards?.total_customers.toString() || '0' },
-        { label: 'Loyalty Members', value: customerCards?.loyalty_members.toString() || '0', textColor: 'text-[#2BB29C]' },
+        { label: 'Loyalty Members', value: customerCards?.loyalty_members.toString() || '0', textColor: 'text-[#DD2F26]' },
         { label: 'High Value ($100+)', value: customerCards?.high_value_customers.toString() || '0' },
     ];
 
@@ -213,7 +213,7 @@ export default function Customers() {
 
                 <button 
                     onClick={handleResetFilters}
-                    className="px-4 py-2 bg-[#E0F2F1] text-[#2BB29C] rounded-lg text-[14px] font-medium hover:bg-[#B2DFDB] transition-colors cursor-pointer">
+                    className="px-4 py-2 bg-[#FEF2F2] text-[#DD2F26] rounded-lg text-[14px] font-medium hover:bg-[#FECACA] transition-colors cursor-pointer">
                     Reset Filters
                 </button>
             </div>
@@ -258,7 +258,7 @@ export default function Customers() {
                                     >
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-[#E0F2F1] flex items-center justify-center text-[#2BB29C]">
+                                                <div className="w-8 h-8 rounded-full bg-[#FEF2F2] flex items-center justify-center text-[#DD2F26]">
                                                     <User size={16} />
                                                 </div>
                                                 <span className="text-[14px] font-[500] text-[#111827]">{customer.name}</span>

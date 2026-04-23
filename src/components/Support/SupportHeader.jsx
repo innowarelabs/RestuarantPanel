@@ -18,7 +18,7 @@ const SupportHeader = ({ activeTab, onTabChange, onNewTicket, onFilter }) => {
                         <input
                             type="text"
                             placeholder="Search ticket ID…"
-                            className="w-full pl-9 pr-4 py-2 bg-white border border-[#E5E7EB] rounded-[8px] text-[13px] focus:outline-none focus:ring-1 focus:ring-[#2BB29C]/20 placeholder:text-gray-400"
+                            className="w-full pl-9 pr-4 py-2 bg-white border border-[#E5E7EB] rounded-[8px] text-[13px] focus:outline-none focus:ring-1 focus:ring-[#DD2F26]/20 placeholder:text-gray-400"
                         />
                     </div>
 
@@ -33,7 +33,7 @@ const SupportHeader = ({ activeTab, onTabChange, onNewTicket, onFilter }) => {
 
                         <button
                             onClick={onNewTicket}
-                            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-[#2BB29C] text-white rounded-[8px] text-[13px] font-[600] hover:bg-[#24A18C] transition-all active:scale-95 whitespace-nowrap"
+                            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-[#DD2F26] text-white rounded-[8px] text-[13px] font-[600] hover:bg-[#C52820] transition-all active:scale-95 whitespace-nowrap"
                         >
                             <Plus className="w-4 h-4" />
                             New Ticket

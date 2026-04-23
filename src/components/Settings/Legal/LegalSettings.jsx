@@ -42,11 +42,11 @@ const LegalSettings = () => {
                         <div
                             key={index}
                             onClick={() => handleViewDoc(doc)}
-                            className="flex items-center justify-between p-4 border border-[#E5E7EB] rounded-[8px] hover:border-[#24B99E]/30 transition group cursor-pointer"
+                            className="flex items-center justify-between p-4 border border-[#E5E7EB] rounded-[8px] hover:border-[#DD2F26]/30 transition group cursor-pointer"
                         >
                             <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center group-hover:bg-[#F0FDFA] transition-colors">
-                                    <FileText className="w-4 h-4 text-[#9CA3AF] group-hover:text-[#24B99E] transition" />
+                                <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center group-hover:bg-[#FEF2F2] transition-colors">
+                                    <FileText className="w-4 h-4 text-[#9CA3AF] group-hover:text-[#DD2F26] transition" />
                                 </div>
                                 <span className="font-[500] text-[14px] text-[#1A1A1A]">{doc}</span>
                             </div>

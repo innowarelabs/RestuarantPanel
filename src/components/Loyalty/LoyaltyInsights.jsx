@@ -12,16 +12,16 @@ const LoyaltyInsights = () => {
                     title="Total Redemptions"
                     value="100"
                     icon={<Ticket className="w-5 h-5" />}
-                    bgColor="bg-[#E6F7F4]"
-                    textColor="text-[#0D9488]"
+                    bgColor="bg-[#FEF2F2]"
+                    textColor="text-[#B91C1C]"
                 />
                 <LoyaltyStatCard
                     title="Most Redeemed"
                     value="Free Coffee"
                     subtext="31 times"
                     icon={<TrendingUp className="w-5 h-5" />}
-                    bgColor="bg-[#E6F7F4]"
-                    textColor="text-[#0D9488]"
+                    bgColor="bg-[#FEF2F2]"
+                    textColor="text-[#B91C1C]"
                 />
                 <LoyaltyStatCard
                     title="Active Members"

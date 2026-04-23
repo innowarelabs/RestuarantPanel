@@ -366,7 +366,7 @@ function AddCateringItemModal({ isOpen, onClose, categories, accessToken, onSucc
                                 <select
                                     value={selectedCategoryId}
                                     onChange={(e) => setSelectedCategoryId(e.target.value)}
-                                    className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors appearance-none cursor-pointer shadow-sm"
+                                    className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] transition-colors appearance-none cursor-pointer shadow-sm"
                                 >
                                     <option value="">Select category...</option>
                                     {categories.map((category) => (
@@ -386,7 +386,7 @@ function AddCateringItemModal({ isOpen, onClose, categories, accessToken, onSucc
                                     value={selectedItemId}
                                     onChange={(e) => setSelectedItemId(e.target.value)}
                                     disabled={!selectedCategoryId}
-                                    className={`w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors appearance-none cursor-pointer shadow-sm ${!selectedCategoryId ? 'bg-[#F3F4F6] text-[#9CA3AF]' : ''}`}
+                                    className={`w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] transition-colors appearance-none cursor-pointer shadow-sm ${!selectedCategoryId ? 'bg-[#F3F4F6] text-[#9CA3AF]' : ''}`}
                                 >
                                     <option value="">{selectedCategoryId ? 'Select item...' : 'Select category first'}</option>
                                     {items.map((item) => (
@@ -409,7 +409,7 @@ function AddCateringItemModal({ isOpen, onClose, categories, accessToken, onSucc
                                     <button
                                         type="button"
                                         onClick={() => setCateringEnabled((prev) => !prev)}
-                                        className={`w-[44px] h-[24px] rounded-full p-1 transition-colors ${cateringEnabled ? 'bg-[#2BB29C]' : 'bg-gray-300'}`}
+                                        className={`w-[44px] h-[24px] rounded-full p-1 transition-colors ${cateringEnabled ? 'bg-[#DD2F26]' : 'bg-gray-300'}`}
                                     >
                                         <div className={`w-[16px] h-[16px] bg-white rounded-full shadow-sm transform transition-transform ${cateringEnabled ? 'translate-x-[20px]' : 'translate-x-0'}`} />
                                     </button>
@@ -422,7 +422,7 @@ function AddCateringItemModal({ isOpen, onClose, categories, accessToken, onSucc
                                         placeholder="Minimum Order Stock"
                                         value={minimumOrder}
                                         onChange={(e) => setMinimumOrder(e.target.value)}
-                                        className="w-full h-[44px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors shadow-sm"
+                                        className="w-full h-[44px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] transition-colors shadow-sm"
                                     />
                                 </div>
                             </div>
@@ -442,7 +442,7 @@ function AddCateringItemModal({ isOpen, onClose, categories, accessToken, onSucc
                             type="button"
                             onClick={handleSubmit}
                             disabled={saving}
-                            className="h-[40px] px-4 bg-[#2BB29C] text-white rounded-[10px] text-[13px] font-[600] hover:bg-[#259D89] transition-colors disabled:opacity-60"
+                            className="h-[40px] px-4 bg-[#DD2F26] text-white rounded-[10px] text-[13px] font-[600] hover:bg-[#C52820] transition-colors disabled:opacity-60"
                         >
                             {saving ? 'Saving...' : 'Save Item'}
                         </button>
@@ -1128,7 +1128,7 @@ export default function MenuManagement() {
                         <input
                             type="text"
                             placeholder="Search categories..."
-                            className="w-full pl-9 pr-4 py-2 bg-[#F3F4F6] rounded-[8px] text-[14px] outline-none border border-transparent focus:border-[#2BB29C] transition-colors"
+                            className="w-full pl-9 pr-4 py-2 bg-[#F3F4F6] rounded-[8px] text-[14px] outline-none border border-transparent focus:border-[#DD2F26] transition-colors"
                             value={categorySearch}
                             onChange={(e) => setCategorySearch(e.target.value)}
                         />
@@ -1140,7 +1140,7 @@ export default function MenuManagement() {
                             setSavingCategoryErrorLines([]);
                             setIsAddCategoryModalOpen(true);
                         }}
-                        className="w-full flex items-center justify-center gap-2 border border-[#2BB29C] text-[#2BB29C] bg-white hover:bg-[#F0FDFA] py-2.5 rounded-[8px] font-medium text-[14px] mb-6 transition-colors cursor-pointer"
+                        className="w-full flex items-center justify-center gap-2 border border-[#DD2F26] text-[#DD2F26] bg-white hover:bg-[#FEF2F2] py-2.5 rounded-[8px] font-medium text-[14px] mb-6 transition-colors cursor-pointer"
                     >
                         <Plus size={18} />
                         Add Category
@@ -1176,7 +1176,7 @@ export default function MenuManagement() {
                                 }}
                                 className={`group flex items-center justify-between p-3 rounded-[8px] cursor-pointer border transition-all
                                 ${activeCategory === cat.name
-                                        ? 'bg-[#E0F7F4] border-[#2BB29C]'
+                                        ? 'bg-[#FEF2F2] border-[#DD2F26]'
                                         : 'bg-white border-transparent hover:bg-gray-50'
                                     }`}
                             >
@@ -1188,7 +1188,7 @@ export default function MenuManagement() {
                                 </div>
 
                                 <div className="flex items-center gap-2 relative">
-                                    {/* <Eye size={16} className={`cursor-pointer ${cat.visible ? 'text-[#2BB29C]' : 'text-gray-300'}`} /> */}
+                                    {/* <Eye size={16} className={`cursor-pointer ${cat.visible ? 'text-[#DD2F26]' : 'text-gray-300'}`} /> */}
                                     <div className="relative">
                                         <MoreVertical
                                             size={16}
@@ -1288,7 +1288,7 @@ export default function MenuManagement() {
                                                         item.minVariantHasDiscount && item.minVariantOriginalPrice ? (
                                                             <div className="flex items-baseline gap-2">
                                                                 <span className="line-through text-[#9CA3AF] font-[400]">{item.minVariantOriginalPrice}</span>
-                                                                <span className="text-[#2BB29C] font-[600]">{item.minVariantDiscountedPrice}</span>
+                                                                <span className="text-[#DD2F26] font-[600]">{item.minVariantDiscountedPrice}</span>
                                                             </div>
                                                         ) : (
                                                             item.minVariantPrice
@@ -1296,7 +1296,7 @@ export default function MenuManagement() {
                                                     ) : item.hasDiscount && item.discountedPrice ? (
                                                         <div className="flex items-baseline gap-2">
                                                             <span className="line-through text-[#9CA3AF] font-[400]">{item.price}</span>
-                                                            <span className="text-[#2BB29C] font-[600]">{item.discountedPrice}</span>
+                                                            <span className="text-[#DD2F26] font-[600]">{item.discountedPrice}</span>
                                                         </div>
                                                     ) : (
                                                         item.price
@@ -1309,7 +1309,7 @@ export default function MenuManagement() {
                                                     </div>
                                                 </td>
                                                 <td className="px-4 py-4 whitespace-nowrap">
-                                                    <div className={`w-[44px] h-[23px] rounded-full p-1 cursor-pointer transition-colors ${item.status ? 'bg-[#2BB29C]' : 'bg-gray-300'}`}>
+                                                    <div className={`w-[44px] h-[23px] rounded-full p-1 cursor-pointer transition-colors ${item.status ? 'bg-[#DD2F26]' : 'bg-gray-300'}`}>
                                                         <div className={`w-[16px] h-[15px] bg-white rounded-full shadow-sm transform transition-transform ${item.status ? 'translate-x-[20px]' : 'translate-x-0'}`} />
                                                     </div>
                                                 </td>
@@ -1325,7 +1325,7 @@ export default function MenuManagement() {
                                                                     categoryName: item.categoryName,
                                                                 });
                                                             }}
-                                                            className="text-[#2BB29C] hover:text-[#2BB29C] p-2 rounded-md transition-colors cursor-pointer"
+                                                            className="text-[#DD2F26] hover:text-[#DD2F26] p-2 rounded-md transition-colors cursor-pointer"
                                                         >
                                                             <Edit2 size={16} />
                                                         </button>
@@ -1371,7 +1371,7 @@ export default function MenuManagement() {
                     <h3 className="text-[16px] font-[800] text-[#111827]">Today’s Deal</h3>
                     <button
                         onClick={() => setIsAddTodaysDealModalOpen(true)}
-                        className="h-[38px] px-4 bg-[#2BB29C] text-white rounded-[10px] text-[13px] font-[600] hover:bg-[#259D89] transition-colors"
+                        className="h-[38px] px-4 bg-[#DD2F26] text-white rounded-[10px] text-[13px] font-[600] hover:bg-[#C52820] transition-colors"
                     >
                         + Add Today’s Deal
                     </button>
@@ -1422,13 +1422,13 @@ export default function MenuManagement() {
                                         >
                                             {pricing.price}
                                         </td>
-                                        <td className="px-4 py-4 text-[14px] font-[600] text-[#2BB29C]">
+                                        <td className="px-4 py-4 text-[14px] font-[600] text-[#DD2F26]">
                                             {pricing.hasDiscount && pricing.discounted ? pricing.discounted : '-'}
                                         </td>
                                         <td className="px-4 py-4 text-[13px] text-[#6B7280]">{formatDateTime(deal.deal_starts_at)}</td>
                                         <td className="px-4 py-4 text-[13px] text-[#6B7280]">{formatDateTime(deal.deal_ends_at)}</td>
                                         <td className="px-6 py-4 w-[120px]">
-                                            <button className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] text-[#2BB29C] hover:bg-[#F0FDFA] transition-colors">
+                                            <button className="inline-flex items-center justify-center w-9 h-9 rounded-[10px] text-[#DD2F26] hover:bg-[#FEF2F2] transition-colors">
                                                 <Edit2 size={16} />
                                             </button>
                                             <button
@@ -1464,7 +1464,7 @@ export default function MenuManagement() {
                     <h3 className="text-[16px] font-[800] text-[#111827]">Top Seller</h3>
                     <button
                         onClick={() => setIsAddTopSellerModalOpen(true)}
-                        className="h-[38px] px-4 bg-[#2BB29C] text-white rounded-[10px] text-[13px] font-[600] hover:bg-[#259D89] transition-colors"
+                        className="h-[38px] px-4 bg-[#DD2F26] text-white rounded-[10px] text-[13px] font-[600] hover:bg-[#C52820] transition-colors"
                     >
                         + Add Top Seller
                     </button>
@@ -1510,7 +1510,7 @@ export default function MenuManagement() {
                                                     {pricing.hasDiscount && pricing.discounted ? (
                                                         <div className="flex items-baseline gap-2">
                                                             <span className="line-through text-[#9CA3AF] font-[400]">{pricing.price}</span>
-                                                            <span className="text-[#2BB29C] font-[600]">{pricing.discounted}</span>
+                                                            <span className="text-[#DD2F26] font-[600]">{pricing.discounted}</span>
                                                         </div>
                                                     ) : (
                                                         pricing.price
@@ -1521,7 +1521,7 @@ export default function MenuManagement() {
                                                         type="button"
                                                         onClick={() => updateBestSeller(item.id, false)}
                                                         disabled={isUpdating}
-                                                        className={`w-[44px] h-[24px] rounded-full p-1 transition-colors ${item.is_best_seller === false ? 'bg-gray-300' : 'bg-[#2BB29C]'} ${isUpdating ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                                        className={`w-[44px] h-[24px] rounded-full p-1 transition-colors ${item.is_best_seller === false ? 'bg-gray-300' : 'bg-[#DD2F26]'} ${isUpdating ? 'opacity-70 cursor-not-allowed' : ''}`}
                                                     >
                                                         <div className={`w-[16px] h-[16px] bg-white rounded-full shadow-sm transform transition-transform ${item.is_best_seller === false ? 'translate-x-0' : 'translate-x-[20px]'}`} />
                                                     </button>
@@ -1547,7 +1547,7 @@ export default function MenuManagement() {
                     <h3 className="text-[16px] font-[800] text-[#111827]">Catering Items</h3>
                     <button
                         onClick={() => setIsAddCateringItemModalOpen(true)}
-                        className="h-[38px] px-4 bg-[#2BB29C] text-white rounded-[10px] text-[13px] font-[600] hover:bg-[#259D89] transition-colors"
+                        className="h-[38px] px-4 bg-[#DD2F26] text-white rounded-[10px] text-[13px] font-[600] hover:bg-[#C52820] transition-colors"
                     >
                         + Add Catering Item
                     </button>
@@ -1592,7 +1592,7 @@ export default function MenuManagement() {
                                                 {pricing.hasDiscount && pricing.discounted ? (
                                                     <div className="flex items-baseline gap-2">
                                                         <span className="line-through text-[#9CA3AF] font-[400]">{pricing.price}</span>
-                                                        <span className="text-[#2BB29C] font-[600]">{pricing.discounted}</span>
+                                                        <span className="text-[#DD2F26] font-[600]">{pricing.discounted}</span>
                                                     </div>
                                                 ) : (
                                                     pricing.price
@@ -1610,7 +1610,7 @@ export default function MenuManagement() {
                                                         void disableCateringItem(item.id);
                                                     }}
                                                     disabled={!item.catering || isUpdating}
-                                                    className={`w-[44px] h-[24px] rounded-full p-1 transition-colors ${item.catering ? 'bg-[#2BB29C]' : 'bg-gray-300'} ${isUpdating ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                                    className={`w-[44px] h-[24px] rounded-full p-1 transition-colors ${item.catering ? 'bg-[#DD2F26]' : 'bg-gray-300'} ${isUpdating ? 'opacity-70 cursor-not-allowed' : ''}`}
                                                 >
                                                     <div className={`w-[16px] h-[16px] bg-white rounded-full shadow-sm transform transition-transform ${item.catering ? 'translate-x-[20px]' : 'translate-x-0'}`} />
                                                 </button>
@@ -1634,7 +1634,7 @@ export default function MenuManagement() {
             {/* Quick Analytics */}
             {/* <div className="bg-white rounded-[12px] border border-[#00000033] p-6 mt-6">
                 <div className="flex items-center gap-2 mb-4">
-                    <TrendingUp className="text-[#2BB29C] w-5 h-5" />
+                    <TrendingUp className="text-[#DD2F26] w-5 h-5" />
                     <h3 className="text-[16px] font-[800] text-[#111827]">Quick Analytics</h3>
                 </div>
 
@@ -1658,7 +1658,7 @@ export default function MenuManagement() {
                         <img src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=80&q=80" className="w-[60px] h-[60px] rounded-[10px] object-cover" alt="Best Seller" />
                         <div>
                             <div className="flex items-center gap-1.5 mb-0.5">
-                                <TrendingUp className="text-[#2BB29C] w-3 h-3" />
+                                <TrendingUp className="text-[#DD2F26] w-3 h-3" />
                                 <span className="text-[10px] font-[400] font-poppins text-[#9CA3AF] uppercase">Rising Star</span>
                             </div>
                             <h4 className="text-[16px]  text-[#111827]">Loaded Fries</h4>
@@ -1673,7 +1673,7 @@ export default function MenuManagement() {
                         <img src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=80&q=80" className="w-[60px] h-[60px] rounded-[10px] object-cover" alt="Best Seller" />
                         <div>
                             <div className="flex items-center gap-1.5 mb-0.5">
-                                <TrendingUp className="text-[#2BB29C] w-3 h-3" />
+                                <TrendingUp className="text-[#DD2F26] w-3 h-3" />
                                 <span className="text-[10px] font-[400] font-poppins text-[#9CA3AF] uppercase">Rising Star</span>
                             </div>
                             <h4 className="text-[16px]  text-[#111827]">Fries Combo</h4>
@@ -1688,14 +1688,14 @@ export default function MenuManagement() {
 
             {/* <div className="mt-6">
                 <div className="bg-white rounded-[12px] border border-[#00000033] p-6 flex flex-col items-center justify-center text-center">
-                    <div className="w-16 h-16 bg-[#F0FDFA] rounded-full flex items-center justify-center mb-4">
-                        <Eye size={32} className="text-[#2BB29C]" />
+                    <div className="w-16 h-16 bg-[#FEF2F2] rounded-full flex items-center justify-center mb-4">
+                        <Eye size={32} className="text-[#DD2F26]" />
                     </div>
                     <h3 className="text-[16px] font-[800] text-[#111827] mb-2">Live Preview</h3>
                     <p className="text-center text-[11px] text-[#6B7280] mb-6">See how your menu looks for your customers on the mobile app and web.</p>
                     <button
                         onClick={() => setIsPreviewModalOpen(true)}
-                        className="w-full bg-[#2BB29C] text-white text-[14px] font-[500] py-3.5 rounded-[12px] shadow-sm hover:bg-[#259D89] transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                        className="w-full bg-[#DD2F26] text-white text-[14px] font-[500] py-3.5 rounded-[12px] shadow-sm hover:bg-[#C52820] transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                     >
                         <Eye size={18} />
                         Preview Menu

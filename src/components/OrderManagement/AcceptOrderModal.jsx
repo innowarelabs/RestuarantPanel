@@ -20,7 +20,7 @@ export default function AcceptOrderModal({ isOpen, onClose, onConfirm, orderId }
                     </button>
                     <button
                         onClick={onConfirm}
-                        className="w-full sm:w-auto order-1 sm:order-2 px-6 py-2.5 rounded-[8px] bg-[#2BB29C] text-white font-medium text-[14px] hover:bg-[#259D89] transition-colors cursor-pointer"
+                        className="w-full sm:w-auto order-1 sm:order-2 px-6 py-2.5 rounded-[8px] bg-[#DD2F26] text-white font-medium text-[14px] hover:bg-[#C52820] transition-colors cursor-pointer"
                     >
                         Accept
                     </button>

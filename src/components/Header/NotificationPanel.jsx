@@ -63,7 +63,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
                             {notifications.some((n) => n.isUnread) && (
                                 <button
                                     onClick={markAllAsRead}
-                                    className="text-[14px] font-semibold text-[#24B99E] hover:underline transition"
+                                    className="text-[14px] font-semibold text-[#DD2F26] hover:underline transition"
                                 >
                                     Mark all as read
                                 </button>
@@ -84,7 +84,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
                                 key={filter}
                                 onClick={() => setActiveFilter(filter)}
                                 className={`px-5 py-2 rounded-full text-[14px] font-bold transition-all ${activeFilter === filter
-                                    ? 'bg-[#24B99E] text-white shadow-lg shadow-[#24B99E]/20'
+                                    ? 'bg-[#DD2F26] text-white shadow-lg shadow-[#DD2F26]/20'
                                     : 'bg-[#F3F4F6] text-[#6B6B6B] hover:bg-gray-200'
                                     }`}
                             >
@@ -103,7 +103,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
                                 return (
                                     <div
                                         key={notif.id}
-                                        className={`p-6 flex flex-col gap-4 hover:bg-gray-50 transition cursor-pointer relative group ${notif.isUnread ? 'bg-[#F0FDFA]/50' : ''
+                                        className={`p-6 flex flex-col gap-4 hover:bg-gray-50 transition cursor-pointer relative group ${notif.isUnread ? 'bg-[#FEF2F2]/50' : ''
                                             }`}
                                     >
                                         <div
@@ -114,7 +114,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
                                             className="flex gap-4"
                                         >
                                             <div className="w-12 h-12 rounded-2xl bg-white border border-[#F3F4F6] flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform shrink-0">
-                                                <Icon className="w-6 h-6 text-[#24B99E]" />
+                                                <Icon className="w-6 h-6 text-[#DD2F26]" />
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex justify-between items-start">
@@ -122,7 +122,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
                                                         {notif.title}
                                                     </h4>
                                                     {notif.isUnread && (
-                                                        <div className="w-2.5 h-2.5 bg-[#24B99E] rounded-full mt-1.5 shrink-0" />
+                                                        <div className="w-2.5 h-2.5 bg-[#DD2F26] rounded-full mt-1.5 shrink-0" />
                                                     )}
                                                 </div>
                                                 <p className="text-[#6B6B6B] text-[14px] mt-1 font-medium italic">

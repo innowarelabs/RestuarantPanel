@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 const items = [
-    { name: 'Chicken Burger', category: 'Burgers', orders: 120, revenue: '$1,250', percentage: '36%', color: 'bg-[#2BB29C]' },
+    { name: 'Chicken Burger', category: 'Burgers', orders: 120, revenue: '$1,250', percentage: '36%', color: 'bg-[#DD2F26]' },
     { name: 'Fries', category: 'Sides', orders: 95, revenue: '$450', percentage: '24%', color: 'bg-[#4338CA]' },
     { name: 'Ice Cream', category: 'Desserts', orders: 77, revenue: '$250', percentage: '18%', color: 'bg-[#06B6D4]' },
     { name: 'Chicken Tikka Masala', category: 'Mains', orders: 68, revenue: '$870', percentage: '12%', color: 'bg-[#F59E0B]' },

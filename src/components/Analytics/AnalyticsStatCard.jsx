@@ -7,12 +7,12 @@ export default function AnalyticsStatCard({ Icon, label, value, secondaryInfo, p
     return (
         <div className="bg-white p-3 sm:p-5 rounded-[12px] border border-[#00000033] flex flex-col justify-between h-[150px] sm:h-[180px]">
             <div className="flex items-start justify-between mb-2 sm:mb-4">
-                <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-[10px] sm:rounded-[12px] bg-[#E6F7F4] flex items-center justify-center ${iconBg}`}>
+                <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-[10px] sm:rounded-[12px] bg-[#FEF2F2] flex items-center justify-center ${iconBg}`}>
                     {Icon && React.createElement(Icon, { size: 16, className: iconBg.includes('text') ? '' : 'text-white' })}
                 </div>
                 <div className="flex items-center gap-1 mt-2">
-                    {isPositive ? <TrendingUp size={14} className="text-[#2BB29C]" /> : <TrendingDown size={14} className="text-[#EF4444]" />}
-                    <span className={`text-[12px] font-bold ${isPositive ? 'text-[#2BB29C]' : 'text-[#EF4444]'}`}>
+                    {isPositive ? <TrendingUp size={14} className="text-[#DD2F26]" /> : <TrendingDown size={14} className="text-[#EF4444]" />}
+                    <span className={`text-[12px] font-bold ${isPositive ? 'text-[#DD2F26]' : 'text-[#EF4444]'}`}>
                         {percentage}
                     </span>
                 </div>

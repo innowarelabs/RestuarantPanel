@@ -37,11 +37,11 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
                             <input
                                 type={showCurrent ? "text" : "password"}
                                 placeholder="Enter current password"
-                                className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors placeholder-gray-400 shadow-sm"
+                                className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] transition-colors placeholder-gray-400 shadow-sm"
                             />
                             <button
                                 onClick={() => setShowCurrent(!showCurrent)}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#2BB29C] transition-colors"
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#DD2F26] transition-colors"
                             >
                                 {showCurrent ? <EyeOff size={18} /> : <Eye size={18} />}
                             </button>
@@ -55,11 +55,11 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
                             <input
                                 type={showNew ? "text" : "password"}
                                 placeholder="Enter new password"
-                                className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors placeholder-gray-400 shadow-sm"
+                                className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] transition-colors placeholder-gray-400 shadow-sm"
                             />
                             <button
                                 onClick={() => setShowNew(!showNew)}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#2BB29C] transition-colors"
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#DD2F26] transition-colors"
                             >
                                 {showNew ? <EyeOff size={18} /> : <Eye size={18} />}
                             </button>
@@ -73,11 +73,11 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
                             <input
                                 type={showConfirm ? "text" : "password"}
                                 placeholder="Confirm new password"
-                                className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors placeholder-gray-400 shadow-sm"
+                                className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] transition-colors placeholder-gray-400 shadow-sm"
                             />
                             <button
                                 onClick={() => setShowConfirm(!showConfirm)}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#2BB29C] transition-colors"
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#DD2F26] transition-colors"
                             >
                                 {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
                             </button>
@@ -95,7 +95,7 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
                     </button>
                     <button
                         onClick={onClose}
-                        className="px-6 py-2.5 text-[16px] font-[400] text-white bg-[#2BB29C] rounded-[8px] shadow-lg shadow-[#2BB29C]/20 hover:bg-[#24A18C] active:scale-95 transition-all"
+                        className="px-6 py-2.5 text-[16px] font-[400] text-white bg-[#DD2F26] rounded-[8px] shadow-lg shadow-[#DD2F26]/20 hover:bg-[#C52820] active:scale-95 transition-all"
                     >
                         Update Password
                     </button>

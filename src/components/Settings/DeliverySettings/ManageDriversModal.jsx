@@ -50,7 +50,7 @@ const ManageDriversModal = ({ isOpen, onClose }) => {
                                         <td className="px-4 py-3 text-[#6B7280] text-nowrap">{driver.phone}</td>
                                         <td className="px-4 py-3">
                                             <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-[600] text-nowrap ${driver.status === 'Active'
-                                                ? 'bg-[#E6F8F5] text-[#2BB29C]'
+                                                ? 'bg-[#E6F8F5] text-[#DD2F26]'
                                                 : 'bg-[#F3F4F6] text-[#6B7280]'
                                                 }`}>
                                                 {driver.status}
@@ -76,7 +76,7 @@ const ManageDriversModal = ({ isOpen, onClose }) => {
                                 <input
                                     type="text"
                                     placeholder="Driver name"
-                                    className="w-full px-3 py-2 bg-white border border-[#E5E7EB] rounded-[6px] text-[13px] focus:outline-none focus:ring-1 focus:ring-[#2BB29C] transition-all"
+                                    className="w-full px-3 py-2 bg-white border border-[#E5E7EB] rounded-[6px] text-[13px] focus:outline-none focus:ring-1 focus:ring-[#DD2F26] transition-all"
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-3">
@@ -85,7 +85,7 @@ const ManageDriversModal = ({ isOpen, onClose }) => {
                                     <input
                                         type="text"
                                         placeholder="+44 77..."
-                                        className="w-full px-3 py-2 bg-white border border-[#E5E7EB] rounded-[6px] text-[13px] focus:outline-none focus:ring-1 focus:ring-[#2BB29C] transition-all"
+                                        className="w-full px-3 py-2 bg-white border border-[#E5E7EB] rounded-[6px] text-[13px] focus:outline-none focus:ring-1 focus:ring-[#DD2F26] transition-all"
                                     />
                                 </div>
                                 <div>
@@ -104,7 +104,7 @@ const ManageDriversModal = ({ isOpen, onClose }) => {
                                 </button>
                                 <button
                                     onClick={onClose}
-                                    className="flex-1 py-2 bg-[#2BB29C] text-white rounded-[6px] text-[13px] font-[600] hover:bg-[#24A18C] transition-all shadow-lg shadow-[#2BB29C]/10 active:scale-[0.98]"
+                                    className="flex-1 py-2 bg-[#DD2F26] text-white rounded-[6px] text-[13px] font-[600] hover:bg-[#C52820] transition-all shadow-lg shadow-[#DD2F26]/10 active:scale-[0.98]"
                                 >
                                     Add Driver
                                 </button>

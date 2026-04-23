@@ -47,8 +47,8 @@ export default function SalesOverviewChart() {
                     <AreaChart data={data}>
                         <defs>
                             <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#2BB29C" stopOpacity={0.1} />
-                                <stop offset="95%" stopColor="#2BB29C" stopOpacity={0} />
+                                <stop offset="5%" stopColor="#DD2F26" stopOpacity={0.1} />
+                                <stop offset="95%" stopColor="#DD2F26" stopOpacity={0} />
                             </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F1F1" />
@@ -68,7 +68,7 @@ export default function SalesOverviewChart() {
                         <Area
                             type="monotone"
                             dataKey={activeType}
-                            stroke="#2BB29C"
+                            stroke="#DD2F26"
                             strokeWidth={2.5}
                             fillOpacity={1}
                             fill="url(#colorValue)"

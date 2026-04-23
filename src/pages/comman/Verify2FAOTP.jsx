@@ -189,11 +189,11 @@ function Verify2FAOTP() {
         <div className="absolute inset-x-0 bottom-6 md:bottom-8 px-6 pointer-events-none">
           <p className="text-center text-sm text-gray-500 max-w-md mx-auto leading-relaxed pointer-events-auto">
             Protected by reCAPTCHA and subject to the Rekntek{" "}
-            <a href="/privacy-policy" className="underline text-[#24B99E] hover:text-[#24B99E]/80">
+            <a href="/privacy-policy" className="underline text-[#DD2F26] hover:text-[#DD2F26]/80">
               Privacy Policy
             </a>{" "}
             and{" "}
-            <a href="/terms-of-service" className="underline text-[#24B99E] hover:text-[#24B99E]/80">
+            <a href="/terms-of-service" className="underline text-[#DD2F26] hover:text-[#DD2F26]/80">
               Terms of Service
             </a>
             .

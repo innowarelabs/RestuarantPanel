@@ -21,7 +21,7 @@ const statCards = [
         percentage: '+12%',
         trend: 'up',
         Icon: ShoppingBag,
-        iconBg: 'bg-[#F0FDFA] text-[#2BB29C]'
+        iconBg: 'bg-[#FEF2F2] text-[#DD2F26]'
     },
     {
         label: 'Total Revenue',
@@ -30,7 +30,7 @@ const statCards = [
         percentage: '+8%',
         trend: 'up',
         Icon: DollarSign,
-        iconBg: 'bg-[#F0FDFA] text-[#2BB29C]'
+        iconBg: 'bg-[#FEF2F2] text-[#DD2F26]'
     },
     {
         label: 'Avg Order Value',
@@ -39,7 +39,7 @@ const statCards = [
         percentage: '+5%',
         trend: 'up',
         Icon: Target,
-        iconBg: 'bg-[#F0FDFA] text-[#2BB29C]'
+        iconBg: 'bg-[#FEF2F2] text-[#DD2F26]'
     },
     {
         label: 'New Customers',

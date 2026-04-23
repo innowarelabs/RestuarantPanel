@@ -47,13 +47,13 @@ const IntegrationsSettings = () => {
                         <div className="flex items-start justify-between">
                             <div className="flex items-center gap-4">
                                 <div className="w-14 h-14 bg-gray-50 rounded-[12px] flex items-center justify-center border border-[#E5E7EB] transition-transform hover:scale-105">
-                                    <Zap className={`w-9 h-9 ${item.status === 'Connected' ? 'text-[#24B99E]' : 'text-[#9CA3AF]'}`} />
+                                    <Zap className={`w-9 h-9 ${item.status === 'Connected' ? 'text-[#DD2F26]' : 'text-[#9CA3AF]'}`} />
                                 </div>
                                 <div>
                                     <h3 className="text-[18px] font-bold text-[#1A1A1A]">{item.name}</h3>
                                     <div className="flex items-center gap-2 mt-1">
-                                        <div className={`w-2 h-2 rounded-full ${item.status === 'Connected' ? 'bg-[#24B99E]' : 'bg-gray-300'}`}></div>
-                                        <span className={`text-[12px] bg-[#E6F7F4] px-2 py-1 rounded-[6px] font-medium ${item.status === 'Connected' ? 'text-[#24B99E]' : 'text-[#6B6B6B]'}`}>
+                                        <div className={`w-2 h-2 rounded-full ${item.status === 'Connected' ? 'bg-[#DD2F26]' : 'bg-gray-300'}`}></div>
+                                        <span className={`text-[12px] bg-[#FEF2F2] px-2 py-1 rounded-[6px] font-medium ${item.status === 'Connected' ? 'text-[#DD2F26]' : 'text-[#6B6B6B]'}`}>
                                             {item.status === 'Connected' ? '✓ Connected' : '○ Not Connected'}
                                         </span>
                                     </div>
@@ -94,7 +94,7 @@ const IntegrationsSettings = () => {
                         ) : (
                             <button
                                 onClick={() => handleConnect(item)}
-                                className="w-full py-3 bg-[#24B99E] text-white rounded-[8px] text-[14px] font-[500] hover:bg-[#20a68d] transition shadow-lg shadow-[#24B99E]/20"
+                                className="w-full py-3 bg-[#DD2F26] text-white rounded-[8px] text-[14px] font-[500] hover:bg-[#C52820] transition shadow-lg shadow-[#DD2F26]/20"
                             >
                                 Connect
                             </button>

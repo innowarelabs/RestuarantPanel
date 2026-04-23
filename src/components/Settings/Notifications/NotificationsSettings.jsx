@@ -43,7 +43,7 @@ const NotificationsSettings = () => {
                                 </div>
                             </div>
                             <button
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${channel.enabled ? 'bg-[#24B99E]' : 'bg-gray-200'
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${channel.enabled ? 'bg-[#DD2F26]' : 'bg-gray-200'
                                     }`}
                             >
                                 <span
@@ -68,17 +68,17 @@ const NotificationsSettings = () => {
                                 <tr key={index}>
                                     <td className="px-6 py-4 whitespace-nowrap text-[14px] font-[500] text-[#1A1A1A]">{event.name}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                                        <button className={`mx-auto relative inline-flex h-5 w-9 items-center rounded-full ${event.email ? 'bg-[#24B99E]' : 'bg-gray-100'}`}>
+                                        <button className={`mx-auto relative inline-flex h-5 w-9 items-center rounded-full ${event.email ? 'bg-[#DD2F26]' : 'bg-gray-100'}`}>
                                             <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${event.email ? 'translate-x-5' : 'translate-x-1'}`} />
                                         </button>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                                        <button className={`mx-auto relative inline-flex h-5 w-9 items-center rounded-full ${event.sms ? 'bg-[#24B99E]' : 'bg-gray-100'}`}>
+                                        <button className={`mx-auto relative inline-flex h-5 w-9 items-center rounded-full ${event.sms ? 'bg-[#DD2F26]' : 'bg-gray-100'}`}>
                                             <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${event.sms ? 'translate-x-5' : 'translate-x-1'}`} />
                                         </button>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                                        <button className={`mx-auto relative inline-flex h-5 w-9 items-center rounded-full ${event.inApp ? 'bg-[#24B99E]' : 'bg-gray-100'}`}>
+                                        <button className={`mx-auto relative inline-flex h-5 w-9 items-center rounded-full ${event.inApp ? 'bg-[#DD2F26]' : 'bg-gray-100'}`}>
                                             <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${event.inApp ? 'translate-x-5' : 'translate-x-1'}`} />
                                         </button>
                                     </td>
@@ -88,7 +88,7 @@ const NotificationsSettings = () => {
                     </table>
                 </div>
                 <div className="p-5 bg-gray-50/50 border-t border-[#E5E7EB] flex justify-end">
-                    <button className="flex items-center gap-2 bg-[#24B99E] text-white text-[14px] px-6 py-2.5 rounded-[8px] font-[500] hover:bg-[#20a68d] transition">
+                    <button className="flex items-center gap-2 bg-[#DD2F26] text-white text-[14px] px-6 py-2.5 rounded-[8px] font-[500] hover:bg-[#C52820] transition">
                         <Save className="w-4 h-4" />
                         Save Settings
                     </button>

@@ -95,7 +95,7 @@ export default function AddCategoryModal({ isOpen, onClose, onSave, saving, erro
                         <input
                             type="text"
                             placeholder="e.g., Burgers, Pizzas, Drinks"
-                            className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors placeholder-gray-400"
+                            className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] transition-colors placeholder-gray-400"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             disabled={saving}
@@ -108,7 +108,7 @@ export default function AddCategoryModal({ isOpen, onClose, onSave, saving, erro
                         <input
                             type="text"
                             placeholder="Brief description of this category"
-                            className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#2BB29C] transition-colors placeholder-gray-400"
+                            className="w-full h-[46px] px-4 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] outline-none focus:border-[#DD2F26] transition-colors placeholder-gray-400"
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                             disabled={saving}
@@ -129,7 +129,7 @@ export default function AddCategoryModal({ isOpen, onClose, onSave, saving, erro
                         type="button"
                         onClick={() => onSave?.({ name, description, imageFile })}
                         disabled={!canSave}
-                        className={`px-5 py-2.5 rounded-[8px] text-[14px] font-medium text-white transition-colors ${canSave ? 'bg-[#2BB29C] hover:bg-[#259D89]' : 'bg-gray-300 cursor-not-allowed'}`}
+                        className={`px-5 py-2.5 rounded-[8px] text-[14px] font-medium text-white transition-colors ${canSave ? 'bg-[#DD2F26] hover:bg-[#C52820]' : 'bg-gray-300 cursor-not-allowed'}`}
                     >
                         {saving ? 'Saving...' : 'Save Category'}
                     </button>

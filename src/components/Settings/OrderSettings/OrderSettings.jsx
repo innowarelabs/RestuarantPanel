@@ -34,7 +34,7 @@ const OrderSettings = () => {
                             <p className="font-[500] text-[14px] text-[#1A1A1A]">Manual Accept Mode</p>
                             <p className="text-[13px] text-[#9CA3AF]">Review and manually accept each order</p>
                         </div>
-                        <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-[#24B99E] focus:outline-none">
+                        <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-[#DD2F26] focus:outline-none">
                             <span className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-6" />
                         </button>
                     </div>
@@ -48,7 +48,7 @@ const OrderSettings = () => {
                                 <input
                                     type="text"
                                     defaultValue="5.00"
-                                    className="w-full pl-7 pr-4 py-2  font-[500] text-[14px] border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#24B99E]"
+                                    className="w-full pl-7 pr-4 py-2  font-[500] text-[14px] border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#DD2F26]"
                                 />
                             </div>
                         </div>
@@ -59,7 +59,7 @@ const OrderSettings = () => {
                                 <input
                                     type="text"
                                     defaultValue="150.00"
-                                    className="w-full pl-7 pr-4 py-2 font-[500] text-[14px] border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#24B99E]"
+                                    className="w-full pl-7 pr-4 py-2 font-[500] text-[14px] border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#DD2F26]"
                                 />
                             </div>
                         </div>
@@ -71,7 +71,7 @@ const OrderSettings = () => {
                         <input
                             type="text"
                             placeholder="e.g. 20 (minutes)"
-                            className="w-full px-4 py-2 font-[500] text-[14px] border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#24B99E]"
+                            className="w-full px-4 py-2 font-[500] text-[14px] border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#DD2F26]"
                         />
                     </div>
 
@@ -81,7 +81,7 @@ const OrderSettings = () => {
                             <p className="font-[500] text-[14px] text-[#1A1A1A]">Allow Scheduled Orders</p>
                             <p className="text-[13px] text-[#9CA3AF]">Let customers schedule orders in advance</p>
                         </div>
-                        <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-[#24B99E] focus:outline-none">
+                        <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-[#DD2F26] focus:outline-none">
                             <span className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-6" />
                         </button>
                     </div>
@@ -92,7 +92,7 @@ const OrderSettings = () => {
                         <input
                             type="text"
                             placeholder="e.g. 15 (minutes)"
-                            className="w-full px-4 py-2 text-[13px] border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#24B99E]"
+                            className="w-full px-4 py-2 text-[13px] border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#DD2F26]"
                         />
                     </div>
 
@@ -102,7 +102,7 @@ const OrderSettings = () => {
                             <p className="font-[500] text-[14px] text-[#1A1A1A]">Allow Item Customization</p>
                             <p className="text-[13px] text-[#9CA3AF]">Enable special requests and modifications</p>
                         </div>
-                        <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-[#24B99E] focus:outline-none">
+                        <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-[#DD2F26] focus:outline-none">
                             <span className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-6" />
                         </button>
                     </div>
@@ -113,14 +113,14 @@ const OrderSettings = () => {
                             <p className="font-[500] text-[14px] text-[#1A1A1A]">Show Out-of-Stock Items</p>
                             <p className="text-[13px] text-[#9CA3AF]">Display unavailable items with grey overlay</p>
                         </div>
-                        <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-[#24B99E] focus:outline-none">
+                        <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-[#DD2F26] focus:outline-none">
                             <span className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-6" />
                         </button>
                     </div>
                 </div>
 
                 <div className="mt-8 flex justify-end">
-                    <button className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#24B99E] text-white text-[14px] px-6 py-2.5 rounded-[8px] font-[500] hover:bg-[#20a68d] transition shadow-lg shadow-[#24B99E]/20">
+                    <button className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#DD2F26] text-white text-[14px] px-6 py-2.5 rounded-[8px] font-[500] hover:bg-[#C52820] transition shadow-lg shadow-[#DD2F26]/20">
                         <Save className="w-4 h-4" />
                         Save Settings
                     </button>
@@ -128,10 +128,10 @@ const OrderSettings = () => {
             </div>
 
             {/* Active Delay Card */}
-            <div className="bg-[#F0FDFA] rounded-xl border border-[#CCFBF1] p-6">
+            <div className="bg-[#FEF2F2] rounded-xl border border-[#FEE2E2] p-6">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                     <div className="space-y-2">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#24B99E] text-white">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#DD2F26] text-white">
                             Active Delay
                         </span>
                         <h3 className="text-[14px] font-[600] text-[#134E4A]">Current Delay: +5 minutes</h3>

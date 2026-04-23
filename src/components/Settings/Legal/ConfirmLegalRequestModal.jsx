@@ -41,7 +41,7 @@ const ConfirmLegalRequestModal = ({ isOpen, onClose, type }) => {
                         onClick={onClose}
                         className={`w-full sm:w-auto order-1 sm:order-2 px-6 py-2.5 text-[16px] font-[400] text-white rounded-[8px] shadow-lg transition-all active:scale-95 ${type === 'deletion'
                             ? 'bg-[#EF4444] shadow-red-100 hover:bg-[#DC2626]'
-                            : 'bg-[#2BB29C] shadow-[#2BB29C]/20 hover:bg-[#24A18C]'
+                            : 'bg-[#DD2F26] shadow-[#DD2F26]/20 hover:bg-[#C52820]'
                             }`}
                     >
                         Confirm Request

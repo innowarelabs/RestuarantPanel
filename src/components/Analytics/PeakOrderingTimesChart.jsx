@@ -62,12 +62,12 @@ export default function PeakOrderingTimesChart() {
                         <Tooltip cursor={{ fill: '#F9FAFB' }} />
                         <Bar
                             dataKey="value"
-                            fill="#2BB29C"
+                            fill="#DD2F26"
                             radius={[4, 4, 0, 0]}
                             barSize={30}
                         >
                             {hourlyData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.value > 40 ? '#2BB29C' : '#4ADE80'} />
+                                <Cell key={`cell-${index}`} fill={entry.value > 40 ? '#DD2F26' : '#4ADE80'} />
                             ))}
                         </Bar>
                     </BarChart>
@@ -76,22 +76,22 @@ export default function PeakOrderingTimesChart() {
 
             {/* Summary Boxes */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-[#F0FDFA] p-4 rounded-[8px] border border-[#CCFBF1] flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-[#2BB29C]/10 flex items-center justify-center">
-                        <Clock size={20} className="text-[#2BB29C]" />
+                <div className="bg-[#FEF2F2] p-4 rounded-[8px] border border-[#FEE2E2] flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-[#DD2F26]/10 flex items-center justify-center">
+                        <Clock size={20} className="text-[#DD2F26]" />
                     </div>
                     <div>
-                        <p className="text-[11px] text-[#2BB29C] font-semibold uppercase tracking-wider">Busiest Hour</p>
+                        <p className="text-[11px] text-[#DD2F26] font-semibold uppercase tracking-wider">Busiest Hour</p>
                         <p className="text-[16px] font-bold text-[#111827]">8 PM – 9 PM</p>
                     </div>
                 </div>
 
-                <div className="bg-[#F0FDFA] p-4 rounded-[8px] border border-[#CCFBF1] flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-[#2BB29C]/10 flex items-center justify-center">
-                        <Calendar size={20} className="text-[#2BB29C]" />
+                <div className="bg-[#FEF2F2] p-4 rounded-[8px] border border-[#FEE2E2] flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-[#DD2F26]/10 flex items-center justify-center">
+                        <Calendar size={20} className="text-[#DD2F26]" />
                     </div>
                     <div>
-                        <p className="text-[11px] text-[#2BB29C] font-semibold uppercase tracking-wider">Busiest Day</p>
+                        <p className="text-[11px] text-[#DD2F26] font-semibold uppercase tracking-wider">Busiest Day</p>
                         <p className="text-[16px] font-bold text-[#111827]">Saturday</p>
                     </div>
                 </div>

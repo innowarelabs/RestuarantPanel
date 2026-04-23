@@ -4,7 +4,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, 
 import RecentOrdersFilterModal from './RecentOrdersFilterModal';
 import ScheduleReportModal from './ScheduleReportModal';
 
-const CHART_COLORS = ['#2BB29C', '#4F46E5', '#F59E0B', '#94A3B8', '#EF4444', '#8B5CF6'];
+const CHART_COLORS = ['#DD2F26', '#4F46E5', '#F59E0B', '#94A3B8', '#EF4444', '#8B5CF6'];
 
 const OrderReports = ({ onBack, reportData, loading, error, days, onDaysChange, onRefresh, onExportPdf, onExportCsv }) => {
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
@@ -145,7 +145,7 @@ const OrderReports = ({ onBack, reportData, loading, error, days, onDaysChange, 
                     <button
                         onClick={() => onRefresh?.()}
                         disabled={loading}
-                        className="h-[43px] px-6 bg-[#2BB29C] text-white rounded-[8px] text-[14px] font-medium hover:bg-[#24A18C] transition-all whitespace-nowrap disabled:opacity-60"
+                        className="h-[43px] px-6 bg-[#DD2F26] text-white rounded-[8px] text-[14px] font-medium hover:bg-[#C52820] transition-all whitespace-nowrap disabled:opacity-60"
                     >
                         {loading ? 'Loading…' : 'Apply Filters'}
                     </button>
@@ -231,7 +231,7 @@ const OrderReports = ({ onBack, reportData, loading, error, days, onDaysChange, 
                                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9CA3AF' }} dy={10} />
                                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9CA3AF' }} />
                                     <Tooltip cursor={{ fill: '#F9FAFB' }} />
-                                    <Bar dataKey="orders" fill="#2BB29C" radius={[4, 4, 0, 0]} barSize={50} />
+                                    <Bar dataKey="orders" fill="#DD2F26" radius={[4, 4, 0, 0]} barSize={50} />
                                 </BarChart>
                             </ResponsiveContainer>
                         ) : (
@@ -334,7 +334,7 @@ const OrderReports = ({ onBack, reportData, loading, error, days, onDaysChange, 
                 </div>
                 <button
                     onClick={() => setIsScheduleModalOpen(true)}
-                    className="flex items-center justify-center gap-2 px-6 py-2.5 bg-[#2BB29C] text-white rounded-[8px] text-[14px] font-[400] shadow-[#2BB29C]/20 hover:bg-[#24A18C] active:scale-95 transition-all w-full sm:w-auto"
+                    className="flex items-center justify-center gap-2 px-6 py-2.5 bg-[#DD2F26] text-white rounded-[8px] text-[14px] font-[400] shadow-[#DD2F26]/20 hover:bg-[#C52820] active:scale-95 transition-all w-full sm:w-auto"
                 >
                     <Calendar className="w-4 h-4" />
                     Schedule Monthly Report

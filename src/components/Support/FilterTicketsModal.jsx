@@ -28,7 +28,7 @@ const FilterTicketsModal = ({ isOpen, onClose }) => {
             <button
                 onClick={() => toggleFilter(category, label)}
                 className={`px-4 py-2 rounded-[6px] text-[13px] font-[600] transition-all ${isActive
-                    ? 'bg-[#2BB29C] text-white shadow-sm shadow-[#2BB29C]/20'
+                    ? 'bg-[#DD2F26] text-white shadow-sm shadow-[#DD2F26]/20'
                     : 'bg-[#F3F4F6] text-[#6B7280] hover:bg-[#E5E7EB] hover:text-[#4B5563]'
                     }`}
             >
@@ -105,7 +105,7 @@ const FilterTicketsModal = ({ isOpen, onClose }) => {
                                 <input
                                     type="text"
                                     placeholder="DD/MM/YYYY"
-                                    className="w-full px-4 py-2 bg-white border border-gray-200 rounded-[8px] text-[13px] focus:outline-none focus:ring-2 focus:ring-[#2BB29C]/10 focus:border-[#2BB29C] transition-all font-medium"
+                                    className="w-full px-4 py-2 bg-white border border-gray-200 rounded-[8px] text-[13px] focus:outline-none focus:ring-2 focus:ring-[#DD2F26]/10 focus:border-[#DD2F26] transition-all font-medium"
                                 />
                             </div>
                             <div>
@@ -113,7 +113,7 @@ const FilterTicketsModal = ({ isOpen, onClose }) => {
                                 <input
                                     type="text"
                                     placeholder="DD/MM/YYYY"
-                                    className="w-full px-4 py-2 bg-white border border-gray-200 rounded-[8px] text-[13px] focus:outline-none focus:ring-2 focus:ring-[#2BB29C]/10 focus:border-[#2BB29C] transition-all font-medium"
+                                    className="w-full px-4 py-2 bg-white border border-gray-200 rounded-[8px] text-[13px] focus:outline-none focus:ring-2 focus:ring-[#DD2F26]/10 focus:border-[#DD2F26] transition-all font-medium"
                                 />
                             </div>
                         </div>
@@ -125,7 +125,7 @@ const FilterTicketsModal = ({ isOpen, onClose }) => {
                         <input
                             type="text"
                             placeholder="Type name..."
-                            className="w-full px-4 py-2 bg-white border border-gray-200 rounded-[8px] text-[13px] focus:outline-none focus:ring-2 focus:ring-[#2BB29C]/10 focus:border-[#2BB29C] transition-all font-medium"
+                            className="w-full px-4 py-2 bg-white border border-gray-200 rounded-[8px] text-[13px] focus:outline-none focus:ring-2 focus:ring-[#DD2F26]/10 focus:border-[#DD2F26] transition-all font-medium"
                         />
                     </div>
                 </div>
@@ -140,7 +140,7 @@ const FilterTicketsModal = ({ isOpen, onClose }) => {
                     </button>
                     <button
                         onClick={onClose}
-                        className="px-6 py-2.5 bg-[#2BB29C] text-white text-[14px] font-[600] rounded-[8px] hover:bg-[#24A18C] transition-colors shadow-sm shadow-[#2BB29C]/10"
+                        className="px-6 py-2.5 bg-[#DD2F26] text-white text-[14px] font-[600] rounded-[8px] hover:bg-[#C52820] transition-colors shadow-sm shadow-[#DD2F26]/10"
                     >
                         Apply Filters
                     </button>

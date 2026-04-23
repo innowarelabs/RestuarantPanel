@@ -36,14 +36,14 @@ const RedemptionTrendChart = () => {
                         />
                         <Tooltip
                             contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                            itemStyle={{ color: '#24B99E', fontWeight: 'bold' }}
+                            itemStyle={{ color: '#DD2F26', fontWeight: 'bold' }}
                         />
                         <Line
                             type="monotone"
                             dataKey="redemptions"
-                            stroke="#24B99E"
+                            stroke="#DD2F26"
                             strokeWidth={3}
-                            dot={{ r: 5, fill: '#24B99E', strokeWidth: 2, stroke: '#fff' }}
+                            dot={{ r: 5, fill: '#DD2F26', strokeWidth: 2, stroke: '#fff' }}
                             activeDot={{ r: 7, strokeWidth: 0 }}
                         />
                     </LineChart>

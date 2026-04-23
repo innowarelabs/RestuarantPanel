@@ -53,7 +53,7 @@ const SecuritySettings = () => {
                     </div>
                     <button
                         onClick={() => setIs2FAEnabled(!is2FAEnabled)}
-                        className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none shrink-0 ${is2FAEnabled ? 'bg-[#24B99E]' : 'bg-gray-200'}`}
+                        className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none shrink-0 ${is2FAEnabled ? 'bg-[#DD2F26]' : 'bg-gray-200'}`}
                     >
                         <span className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${is2FAEnabled ? 'translate-x-[1.75rem]' : 'translate-x-[0.25rem]'} shadow-sm`} />
                     </button>
@@ -64,10 +64,10 @@ const SecuritySettings = () => {
                     <div className="space-y-3">
                         <div
                             onClick={() => handle2FAMethodSelect('SMS')}
-                            className="flex items-center gap-4 p-5 border border-[#00000033] rounded-[12px] hover:border-[#24B99E]/30 cursor-pointer transition group"
+                            className="flex items-center gap-4 p-5 border border-[#00000033] rounded-[12px] hover:border-[#DD2F26]/30 cursor-pointer transition group"
                         >
-                            <div className="w-10 h-10 bg-[#F8F9FA] rounded-xl flex items-center justify-center group-hover:bg-[#F0FDFA]">
-                                <MessageSquare className="w-5 h-5 text-[#24B99E]" />
+                            <div className="w-10 h-10 bg-[#F8F9FA] rounded-xl flex items-center justify-center group-hover:bg-[#FEF2F2]">
+                                <MessageSquare className="w-5 h-5 text-[#DD2F26]" />
                             </div>
                             <div>
                                 <p className="font-[500] text-[14px] text-[#1A1A1A]">SMS</p>
@@ -77,10 +77,10 @@ const SecuritySettings = () => {
 
                         <div
                             onClick={() => handle2FAMethodSelect('Email')}
-                            className="flex items-center gap-4 p-5 border border-[#00000033] rounded-[12px] hover:border-[#24B99E]/30 cursor-pointer transition group"
+                            className="flex items-center gap-4 p-5 border border-[#00000033] rounded-[12px] hover:border-[#DD2F26]/30 cursor-pointer transition group"
                         >
-                            <div className="w-10 h-10 bg-[#F8F9FA] rounded-xl flex items-center justify-center group-hover:bg-[#F0FDFA]">
-                                <Mail className="w-5 h-5 text-[#24B99E]" />
+                            <div className="w-10 h-10 bg-[#F8F9FA] rounded-xl flex items-center justify-center group-hover:bg-[#FEF2F2]">
+                                <Mail className="w-5 h-5 text-[#DD2F26]" />
                             </div>
                             <div>
                                 <p className="font-[500] text-[14px] text-[#1A1A1A]">Email</p>
@@ -90,10 +90,10 @@ const SecuritySettings = () => {
 
                         <div
                             onClick={() => handle2FAMethodSelect('Authenticator App')}
-                            className="flex items-center gap-4 p-5 border border-[#00000033] rounded-[12px] hover:border-[#24B99E]/30 cursor-pointer transition group"
+                            className="flex items-center gap-4 p-5 border border-[#00000033] rounded-[12px] hover:border-[#DD2F26]/30 cursor-pointer transition group"
                         >
-                            <div className="w-10 h-10 bg-[#F8F9FA] rounded-xl flex items-center justify-center group-hover:bg-[#F0FDFA]">
-                                <MobileIcon className="w-5 h-5 text-[#24B99E]" />
+                            <div className="w-10 h-10 bg-[#F8F9FA] rounded-xl flex items-center justify-center group-hover:bg-[#FEF2F2]">
+                                <MobileIcon className="w-5 h-5 text-[#DD2F26]" />
                             </div>
                             <div>
                                 <p className="font-[500] text-[14px] text-[#1A1A1A]">Authenticator App</p>

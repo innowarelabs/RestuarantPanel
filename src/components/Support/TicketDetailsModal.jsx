@@ -304,7 +304,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket }) => {
                                 if (isRestaurant) {
                                     return (
                                         <div key={msg.id} className="flex flex-col items-end gap-1.5">
-                                            <div className="px-5 py-3.5 bg-[#2BB29C] text-white rounded-[18px] rounded-tr-none text-[14px] max-w-[85%] font-[500] leading-relaxed shadow-sm">
+                                            <div className="px-5 py-3.5 bg-[#DD2F26] text-white rounded-[18px] rounded-tr-none text-[14px] max-w-[85%] font-[500] leading-relaxed shadow-sm">
                                                 {msg.text}
                                             </div>
                                             <span className="text-[11px] text-gray-400 font-[500] mr-2">
@@ -356,13 +356,13 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket }) => {
                                     <div className="flex items-center gap-5 text-[#9CA3AF]">
                                         <button
                                             type="button"
-                                            className="hover:text-[#2BB29C] transition-colors cursor-pointer active:scale-90"
+                                            className="hover:text-[#DD2F26] transition-colors cursor-pointer active:scale-90"
                                         >
                                             <Paperclip className="w-4 h-4" />
                                         </button>
                                         <button
                                             type="button"
-                                            className="flex items-center gap-2 text-[12px] font-[700] text-[#2BB29C] active:scale-95 px-2 py-1 hover:bg-[#2BB29C]/5 rounded-md transition-all"
+                                            className="flex items-center gap-2 text-[12px] font-[700] text-[#DD2F26] active:scale-95 px-2 py-1 hover:bg-[#DD2F26]/5 rounded-md transition-all"
                                         >
                                             Quick Replies
                                         </button>
@@ -372,7 +372,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket }) => {
                                             type="button"
                                             onClick={handleSendMessage}
                                             disabled={sending || !replyText.trim()}
-                                            className={`px-6 py-2 bg-[#2BB29C] text-white rounded-[8px] text-[13px] font-[600] flex items-center gap-2 hover:bg-[#24A18C] active:scale-95 transition-all shadow-md shadow-[#2BB29C]/10 ${sending || !replyText.trim() ? 'opacity-70 cursor-not-allowed' : ''
+                                            className={`px-6 py-2 bg-[#DD2F26] text-white rounded-[8px] text-[13px] font-[600] flex items-center gap-2 hover:bg-[#C52820] active:scale-95 transition-all shadow-md shadow-[#DD2F26]/10 ${sending || !replyText.trim() ? 'opacity-70 cursor-not-allowed' : ''
                                                 }`}
                                         >
                                             <Send className="w-4 h-4" />
@@ -420,7 +420,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket }) => {
 
                         <div>
                             <label className="block text-[11px] font-[700] text-gray-400 uppercase tracking-widest mb-1.5">Related Order</label>
-                            <p className="text-[14px] font-[600] text-[#2BB29C] hover:underline cursor-pointer">{ticket.orderId || 'N/A'}</p>
+                            <p className="text-[14px] font-[600] text-[#DD2F26] hover:underline cursor-pointer">{ticket.orderId || 'N/A'}</p>
                         </div>
 
                         <div>
@@ -431,7 +431,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket }) => {
                         </div>
 
                         <div className="flex gap-4 pt-10 mt-auto border-t border-gray-100">
-                            <button className="flex-1 py-2.5 bg-[#2BB29C] text-white rounded-[8px] text-[13px] font-[600] hover:bg-[#24A18C] active:scale-[0.98] transition-all">
+                            <button className="flex-1 py-2.5 bg-[#DD2F26] text-white rounded-[8px] text-[13px] font-[600] hover:bg-[#C52820] active:scale-[0.98] transition-all">
                                 Resolve Ticket
                             </button>
                             <button className="flex-1 py-2.5 border border-gray-200 text-[#4B5563] rounded-[8px] text-[13px] font-[600] hover:bg-gray-50 active:scale-[0.98] transition-all">
@@ -444,9 +444,9 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket }) => {
                 return (
                     <div className="p-6 h-full min-h-[450px]">
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
-                            <div className="p-4 border border-gray-100 rounded-[12px] bg-[#F9FAFB] hover:border-[#2BB29C] transition-all cursor-pointer group">
+                            <div className="p-4 border border-gray-100 rounded-[12px] bg-[#F9FAFB] hover:border-[#DD2F26] transition-all cursor-pointer group">
                                 <div className="w-full aspect-square bg-white rounded-[8px] border border-gray-100 flex items-center justify-center mb-3">
-                                    <FileText className="w-10 h-10 text-gray-300 group-hover:text-[#2BB29C] transition-colors" />
+                                    <FileText className="w-10 h-10 text-gray-300 group-hover:text-[#DD2F26] transition-colors" />
                                 </div>
                                 <h4 className="text-[12px] font-[600] text-general-text truncate mb-1">bank-statement.pdf</h4>
                                 <p className="text-[10px] text-gray-400 font-bold">1.2 MB</p>
@@ -517,13 +517,13 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket }) => {
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
                                 className={`px-4 py-3 text-[13px] font-[600] transition-all relative ${activeTab === tab
-                                    ? 'text-[#2BB29C]'
+                                    ? 'text-[#DD2F26]'
                                     : 'text-gray-400 hover:text-gray-600'
                                     }`}
                             >
                                 {tab}
                                 {activeTab === tab && (
-                                    <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#2BB29C] rounded-full"></div>
+                                    <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#DD2F26] rounded-full"></div>
                                 )}
                             </button>
                         ))}

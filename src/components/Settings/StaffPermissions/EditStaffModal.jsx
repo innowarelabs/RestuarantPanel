@@ -88,7 +88,7 @@ const EditStaffModalInner = ({ onClose, staff }) => {
                                 value={formData.name}
                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                 placeholder="e.g. Sarah Johnson"
-                                className="w-full px-4 py-2.5 bg-white border border-[#E8E8E8] rounded-[8px] text-[14px] font-[500] focus:outline-none focus:ring-2 focus:ring-[#24B99E]/20 focus:border-[#24B99E] transition-all"
+                                className="w-full px-4 py-2.5 bg-white border border-[#E8E8E8] rounded-[8px] text-[14px] font-[500] focus:outline-none focus:ring-2 focus:ring-[#DD2F26]/20 focus:border-[#DD2F26] transition-all"
                             />
                         </div>
 
@@ -99,7 +99,7 @@ const EditStaffModalInner = ({ onClose, staff }) => {
                                 value={formData.email}
                                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                 placeholder="sarah@spicehouse.co.uk"
-                                className="w-full px-4 py-2.5 bg-white border border-[#E8E8E8] rounded-[8px] text-[14px] font-[500] focus:outline-none focus:ring-2 focus:ring-[#24B99E]/20 focus:border-[#24B99E] transition-all"
+                                className="w-full px-4 py-2.5 bg-white border border-[#E8E8E8] rounded-[8px] text-[14px] font-[500] focus:outline-none focus:ring-2 focus:ring-[#DD2F26]/20 focus:border-[#DD2F26] transition-all"
                             />
                         </div>
 
@@ -110,7 +110,7 @@ const EditStaffModalInner = ({ onClose, staff }) => {
                                 value={formData.role}
                                 onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                                 placeholder="e.g. Manager"
-                                className="w-full px-4 py-2.5 bg-white border border-[#E8E8E8] rounded-[8px] text-[14px] font-[500] focus:outline-none focus:ring-2 focus:ring-[#24B99E]/20 focus:border-[#24B99E] transition-all"
+                                className="w-full px-4 py-2.5 bg-white border border-[#E8E8E8] rounded-[8px] text-[14px] font-[500] focus:outline-none focus:ring-2 focus:ring-[#DD2F26]/20 focus:border-[#DD2F26] transition-all"
                             />
                         </div>
                     </div>
@@ -124,8 +124,8 @@ const EditStaffModalInner = ({ onClose, staff }) => {
                                     <div
                                         onClick={() => handlePermissionChange(item.id)}
                                         className={`w-5 h-5 rounded border transition-all flex items-center justify-center shrink-0 ${formData.permissions[item.id]
-                                            ? 'bg-[#24B99E] border-[#24B99E]'
-                                            : 'border-[#D1D5DB] group-hover:border-[#24B99E]'
+                                            ? 'bg-[#DD2F26] border-[#DD2F26]'
+                                            : 'border-[#D1D5DB] group-hover:border-[#DD2F26]'
                                             }`}
                                     >
                                         {formData.permissions[item.id] && (
@@ -141,14 +141,14 @@ const EditStaffModalInner = ({ onClose, staff }) => {
                     </div>
 
                     {/* Status Toggle */}
-                    <div className="flex items-center justify-between py-3 px-4 bg-[#F0FDFA] rounded-xl border border-[#CCFBF1]">
+                    <div className="flex items-center justify-between py-3 px-4 bg-[#FEF2F2] rounded-xl border border-[#FEE2E2]">
                         <div>
                             <p className="font-[600] text-[14px] text-[#134E4A]">Active Status</p>
                             <p className="text-[12px] text-[#115E59]">Manage system access</p>
                         </div>
                         <button
                             onClick={() => setFormData({ ...formData, status: !formData.status })}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${formData.status ? 'bg-[#24B99E]' : 'bg-gray-200'
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${formData.status ? 'bg-[#DD2F26]' : 'bg-gray-200'
                                 }`}
                         >
                             <span
@@ -169,7 +169,7 @@ const EditStaffModalInner = ({ onClose, staff }) => {
                     </button>
                     <button
                         onClick={onClose}
-                        className="px-6 py-2.5 text-[16px] font-[400] text-white bg-[#2BB29C] rounded-[8px] shadow-lg shadow-[#2BB29C]/20 hover:bg-[#24A18C] active:scale-95 transition-all"
+                        className="px-6 py-2.5 text-[16px] font-[400] text-white bg-[#DD2F26] rounded-[8px] shadow-lg shadow-[#DD2F26]/20 hover:bg-[#C52820] active:scale-95 transition-all"
                     >
                         {staff ? 'Save Changes' : 'Add Staff'}
                     </button>
