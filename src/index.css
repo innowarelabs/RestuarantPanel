@@ -1,11 +1,5 @@
+/* Sofia Pro — files in /public/sofia-pro/ (served at /sofia-pro/) */
 /* Inter — loaded from Google Fonts in index.html */
-@import "@fontsource/poppins";
-@import "@fontsource/poppins/300.css";
-@import "@fontsource/poppins/400.css";
-@import "@fontsource/poppins/500.css";
-@import "@fontsource/poppins/600.css";
-@import "@fontsource/poppins/700.css";
-@import "@fontsource/poppins/800.css";
 
 @tailwind base;
 @tailwind components;
@@ -13,8 +7,40 @@
 
 @font-face {
     font-family: "Sofia Pro";
+    src: url("/sofia-pro/Sofia%20Pro%20UltraLight%20Az.otf") format("opentype");
+    font-weight: 100;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Sofia Pro";
+    src: url("/sofia-pro/Sofia%20Pro%20ExtraLight%20Az.otf") format("opentype");
+    font-weight: 200;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Sofia Pro";
+    src: url("/sofia-pro/Sofia%20Pro%20Light%20Az.otf") format("opentype");
+    font-weight: 300;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Sofia Pro";
     src: url("/sofia-pro/Sofia%20Pro%20Regular%20Az.otf") format("opentype");
     font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Sofia Pro";
+    src: url("/sofia-pro/Sofia%20Pro%20Medium%20Az.otf") format("opentype");
+    font-weight: 500;
     font-style: normal;
     font-display: swap;
 }
@@ -36,26 +62,74 @@
 }
 
 @font-face {
-    font-family: "Avenir";
-    src: url("/src/assets/Avenir Light.ttf") format("truetype");
+    font-family: "Sofia Pro";
+    src: url("/sofia-pro/Sofia%20Pro%20Black%20Az.otf") format("opentype");
+    font-weight: 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Sofia Pro";
+    src: url("/sofia-pro/Sofia%20Pro%20UltraLight%20Italic%20Az.otf") format("opentype");
+    font-weight: 100;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Sofia Pro";
+    src: url("/sofia-pro/Sofia%20Pro%20ExtraLight%20Italic%20Az.otf") format("opentype");
+    font-weight: 200;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Sofia Pro";
+    src: url("/sofia-pro/Sofia%20Pro%20Light%20Italic%20Az.otf") format("opentype");
     font-weight: 300;
-    font-style: normal;
+    font-style: italic;
     font-display: swap;
 }
 
 @font-face {
-    font-family: "Avenir";
-    src: url("/src/assets/Avenir Regular.ttf") format("truetype");
+    font-family: "Sofia Pro";
+    src: url("/sofia-pro/Sofia%20Pro%20Regular%20Italic%20Az.otf") format("opentype");
     font-weight: 400;
-    font-style: normal;
+    font-style: italic;
     font-display: swap;
 }
 
 @font-face {
-    font-family: "Avenir";
-    src: url("/src/assets/Avenir Heavy.ttf") format("truetype");
+    font-family: "Sofia Pro";
+    src: url("/sofia-pro/Sofia%20Pro%20Medium%20Italic%20Az.otf") format("opentype");
+    font-weight: 500;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Sofia Pro";
+    src: url("/sofia-pro/Sofia%20Pro%20Semi%20Bold%20Italic%20Az.otf") format("opentype");
+    font-weight: 600;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Sofia Pro";
+    src: url("/sofia-pro/Sofia%20Pro%20Bold%20Italic%20Az.otf") format("opentype");
     font-weight: 700;
-    font-style: normal;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Sofia Pro";
+    src: url("/sofia-pro/Sofia%20Pro%20Black%20Italic%20Az.otf") format("opentype");
+    font-weight: 900;
+    font-style: italic;
     font-display: swap;
 }
 
@@ -75,7 +149,7 @@
     --general-text: #ffffff;
 }
 
-/* Global font family - Avenir for all text */
+/* Global font family — Sofia Pro (matches admin-panel) */
 body,
 input,
 select,
@@ -89,7 +163,7 @@ a,
 li,
 td,
 th {
-    font-family: "Avenir", sans-serif !important;
+    font-family: "Sofia Pro", ui-sans-serif, system-ui, sans-serif !important;
 }
 
 h1,
@@ -98,7 +172,13 @@ h3,
 h4,
 h5,
 h6 {
-    font-family: "Avenir", "Avenir-Bold", sans-serif !important;
+    font-family: "Sofia Pro", ui-sans-serif, system-ui, sans-serif !important;
+}
+
+body {
+    font-synthesis: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 input:-webkit-autofill,

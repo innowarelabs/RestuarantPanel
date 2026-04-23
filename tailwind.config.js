@@ -14,8 +14,9 @@ export default {
                 "primary-gray": "var(--primary-gray)",
             },
             fontFamily: {
-                sans: ['Avenir', 'Inter', 'sans-serif'],
-                poppins: ['Poppins', 'sans-serif'],
+                sans: ['"Sofia Pro"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                /** Legacy alias — same stack as admin-panel */
+                poppins: ['"Sofia Pro"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
             }
         },
     },

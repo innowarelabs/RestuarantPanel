@@ -10,7 +10,6 @@
     "preview": "vite preview --host 0.0.0.0 --port 6901"
   },
   "dependencies": {
-    "@fontsource/poppins": "^5.2.7",
     "@reduxjs/toolkit": "^2.11.2",
     "jspdf": "^4.2.0",
     "jspdf-autotable": "^5.0.7",

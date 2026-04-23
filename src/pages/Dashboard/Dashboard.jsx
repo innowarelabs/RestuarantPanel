@@ -106,7 +106,7 @@ export default function AdminDashboard() {
     return (
         <div className="max-w-[1600px] mx-auto animate-in fade-in duration-500">
             <div className="mb-6">
-                <h1 className="text-[28px] sm:text-[28px]  font-[800] font-Avenir text-[#111111]">Dashboard</h1>
+                <h1 className="text-[28px] sm:text-[28px] font-black text-[#111111]">Dashboard</h1>
                 <p className="text-[14px] text-[#6B7280] mt-[-4px]">
                     {loading ? "Loading your latest performance..." : "Welcome back! Here's what's happening today."}
                 </p>
