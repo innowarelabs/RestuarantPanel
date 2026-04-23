@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { useNavigate, useLocation, Link } from "react-router-dom";
-import alertIcon from '../../assets/General/alert.svg';
+import { useNavigate, useLocation } from "react-router-dom";
+import alertIcon from "../../assets/General/alert.svg";
 import Button from "../../elements/Button";
 import PasswordInput from "../../elements/PasswordInput";
 import AuthSidebar from "../../components/Auth/AuthSidebar";
 import restaurantLogo from "../../assets/restaurant_logo.png";
 import tick from "../../assets/General/tick.svg";
 import cross from "../../assets/General/cross.svg";
-import circleCheck from '../../assets/General/circleCheck(green).svg';
+import circleCheck from "../../assets/General/circleCheck(green).svg";
 
 function ResetPassword() {
     const navigate = useNavigate();
@@ -20,7 +20,6 @@ function ResetPassword() {
     const [loading, setLoading] = useState(false);
     const [alert, setAlert] = useState("");
 
-    // Password strength rules
     const hasMinLength = newPassword.length >= 8;
     const hasNumber = /\d/.test(newPassword);
     const hasUppercase = /[A-Z]/.test(newPassword);
@@ -28,11 +27,10 @@ function ResetPassword() {
     const passwordsMatch = newPassword === repeatPassword && repeatPassword !== "";
 
     const isFormValid =
-        hasMinLength &&
-        hasNumber &&
-        hasUppercase &&
-        hasSpecialChar &&
-        passwordsMatch;
+        hasMinLength && hasNumber && hasUppercase && hasSpecialChar && passwordsMatch;
+
+    const loginFieldLabelClass =
+        "absolute -top-2 left-3 px-1 bg-white font-sans text-[12px] font-normal not-italic leading-[100%] tracking-normal text-[#84818A] [leading-trim:none]";
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -40,147 +38,161 @@ function ResetPassword() {
         setLoading(true);
 
         try {
-            // Simulation of reset password
             console.log("Resetting password with token:", token);
 
             setAlert("Password Reset!");
-            setTimeout(() => { setAlert("Redirecting!"); }, 1000);
-            setTimeout(() => { navigate("/password-reset-success", { replace: true }); }, 2000);
-        } catch (error) {
+            setTimeout(() => {
+                setAlert("Redirecting!");
+            }, 1000);
+            setTimeout(() => {
+                navigate("/password-reset-success", { replace: true });
+            }, 2000);
+        } catch (err) {
             setAlert("");
-            setError(error?.error || error?.message || "Password reset failed. Please try again.");
+            setError(err?.error || err?.message || "Password reset failed. Please try again.");
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <main className="min-h-screen flex flex-col md:flex-row">
-            {/* Left Sidebar */}
+        <main className="flex min-h-screen flex-col md:h-screen md:max-h-screen md:flex-row md:overflow-hidden">
             <AuthSidebar />
 
-            {/* Right Side - Full height + relative for absolute footer */}
-            <div className="flex-1 flex items-center justify-center bg-[#ffffff] p-4 relative">
-
-                {/* Centered Form - completely unaffected by footer */}
-                <div className="w-full max-w-md z-10 xl:min-w-[500px]">
-
-                    {/* Mobile Logo */}
-                    <div className="flex justify-center mb-12 md:hidden">
-                        <img src={restaurantLogo} alt="Restaurant Logo" className="h-12 w-auto" />
-                    </div>
-
-                    {/* Form Card */}
-                    <div className="bg-white p-8 rounded-3xl border border-black/70">
-                        <form onSubmit={handleSubmit} className="space-y-6">
-                            <div className="space-y-2">
-                                <h2 className="text-xl sm:text-[34px] text-left text-general-text font-bold">
-                                    Reset password
-                                </h2>
-
-                                <p className="text-[#47464A] text-[16px] leading-relaxed">
-                                    Please create a new password that you don’t use on any other site.
-                                </p>
-                            </div>
-
-                            {/* Error Message */}
-                            {error && (
-                                <div className="flex items-center gap-3 text-[#47464A] bg-[#F751511F] rounded-lg p-3 text-xs">
-                                    <img src={alertIcon} alt="Alert" className="w-5 h-5" />
-                                    <p>{error}</p>
+            <div className="flex min-h-screen flex-1 flex-col bg-white md:min-h-0 md:h-full">
+                <div className="h-full min-h-0 flex-1 overflow-y-auto">
+                    <div className="flex min-h-full flex-col px-4 pt-4">
+                        <div className="flex min-h-0 flex-1 items-center justify-center pt-6 md:pt-8 pb-8">
+                            <div className="mx-auto w-full max-w-md xl:min-w-[500px]">
+                                <div className="mb-12 flex justify-center md:hidden">
+                                    <img src={restaurantLogo} alt="Restaurant" className="h-12 w-auto" />
                                 </div>
-                            )}
 
-                            <div className="space-y-6">
-                                <div className="space-y-1">
-                                    {/* New Password */}
-                                    <PasswordInput
-                                        id="new-password"
-                                        label="New Password"
-                                        value={newPassword}
-                                        onChange={(e) => setNewPassword(e.target.value)}
-                                        placeholder="Enter new password"
-                                        required
-                                    />
-
-                                    {/* Password Strength Rules */}
-                                    {newPassword && (
-                                        <div className="space-y-1">
-                                            {hasMinLength && hasNumber && hasUppercase && hasSpecialChar ? null : (
-                                                <p className="text-sm font-medium text-red-600">Weak Password</p>
-                                            )}
-                                            {[
-                                                { condition: hasMinLength, text: "At least 8 characters" },
-                                                { condition: hasNumber, text: "Contains a number" },
-                                                { condition: hasUppercase, text: "Contains an uppercase letter" },
-                                                { condition: hasSpecialChar, text: "Contains a special character (!@#$ etc.)" },
-                                            ].map((rule, idx) => (
-                                                <div
-                                                    key={idx}
-                                                    className={`flex items-center gap-2 text-xs ${rule.condition ? "text-green-600" : "text-red-600"
-                                                        }`}
-                                                >
-                                                    <img src={rule.condition ? tick : cross} alt="" className="w-4 h-4" />
-                                                    <span>{rule.text}</span>
-                                                </div>
-                                            ))}
+                                <div className="space-y-8 rounded-3xl border border-black/70 bg-white p-8">
+                                    <form onSubmit={handleSubmit} className="space-y-8">
+                                        <div className="space-y-2">
+                                            <h2 className="text-left font-sans text-[36px] font-bold not-italic leading-[100%] tracking-normal text-[#202020] [leading-trim:none]">
+                                                Reset password
+                                            </h2>
+                                            <p className="font-sans text-[16px] font-normal leading-relaxed text-[#47464A]">
+                                                Please create a new password that you don’t use on any other site.
+                                            </p>
                                         </div>
-                                    )}
-                                </div>
 
-                                <div className="space-y-1">
-                                    {/* Repeat Password */}
-                                    <PasswordInput
-                                        id="repeat-password"
-                                        label="Confirm New Password"
-                                        value={repeatPassword}
-                                        onChange={(e) => setRepeatPassword(e.target.value)}
-                                        placeholder="Repeat your password"
-                                        required
-                                    />
+                                        {error && (
+                                            <div className="mt-[-15px] flex items-center gap-3 rounded-[12px] bg-[#F751511F] p-3 font-light text-xs text-[#47464A]">
+                                                <img src={alertIcon} alt="Alert" className="h-5 w-5 shrink-0" />
+                                                <p>{error}</p>
+                                            </div>
+                                        )}
 
-                                    {repeatPassword && (
-                                        <p className={`text-xs flex items-center gap-1 ${passwordsMatch ? "text-green-600" : "text-red-600"}`}>
-                                            <img src={passwordsMatch ? tick : cross} alt="" className="w-4 h-4" />
-                                            {passwordsMatch ? "Passwords match" : "Passwords do not match"}
-                                        </p>
-                                    )}
+                                        <div className="space-y-6">
+                                            <div className="space-y-1">
+                                                <PasswordInput
+                                                    id="new-password"
+                                                    label="New Password"
+                                                    labelClassName={loginFieldLabelClass}
+                                                    value={newPassword}
+                                                    onChange={(e) => setNewPassword(e.target.value)}
+                                                    placeholder="Enter new password"
+                                                    required
+                                                />
+
+                                                {newPassword && (
+                                                    <div className="space-y-1 pt-1">
+                                                        {hasMinLength &&
+                                                        hasNumber &&
+                                                        hasUppercase &&
+                                                        hasSpecialChar ? null : (
+                                                            <p className="text-sm font-medium text-red-600">
+                                                                Weak Password
+                                                            </p>
+                                                        )}
+                                                        {[
+                                                            {
+                                                                condition: hasMinLength,
+                                                                text: "At least 8 characters",
+                                                            },
+                                                            { condition: hasNumber, text: "Contains a number" },
+                                                            {
+                                                                condition: hasUppercase,
+                                                                text: "Contains an uppercase letter",
+                                                            },
+                                                            {
+                                                                condition: hasSpecialChar,
+                                                                text: "Contains a special character (!@#$ etc.)",
+                                                            },
+                                                        ].map((rule, idx) => (
+                                                            <div
+                                                                key={idx}
+                                                                className={`flex items-center gap-2 text-xs ${
+                                                                    rule.condition
+                                                                        ? "text-green-600"
+                                                                        : "text-red-600"
+                                                                }`}
+                                                            >
+                                                                <img
+                                                                    src={rule.condition ? tick : cross}
+                                                                    alt=""
+                                                                    className="h-4 w-4"
+                                                                />
+                                                                <span>{rule.text}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="space-y-1">
+                                                <PasswordInput
+                                                    id="repeat-password"
+                                                    label="Confirm New Password"
+                                                    labelClassName={loginFieldLabelClass}
+                                                    value={repeatPassword}
+                                                    onChange={(e) => setRepeatPassword(e.target.value)}
+                                                    placeholder="Repeat your password"
+                                                    required
+                                                />
+
+                                                {repeatPassword && (
+                                                    <p
+                                                        className={`flex items-center gap-1 text-xs ${
+                                                            passwordsMatch ? "text-green-600" : "text-red-600"
+                                                        }`}
+                                                    >
+                                                        <img
+                                                            src={passwordsMatch ? tick : cross}
+                                                            alt=""
+                                                            className="h-4 w-4"
+                                                        />
+                                                        {passwordsMatch ? "Passwords match" : "Passwords do not match"}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <Button
+                                            type="submit"
+                                            variant="signIn"
+                                            disabled={!isFormValid || loading}
+                                            className="w-full !h-[48px] !rounded-[12px] font-sans !text-[18px] !font-bold !text-white"
+                                        >
+                                            {loading ? "Resetting..." : "Reset Password"}
+                                        </Button>
+
+                                        {alert && (
+                                            <div className="flex justify-center">
+                                                <div className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-general-text">
+                                                    <img src={circleCheck} alt="Success" className="h-5 w-5" />
+                                                    <p>{alert}</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </form>
                                 </div>
                             </div>
-
-                            <Button
-                                type="submit"
-                                disabled={!isFormValid || loading}
-                                className="w-full text-lg font-medium h-[48px]"
-                            >
-                                {loading ? "Resetting..." : "Reset Password"}
-                            </Button>
-
-                            {alert && (
-                                <div className="flex justify-center">
-                                    <div className="flex items-center gap-3 text-general-text bg-green-50 border border-green-200 rounded-lg p-3 text-sm">
-                                        <img src={circleCheck} alt="Success" className="w-5 h-5" />
-                                        <p>{alert}</p>
-                                    </div>
-                                </div>
-                            )}
-                        </form>
+                        </div>
                     </div>
-                </div>
-
-                {/* Floating Footer - Always at bottom of screen */}
-                <div className="absolute inset-x-0 bottom-6 md:bottom-8 px-6 pointer-events-none">
-                    <p className="text-center text-sm text-gray-500 max-w-md mx-auto leading-relaxed pointer-events-auto">
-                        Protected by reCAPTCHA and subject to the Rekntek{" "}
-                        <Link to="/privacy-policy" className="underline text-[#DD2F26] hover:text-[#DD2F26]/80">
-                            Privacy Policy
-                        </Link>{" "}
-                        and{" "}
-                        <Link to="/terms-of-service" className="underline text-[#DD2F26] hover:text-[#DD2F26]/80">
-                            Terms of Service
-                        </Link>
-                        .
-                    </p>
                 </div>
             </div>
         </main>

@@ -1,31 +1,66 @@
-import React, { useState } from 'react';
-import eyeOn from '../assets/SignIn/eyeOn.svg';
-import eyeOff from '../assets/SignIn/eyeOff.svg';
+import { useState } from "react";
+import eyeOn from "../assets/SignIn/eyeOn.svg";
+import eyeOff from "../assets/SignIn/eyeOff.svg";
 
-const PasswordInput = ({ label, id, className, ...props }) => {
+const defaultLabelClass =
+    "absolute -top-2 left-3 px-1 bg-white text-xs font-thin text-general-text/50";
+
+const PasswordInput = ({
+    id = "password",
+    value,
+    onChange,
+    onFocus,
+    onBlur,
+    placeholder = "Enter your password",
+    label = "Password",
+    labelClassName = defaultLabelClass,
+    className = "",
+    inputClassName = "",
+    invalid = false,
+    required = false,
+    name,
+}) => {
     const [showPassword, setShowPassword] = useState(false);
 
     return (
-        <div className="relative group w-full">
-            <label
-                htmlFor={id}
-                className="absolute left-4 -top-3 px-2 bg-white text-[12px] text-[#6B7280] z-10 pointer-events-none"
-            >
-                {label}
-            </label>
+        <div className={className}>
             <div className="relative">
                 <input
-                    id={id}
                     type={showPassword ? "text" : "password"}
-                    className={`w-full h-[56px] px-5 py-4.5 rounded-[12px] border border-[#DCDBDD] focus:outline-none focus:border-[#DD2F26] transition-colors bg-white text-[#1F2937] placeholder-[#D1D5DB] text-[16px] relative z-0 ${className}`}
-                    {...props}
+                    id={id}
+                    name={name}
+                    value={value}
+                    onChange={onChange}
+                    onFocus={onFocus}
+                    onBlur={onBlur}
+                    placeholder={placeholder}
+                    required={required}
+                    aria-invalid={invalid || undefined}
+                    className={`w-full p-3 pr-12 border border-gray-300 rounded-[12px] font-normal focus:outline-none focus:border-primary transition placeholder:text-md placeholder:font-normal placeholder:text-gray-300 ${inputClassName} ${
+                        invalid
+                            ? showPassword
+                                ? "!text-black !caret-black ![-webkit-text-fill-color:#000000]"
+                                : "!text-red-600 !caret-red-600 ![-webkit-text-fill-color:rgb(220_38_38)]"
+                            : "text-general-text"
+                    }`}
                 />
+
+                <label htmlFor={id} className={labelClassName}>
+                    {label}
+                </label>
+
                 <button
                     type="button"
-                    className="absolute right-4 top-1/2 -translate-y-1/2 opacity-60 hover:opacity-100 transition-opacity z-10"
-                    onClick={() => setShowPassword(!showPassword)}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 transition"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                    <img src={showPassword ? eyeOff : eyeOn} alt="toggle password" />
+                    <img
+                        src={showPassword ? eyeOff : eyeOn}
+                        alt={showPassword ? "Hide password" : "Show password"}
+                        className="w-5 h-5 object-contain"
+                    />
                 </button>
             </div>
         </div>

@@ -22,8 +22,6 @@ import Supports from './pages/Supports/Supports';
 import Settings from './pages/Settings/Settings';
 import OnboardingStep from './pages/OnboardingStep/OnboardingStep';
 import Login from './pages/public/Login';
-import PrivacyPolicy from './pages/public/PrivacyPolicy';
-import TermsOfService from './pages/public/TermsOfService';
 import ForgotPassword from './pages/public/ForgotPassword';
 import VerifyAccount from './pages/public/VerifyAccount';
 import ResetPassword from './pages/public/ResetPassword';
@@ -131,16 +129,6 @@ function App() {
 
     fetchRestaurantName();
   }, [accessToken, dispatch, isAuthenticated, restaurantName]);
-
-  const isLegalPage = ['/privacy-policy', '/terms-of-service'].includes(location.pathname);
-  if (isLegalPage) {
-    return (
-      <Routes>
-        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-        <Route path="/terms-of-service" element={<TermsOfService />} />
-      </Routes>
-    );
-  }
 
   if (isTwoFAPending && is2FAEnabled) {
     if (!is2FARoute) return <Navigate to={twoFANextRoute} replace />;

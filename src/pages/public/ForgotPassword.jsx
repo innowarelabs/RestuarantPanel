@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Link } from "react-router-dom";
 import Button from "../../elements/Button";
 import TextInput from "../../elements/TextInput";
 import AuthSidebar from "../../components/Auth/AuthSidebar";
 import restaurantLogo from "../../assets/restaurant_logo.png";
-import alertIcon from '../../assets/General/alert.svg';
+import alertIcon from "../../assets/General/alert.svg";
 
 function ForgotPassword() {
     const navigate = useNavigate();
@@ -16,6 +15,8 @@ function ForgotPassword() {
 
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     const isButtonEnabled = email.trim() !== "" && emailRegex.test(email);
+    const loginFieldLabelClass =
+        "absolute -top-2 left-3 px-1 bg-white font-sans text-[12px] font-normal not-italic leading-[100%] tracking-normal text-[#84818A] [leading-trim:none]";
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -23,98 +24,86 @@ function ForgotPassword() {
         setLoading(true);
 
         try {
-            // Simulation of forgot password action
             console.log("Sending reset code to:", email);
-            // await dispatch(forgotPassword(email));
 
             setTimeout(() => {
                 navigate("/verify-account", { state: { email }, replace: true });
             }, 1000);
-        } catch (error) {
-            setError(error?.error || error?.message || "Something went wrong. Please try again.");
+        } catch (err) {
+            setError(err?.error || err?.message || "Something went wrong. Please try again.");
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <main className="min-h-screen flex flex-col md:flex-row">
-            {/* Left Sidebar - hidden on mobile */}
+        <main className="flex min-h-screen flex-col md:h-screen md:max-h-screen md:flex-row md:overflow-hidden">
             <AuthSidebar />
 
-            {/* Right Side - Full height + relative for absolute footer */}
-            <div className="flex-1 flex items-center justify-center bg-[#ffffff] p-4 relative">
-
-                {/* Centered Form - completely unaffected by footer */}
-                <div className="w-full max-w-md z-10 xl:min-w-[500px]">
-
-                    {/* Mobile-only logo */}
-                    <div className="flex justify-center mb-12 md:hidden">
-                        <img src={restaurantLogo} alt="Restaurant Logo" className="h-12 w-auto" />
-                    </div>
-
-                    {/* Form Card */}
-                    <div className="bg-white p-8 rounded-3xl border border-black/70">
-                        <form onSubmit={handleSubmit} className="space-y-6">
-                            <div className="space-y-2">
-                                <h2 className="text-xl sm:text-[34px] text-left text-general-text font-bold">
-                                    Forgot password?
-                                </h2>
-                                <p className="text-[#47464A] text-[16px] leading-relaxed">
-                                    Enter your registered email address. We’ll send a verification code to your email app before allowing password reset
-                                </p>
-                            </div>
-
-                            {/* Error */}
-                            {error && (
-                                <div className="flex items-center gap-3 text-[#47464A] bg-[#F751511F] rounded-[12px] p-3 text-xs">
-                                    <img src={alertIcon} alt="Alert" className="w-5 h-5" />
-                                    <p>{error}</p>
+            <div className="flex min-h-screen flex-1 flex-col bg-white md:min-h-0 md:h-full">
+                <div className="h-full min-h-0 flex-1 overflow-y-auto">
+                    <div className="flex min-h-full flex-col px-4 pt-4">
+                        <div className="flex min-h-0 flex-1 items-center justify-center pt-6 md:pt-8 pb-8">
+                            <div className="mx-auto w-full max-w-md xl:min-w-[500px]">
+                                <div className="mb-12 flex justify-center md:hidden">
+                                    <img src={restaurantLogo} alt="Restaurant" className="h-12 w-auto" />
                                 </div>
-                            )}
 
-                            {/* Email Field */}
-                            <div>
-                                <TextInput
-                                    id="email"
-                                    type="email"
-                                    label="Email / Username"
-                                    placeholder="admin@example.com"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className={email && !emailRegex.test(email) ? "border-red-400" : "mt-[25px]"}
-                                    required
-                                />
-                                {email && !emailRegex.test(email) && (
-                                    <p className="text-red-600 text-xs mt-2">Please enter a valid email address</p>
-                                )}
+                                <div className="space-y-8 rounded-3xl border border-black/70 bg-white p-8">
+                                    <form onSubmit={handleSubmit} className="space-y-8">
+                                        <div className="space-y-2">
+                                            <h2 className="text-left font-sans text-[36px] font-bold not-italic leading-[100%] tracking-normal text-[#202020] [leading-trim:none]">
+                                                Forgot password?
+                                            </h2>
+                                            <p className="font-sans text-[16px] font-normal leading-relaxed text-[#47464A]">
+                                                Enter your registered email address. We’ll send a verification code to
+                                                your email app before allowing password reset.
+                                            </p>
+                                        </div>
+
+                                        {error && (
+                                            <div className="mt-[-15px] flex items-center gap-3 rounded-[12px] bg-[#F751511F] p-3 font-light text-xs text-[#47464A]">
+                                                <img src={alertIcon} alt="Alert" className="h-5 w-5 shrink-0" />
+                                                <p>{error}</p>
+                                            </div>
+                                        )}
+
+                                        <div className="space-y-1">
+                                            <TextInput
+                                                id="email"
+                                                type="email"
+                                                label="Email / username"
+                                                labelClassName={loginFieldLabelClass}
+                                                placeholder="admin@example.com"
+                                                value={email}
+                                                onChange={(e) => setEmail(e.target.value)}
+                                                inputClassName={
+                                                    email && !emailRegex.test(email)
+                                                        ? "border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500/25"
+                                                        : ""
+                                                }
+                                                required
+                                            />
+                                            {email && !emailRegex.test(email) && (
+                                                <p className="mt-1 text-xs text-red-600">
+                                                    Please enter a valid email address
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        <Button
+                                            type="submit"
+                                            variant="signIn"
+                                            disabled={!isButtonEnabled || loading}
+                                            className="w-full !h-[48px] !rounded-[12px] font-sans !text-[18px] !font-bold !text-white"
+                                        >
+                                            {loading ? "Sending..." : "Send Reset Code"}
+                                        </Button>
+                                    </form>
+                                </div>
                             </div>
-
-                            {/* Submit Button */}
-                            <Button
-                                type="submit"
-                                disabled={!isButtonEnabled || loading}
-                                className="w-full h-[45px] font-medium cursor-pointer"
-                            >
-                                {loading ? "Sending..." : "Send Reset Code"}
-                            </Button>
-                        </form>
+                        </div>
                     </div>
-                </div>
-
-                {/* Floating Footer - Always at bottom, overlays content */}
-                <div className="absolute inset-x-0 bottom-6 md:bottom-8 px-6 pointer-events-none">
-                    <p className="text-center text-sm text-gray-500 max-w-md mx-auto leading-relaxed pointer-events-auto">
-                        Protected by reCAPTCHA and subject to the Rekntek{" "}
-                        <Link to="/privacy-policy" className="underline text-[#DD2F26] hover:text-[#DD2F26]/80">
-                            Privacy Policy
-                        </Link>{" "}
-                        and{" "}
-                        <Link to="/terms-of-service" className="underline text-[#DD2F26] hover:text-[#DD2F26]/80">
-                            Terms of Service
-                        </Link>
-                        .
-                    </p>
                 </div>
             </div>
         </main>

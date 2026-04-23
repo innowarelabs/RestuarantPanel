@@ -1,19 +1,40 @@
-import React from 'react';
+const defaultLabelClass =
+    "absolute -top-2 left-3 px-1 bg-white text-xs font-thin text-general-text/50";
 
-const TextInput = ({ label, id, className, ...props }) => {
+const TextInput = ({
+    id,
+    type = "text",
+    value,
+    onChange,
+    placeholder = "",
+    label,
+    labelClassName = defaultLabelClass,
+    className = "",
+    inputClassName = "",
+    invalid = false,
+    required = false,
+    name,
+}) => {
     return (
-        <div className="relative group w-full">
-            <label
-                htmlFor={id}
-                className="absolute left-4 -top-3 px-2 bg-white text-[12px] text-[#84818A] z-10 pointer-events-none"
-            >
-                {label}
-            </label>
-            <input
-                id={id}
-                className={`w-full h-[56px] px-5 py-4.5 rounded-[12px] border border-[#DCDBDD] focus:outline-none focus:border-[#DD2F26] transition-colors bg-white text-[#1F2937] placeholder-[#D1D5DB] text-[16px] relative z-0 ${className}`}
-                {...props}
-            />
+        <div className={className}>
+            <div className="relative">
+                <input
+                    type={type}
+                    id={id}
+                    name={name}
+                    value={value}
+                    onChange={onChange}
+                    placeholder={placeholder}
+                    required={required}
+                    aria-invalid={invalid || undefined}
+                    className={`w-full p-3 border border-gray-300 rounded-[12px] focus:outline-none focus:border-primary font-normal transition placeholder:text-md placeholder:font-normal placeholder:text-gray-300 text-general-text ${inputClassName}`}
+                />
+                {label && (
+                    <label htmlFor={id} className={labelClassName}>
+                        {label}
+                    </label>
+                )}
+            </div>
         </div>
     );
 };

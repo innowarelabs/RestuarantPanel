@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import QRCode from "qrcode";
 import AuthSidebar from "../../components/Auth/AuthSidebar";
@@ -249,19 +249,6 @@ function Setup2FAQR() {
           </div>
         </div>
 
-        <div className="absolute inset-x-0 bottom-2 md:bottom-4 px-6 pointer-events-none">
-          <p className="text-center text-sm text-gray-500 max-w-md mx-auto leading-relaxed pointer-events-auto">
-            Protected by reCAPTCHA and subject to the Rekntek{" "}
-            <Link to="/privacy-policy" className="underline text-[#DD2F26] hover:text-[#DD2F26]/80">
-              Privacy Policy
-            </Link>{" "}
-            and{" "}
-            <Link to="/terms-of-service" className="underline text-[#DD2F26] hover:text-[#DD2F26]/80">
-              Terms of Service
-            </Link>
-            .
-          </p>
-        </div>
       </div>
     </main>
   );
