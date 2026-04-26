@@ -57,7 +57,7 @@ const SalesReports = ({ onBack }) => {
                 {/* Filters Row */}
                 <div className="flex flex-wrap items-end gap-3">
                     <div className="flex-1 min-w-[140px]">
-                        <label className="block text-[14px] font-[500] text-[#111827] mb-2">Order Type</label>
+                        <label className="mb-2 block font-sans text-[13px] font-medium leading-[19.5px] tracking-normal text-[#1A1A1A]">Order Type</label>
                         <div className="relative">
                             <select className="w-full px-4 py-2.5 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] text-[#4B5563] outline-none appearance-none cursor-pointer">
                                 <option>Delivery</option>
@@ -70,7 +70,7 @@ const SalesReports = ({ onBack }) => {
                         </div>
                     </div>
                     <div className="flex-1 min-w-[140px]">
-                        <label className="block text-[14px] font-[500] text-[#111827] mb-2">Payment Method</label>
+                        <label className="mb-2 block font-sans text-[13px] font-medium leading-[19.5px] tracking-normal text-[#1A1A1A]">Payment Method</label>
                         <div className="relative">
                             <select className="w-full px-4 py-2.5 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] text-[#4B5563] outline-none appearance-none cursor-pointer">
                                 <option>Card</option>
@@ -83,7 +83,7 @@ const SalesReports = ({ onBack }) => {
                         </div>
                     </div>
                     <div className="flex-1 min-w-[140px]">
-                        <label className="block text-[14px] font-[500] text-[#111827] mb-2">Source</label>
+                        <label className="mb-2 block font-sans text-[13px] font-medium leading-[19.5px] tracking-normal text-[#1A1A1A]">Source</label>
                         <div className="relative">
                             <select className="w-full px-4 py-2.5 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] text-[#4B5563] outline-none appearance-none cursor-pointer">
                                 <option>UberEats</option>
@@ -96,7 +96,7 @@ const SalesReports = ({ onBack }) => {
                         </div>
                     </div>
                     <div className="flex-1 min-w-[180px]">
-                        <label className="block text-[14px] font-[500] text-[#111827] mb-2">Date Range</label>
+                        <label className="mb-2 block font-sans text-[13px] font-medium leading-[19.5px] tracking-normal text-[#1A1A1A]">Date Range</label>
                         <div className="relative">
                             <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
                                 <Calendar className="w-4 h-4 text-[#9CA3AF]" />

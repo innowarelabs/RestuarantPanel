@@ -1,14 +1,73 @@
-import React, { useState, useMemo } from 'react';
-import { ChevronLeft, Calendar, FileSpreadsheet, FileText, Filter, Download } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { ChevronLeft, Calendar, Filter, Download } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import RecentOrdersFilterModal from './RecentOrdersFilterModal';
+import RecentOrdersFilterModal, { RECENT_ORDERS_FILTER_DEFAULTS } from './RecentOrdersFilterModal';
 import ScheduleReportModal from './ScheduleReportModal';
+import { ReportsFilterSelect } from './ReportsFilterSelect';
+import {
+    DATE_RANGE_OPTIONS,
+    dateRangeToDays,
+    daysToDateRangeValue,
+    ORDER_TYPE_FILTER_OPTIONS,
+    ORDER_PAYMENT_FILTER_OPTIONS,
+    ORDER_SOURCE_FILTER_OPTIONS,
+} from './reportsFilterConstants';
 
 const CHART_COLORS = ['#DD2F26', '#4F46E5', '#F59E0B', '#94A3B8', '#EF4444', '#8B5CF6'];
 
-const OrderReports = ({ onBack, reportData, loading, error, days, onDaysChange, onRefresh, onExportPdf, onExportCsv }) => {
+const DEFAULT_ORDER_FILTERS = {
+    orderType: 'delivery',
+    paymentMethod: 'card',
+    source: 'ubereats',
+    dateRange: 'last-30',
+};
+
+function recentOrderRowMatchesFilter(row, f) {
+    if (!f?.orderStatus?.all) {
+        const s = (row.rawStatus || row.status || '').toLowerCase();
+        const match =
+            (f.orderStatus.completed && s.includes('complet')) ||
+            (f.orderStatus.cancelled && s.includes('cancel')) ||
+            (f.orderStatus.refunded && s.includes('refund'));
+        if (!match) return false;
+    }
+    if (!f?.orderSource?.all) {
+        const src = (row.source || '').toLowerCase();
+        const match =
+            (f.orderSource.uberEats && (src.includes('uber') || /eats/i.test(row.source || ''))) ||
+            (f.orderSource.app && src.includes('app') && !src.includes('uber') && !src.includes('eats')) ||
+            (f.orderSource.deliveroo && src.includes('deliveroo')) ||
+            (f.orderSource.walkIn && (src.includes('walk') || src.includes('dine') || src.includes('in-store') || src.includes('counter')));
+        if (!match) return false;
+    }
+    if (!f?.payment?.all) {
+        const p = (row.rawPayment || '').toLowerCase();
+        if (p) {
+            const match =
+                (f.payment.card && p.includes('card')) ||
+                (f.payment.cash && p.includes('cash')) ||
+                (f.payment.contactless &&
+                    (p.includes('contactless') || p.includes('wallet') || p.includes('apple') || p.includes('google') || p.includes('tap')));
+            if (!match) return false;
+        }
+    }
+    return true;
+}
+
+const OrderReports = ({ onBack, reportData, loading, error, days, onApplyFilters, onExportPdf, onExportCsv }) => {
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
     const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+    const [filterDraft, setFilterDraft] = useState(() => ({ ...DEFAULT_ORDER_FILTERS }));
+    const [recentOrdersFilterDraft, setRecentOrdersFilterDraft] = useState(() => ({
+        ...RECENT_ORDERS_FILTER_DEFAULTS,
+    }));
+    const [recentOrdersFilterApplied, setRecentOrdersFilterApplied] = useState(() => ({
+        ...RECENT_ORDERS_FILTER_DEFAULTS,
+    }));
+
+    useEffect(() => {
+        setFilterDraft((prev) => ({ ...prev, dateRange: daysToDateRangeValue(days) }));
+    }, [days]);
 
     const pieData = useMemo(() => {
         if (!reportData?.orders_by_source?.length) return [];
@@ -42,7 +101,7 @@ const OrderReports = ({ onBack, reportData, loading, error, days, onDaysChange, 
 
     const recentOrders = useMemo(() => {
         if (!reportData?.recent_orders?.length) return [];
-        return reportData.recent_orders.map(order => ({
+        return reportData.recent_orders.map((order) => ({
             id: order.order_number,
             customer: order.customer,
             items: order.items_count,
@@ -50,110 +109,123 @@ const OrderReports = ({ onBack, reportData, loading, error, days, onDaysChange, 
             status: order.status?.charAt(0).toUpperCase() + order.status?.slice(1) || 'Unknown',
             source: order.source,
             prep: order.prep_time_min ? `${order.prep_time_min} min` : "--",
-            delivery: order.delivery_time_min ? `${order.delivery_time_min} min` : "--"
+            delivery: order.delivery_time_min ? `${order.delivery_time_min} min` : "--",
+            rawStatus: (order.status || '').toLowerCase(),
+            rawPayment: (order.payment_method != null
+                ? String(order.payment_method)
+                : order.payment != null
+                  ? String(order.payment)
+                  : ""
+            ).toLowerCase(),
         }));
     }, [reportData]);
 
+    const filteredRecentOrders = useMemo(() => {
+        return recentOrders.filter((row) => recentOrderRowMatchesFilter(row, recentOrdersFilterApplied));
+    }, [recentOrders, recentOrdersFilterApplied]);
+
+    const openRecentOrderFilters = () => {
+        setRecentOrdersFilterDraft({
+            orderStatus: { ...recentOrdersFilterApplied.orderStatus },
+            orderSource: { ...recentOrdersFilterApplied.orderSource },
+            payment: { ...recentOrdersFilterApplied.payment },
+        });
+        setIsFilterModalOpen(true);
+    };
+
     return (
-        <div className="animate-in fade-in slide-in-from-left-4 duration-500 pb-12">
-            {/* Top Header */}
-            <div className="bg-[#FFFFFF] border border-[#00000033] rounded-[16px] p-6 mb-8">
+        <div className="animate-in fade-in slide-in-from-left-4 duration-500">
+            {/* Top — matches Sales Report pattern; labels + #E8E8E8 controls per design */}
+            <div className="mb-4 rounded-[16px] border border-[#00000033] bg-[#FFFFFF] p-6">
                 <button
+                    type="button"
                     onClick={onBack}
-                    className="flex items-center gap-2 text-[14px] text-[#6B7280] hover:text-primary transition-colors mb-4"
+                    className="mb-3 inline-flex items-center gap-1 text-[14px] text-[#6B7280] transition-colors hover:text-primary"
                 >
-                    <ChevronLeft className="w-4 h-4" />
+                    <ChevronLeft className="h-4 w-4 shrink-0" />
                     Back to Reports
                 </button>
-
-                <div className="mb-8">
-                    <h1 className="text-[28px] font-bold text-[#111827] mb-1">Order Reports</h1>
+                <div className="mb-6 min-w-0">
+                    <h1 className="mb-1 font-sans text-[28px] font-bold leading-[33.6px] text-[#0F1724]">Order Reports</h1>
                     <p className="text-[14px] text-[#6B7280]">Analyze order volumes, sources, and fulfillment times.</p>
-                    {reportData?.date_range_label && (
-                        <p className="text-[13px] text-[#6B7280] mt-1 font-medium">{reportData.date_range_label}</p>
-                    )}
                 </div>
-
-                {error && (
-                    <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-[10px] text-[14px] text-red-700">
-                        {error}
+                <div className="flex flex-col gap-2.5 lg:flex-row lg:items-end lg:gap-2.5">
+                    <div className="w-full min-w-0 flex-1 lg:min-w-0">
+                        <span className="mb-1.5 block font-sans text-[13px] font-medium leading-[19.5px] tracking-normal text-[#1A1A1A]">
+                            Order Type
+                        </span>
+                        <ReportsFilterSelect
+                            value={filterDraft.orderType}
+                            onValueChange={(v) => setFilterDraft((prev) => ({ ...prev, orderType: v }))}
+                            options={ORDER_TYPE_FILTER_OPTIONS}
+                            ariaLabel="Order type"
+                            borderClassName="border-[#E8E8E8]"
+                            containerClassName="relative w-full min-w-0"
+                        />
                     </div>
-                )}
-
-                {/* Filters Row */}
-                <div className="flex flex-wrap items-end gap-3">
-                    <div className="flex-1 min-w-[140px]">
-                        <label className="block text-[14px] font-[500] text-[#111827] mb-2">Order Type</label>
-                        <div className="relative">
-                            <select className="w-full px-4 py-2.5 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] text-[#4B5563] outline-none appearance-none cursor-pointer">
-                                <option>Delivery</option>
-                                <option>Takeaway</option>
-                                <option>Dine-in</option>
-                            </select>
-                            <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                                <svg className="w-4 h-4 text-[#9CA3AF]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                            </div>
-                        </div>
+                    <div className="w-full min-w-0 flex-1 lg:min-w-0">
+                        <span className="mb-1.5 block font-sans text-[13px] font-medium leading-[19.5px] tracking-normal text-[#1A1A1A]">
+                            Payment Method
+                        </span>
+                        <ReportsFilterSelect
+                            value={filterDraft.paymentMethod}
+                            onValueChange={(v) => setFilterDraft((prev) => ({ ...prev, paymentMethod: v }))}
+                            options={ORDER_PAYMENT_FILTER_OPTIONS}
+                            ariaLabel="Payment method"
+                            borderClassName="border-[#E8E8E8]"
+                            containerClassName="relative w-full min-w-0"
+                        />
                     </div>
-                    <div className="flex-1 min-w-[140px]">
-                        <label className="block text-[14px] font-[500] text-[#111827] mb-2">Payment Method</label>
-                        <div className="relative">
-                            <select className="w-full px-4 py-2.5 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] text-[#4B5563] outline-none appearance-none cursor-pointer">
-                                <option>Card</option>
-                                <option>Cash</option>
-                                <option>Wallet</option>
-                            </select>
-                            <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                                <svg className="w-4 h-4 text-[#9CA3AF]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                            </div>
-                        </div>
+                    <div className="w-full min-w-0 flex-1 lg:min-w-0">
+                        <span className="mb-1.5 block font-sans text-[13px] font-medium leading-[19.5px] tracking-normal text-[#1A1A1A]">
+                            Source
+                        </span>
+                        <ReportsFilterSelect
+                            value={filterDraft.source}
+                            onValueChange={(v) => setFilterDraft((prev) => ({ ...prev, source: v }))}
+                            options={ORDER_SOURCE_FILTER_OPTIONS}
+                            ariaLabel="Source"
+                            borderClassName="border-[#E8E8E8]"
+                            containerClassName="relative w-full min-w-0"
+                        />
                     </div>
-                    <div className="flex-1 min-w-[140px]">
-                        <label className="block text-[14px] font-[500] text-[#111827] mb-2">Source</label>
-                        <div className="relative">
-                            <select className="w-full px-4 py-2.5 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] text-[#4B5563] outline-none appearance-none cursor-pointer">
-                                <option>UberEats</option>
-                                <option>App</option>
-                                <option>Deliveroo</option>
-                                <option>Walk-in</option>
-                            </select>
-                            <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                                <svg className="w-4 h-4 text-[#9CA3AF]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                            </div>
-                        </div>
+                    <div className="w-full min-w-0 flex-1 lg:min-w-0">
+                        <span className="mb-1.5 block font-sans text-[13px] font-medium leading-[19.5px] tracking-normal text-[#1A1A1A]">
+                            Date Range
+                        </span>
+                        <ReportsFilterSelect
+                            value={filterDraft.dateRange}
+                            onValueChange={(v) => setFilterDraft((prev) => ({ ...prev, dateRange: v }))}
+                            options={DATE_RANGE_OPTIONS}
+                            ariaLabel="Date range"
+                            borderClassName="border-[#E8E8E8]"
+                            containerClassName="relative w-full min-w-0"
+                            leftAdornment={
+                                <Calendar className="h-4 w-4 shrink-0 text-gray-500" strokeWidth={1.75} aria-hidden />
+                            }
+                        />
                     </div>
-                    <div className="flex-1 min-w-[180px]">
-                        <label className="block text-[14px] font-[500] text-[#111827] mb-2">Date Range</label>
-                        <div className="relative">
-                            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                                <Calendar className="w-4 h-4 text-[#9CA3AF]" />
-                            </div>
-                            <select
-                                value={days}
-                                onChange={(e) => onDaysChange?.(Number(e.target.value))}
-                                className="w-full pl-10 pr-10 py-2.5 bg-white border border-[#E5E7EB] rounded-[10px] text-[14px] text-[#4B5563] outline-none appearance-none cursor-pointer"
-                            >
-                                <option value={7}>Last 7 Days</option>
-                                <option value={30}>Last 30 Days</option>
-                                <option value={90}>Last 90 Days</option>
-                            </select>
-                            <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                                <svg className="w-4 h-4 text-[#9CA3AF]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                            </div>
-                        </div>
+                    <div className="flex w-full min-w-0 shrink-0 justify-stretch sm:w-[150px] sm:justify-start">
+                        <button
+                            type="button"
+                            onClick={() => onApplyFilters?.(dateRangeToDays(filterDraft.dateRange))}
+                            disabled={loading}
+                            className="box-border flex h-12 min-h-[48px] w-full max-w-full items-center justify-center rounded-lg bg-primary px-4 text-center font-sans text-[14px] font-normal leading-[21px] text-white shadow-sm transition hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {loading ? 'Loading…' : 'Apply Filters'}
+                        </button>
                     </div>
-                    <button
-                        onClick={() => onRefresh?.()}
-                        disabled={loading}
-                        className="h-[43px] px-6 bg-[#DD2F26] text-white rounded-[8px] text-[14px] font-medium hover:bg-[#C52820] transition-all whitespace-nowrap disabled:opacity-60"
-                    >
-                        {loading ? 'Loading…' : 'Apply Filters'}
-                    </button>
                 </div>
             </div>
 
+            {error && (
+                <div className="mb-3 rounded-[10px] border border-red-200 bg-red-50 p-4 text-[14px] text-red-700">
+                    {error}
+                </div>
+            )}
+
             {/* Quick Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-8">
+            <div className="mb-8 grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-6">
                 {stats.map((stat, i) => (
                     <div key={i} className="bg-white rounded-2xl border border-[#E8E8E8] p-3  text-start">
                         <p className="text-[12px] font-[400] text-nowrap text-gray-400 uppercase tracking-wider mb-2">{stat.label}</p>
@@ -165,7 +237,9 @@ const OrderReports = ({ onBack, reportData, loading, error, days, onDaysChange, 
             {/* Charts Section */}
             <div className="mb-8">
                 <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-[18px] font-[800] text-general-text">Orders by Source</h2>
+                    <h2 className="font-sans text-[18px] font-bold leading-[21.6px] tracking-normal text-[#0F1724]">
+                        Orders by Source
+                    </h2>
                     <div className="flex p-1 bg-gray-100 rounded-[8px]">
                         <button className="px-4 py-2 bg-primary text-white text-xs  rounded-[8px] shadow-sm">Daily</button>
                         <button className="px-4 py-1.5 text-gray-500 text-xs  hover:text-gray-700">Weekly</button>
@@ -243,15 +317,22 @@ const OrderReports = ({ onBack, reportData, loading, error, days, onDaysChange, 
                 </div>
             </div>
 
-            {/* Table Section */}
-            <div className="bg-white rounded-[12px] h-[415px] border border-[#00000033] shadow-sm overflow-hidden mb-6">
-                <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
-                    <h2 className="text-[18px] font-[800] text-general-text">Recent Orders</h2>
+            {/* Recent Orders table */}
+            <div className="mb-0 overflow-hidden h-[415px] rounded-[16px] border border-[#00000033] bg-[#FFFFFF] shadow-sm">
+                <div className="flex items-center justify-between gap-3 border-b border-[#E5E7EB] p-5 pb-3">
+                    <h2 className="min-w-0 font-sans text-[18px] font-bold leading-[21.6px] tracking-normal text-[#0F1724]">
+                        Recent Orders
+                    </h2>
                     <button
-                        onClick={() => setIsFilterModalOpen(true)}
-                        className="flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-lg text-[11px] font-bold text-gray-500 hover:bg-gray-50 active:scale-95 transition-transform"
+                        type="button"
+                        onClick={openRecentOrderFilters}
+                        className="box-border inline-flex h-[38.33px] min-w-[97.58px] shrink-0 items-center justify-center gap-2 rounded-lg border border-[#E8E8E8] bg-white pl-4 pr-3 text-center font-sans text-[14px] font-normal leading-[21px] tracking-[0] text-[#374151] transition hover:bg-gray-50"
                     >
-                        <Filter className="w-3.5 h-3.5" />
+                        <Filter
+                            className="h-4 w-4 shrink-0 text-[#374151]"
+                            strokeWidth={1.75}
+                            aria-hidden
+                        />
                         Filters
                     </button>
                 </div>
@@ -278,8 +359,8 @@ const OrderReports = ({ onBack, reportData, loading, error, days, onDaysChange, 
                                         </div>
                                     </td>
                                 </tr>
-                            ) : recentOrders.length > 0 ? (
-                                recentOrders.map((order, idx) => (
+                            ) : filteredRecentOrders.length > 0 ? (
+                                filteredRecentOrders.map((order, idx) => (
                                     <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
                                         <td className="px-6 py-4 text-[14px] font-[500] text-nowrap text-primary">{order.id}</td>
                                         <td className="px-6 py-4 text-[14px] font-[500] text-nowrap text-general-text">{order.customer}</td>
@@ -303,7 +384,9 @@ const OrderReports = ({ onBack, reportData, loading, error, days, onDaysChange, 
                             ) : (
                                 <tr>
                                     <td colSpan={8} className="px-6 py-12 text-center text-gray-400">
-                                        No orders found
+                                        {recentOrders.length > 0
+                                            ? 'No orders match the selected filters.'
+                                            : 'No orders found.'}
                                     </td>
                                 </tr>
                             )}
@@ -312,39 +395,51 @@ const OrderReports = ({ onBack, reportData, loading, error, days, onDaysChange, 
                 </div>
             </div>
 
-            {/* Actions Footer */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3 min-[400px]:flex-row min-[400px]:items-center min-[400px]:w-auto">
                     <button
                         type="button"
                         onClick={onExportCsv}
-                        className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-[8px] text-[14px] font-[400] text-gray-600 hover:bg-gray-50 group active:scale-95 transition-transform w-full sm:w-auto"
+                        className="inline-flex h-10 w-full min-w-0 items-center justify-center gap-2 rounded-lg border border-[#E8E8E8] bg-transparent px-4 font-sans text-[14px] font-normal leading-[21px] text-[#374151] transition hover:bg-gray-50 min-[400px]:w-auto"
                     >
-                        <Download className="w-3.5 h-3.5 text-gray-400 group-hover:text-primary" />
+                        <Download className="h-4 w-4 shrink-0 text-[#374151]" strokeWidth={1.75} aria-hidden />
                         Export CSV
                     </button>
                     <button
                         type="button"
                         onClick={onExportPdf}
-                        className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-[8px] text-[14px] font-[400] text-gray-600 hover:bg-gray-50 group active:scale-95 transition-transform w-full sm:w-auto"
+                        className="inline-flex h-10 w-full min-w-0 items-center justify-center gap-2 rounded-lg border border-[#E8E8E8] bg-transparent px-4 font-sans text-[14px] font-normal leading-[21px] text-[#374151] transition hover:bg-gray-50 min-[400px]:w-auto"
                     >
-                        <Download className="w-3.5 h-3.5 text-gray-400 group-hover:text-primary" />
+                        <Download className="h-4 w-4 shrink-0 text-[#374151]" strokeWidth={1.75} aria-hidden />
                         Export PDF
                     </button>
                 </div>
                 <button
+                    type="button"
                     onClick={() => setIsScheduleModalOpen(true)}
-                    className="flex items-center justify-center gap-2 px-6 py-2.5 bg-[#DD2F26] text-white rounded-[8px] text-[14px] font-[400] shadow-[#DD2F26]/20 hover:bg-[#C52820] active:scale-95 transition-all w-full sm:w-auto"
+                    className="inline-flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 font-sans text-[14px] font-normal leading-[21px] text-white shadow-sm transition hover:bg-primary/90 sm:w-auto"
                 >
-                    <Calendar className="w-4 h-4" />
+                    <Calendar className="h-4 w-4 shrink-0" strokeWidth={1.75} aria-hidden />
                     Schedule Monthly Report
                 </button>
             </div>
 
-            {/* Modals */}
             <RecentOrdersFilterModal
                 isOpen={isFilterModalOpen}
                 onClose={() => setIsFilterModalOpen(false)}
+                draft={recentOrdersFilterDraft}
+                onChange={setRecentOrdersFilterDraft}
+                onReset={() =>
+                    setRecentOrdersFilterDraft({ ...RECENT_ORDERS_FILTER_DEFAULTS })
+                }
+                onApply={() => {
+                    setRecentOrdersFilterApplied({
+                        orderStatus: { ...recentOrdersFilterDraft.orderStatus },
+                        orderSource: { ...recentOrdersFilterDraft.orderSource },
+                        payment: { ...recentOrdersFilterDraft.payment },
+                    });
+                    setIsFilterModalOpen(false);
+                }}
             />
             <ScheduleReportModal
                 isOpen={isScheduleModalOpen}

@@ -8,7 +8,9 @@ const SupportHeader = ({ activeTab, onTabChange, onNewTicket, onFilter }) => {
         <div className="bg-white border border-[#00000033] rounded-[16px] p-4 sm:p-6 mb-8">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 gap-6">
                 <div>
-                    <h1 className="text-[24px] font-[800] text-[#111827] mb-0.5">Support Center</h1>
+                    <h1 className="mb-0.5 font-sans text-[24px] font-bold leading-[28.8px] tracking-normal text-[#111827]">
+                        Support Center
+                    </h1>
                     <p className="text-[14px] text-[#6B7280]">{subtitle}</p>
                 </div>
 

@@ -55,8 +55,16 @@ const OrderReportsPage = () => {
     }, [accessToken, getRestaurantId]);
 
     useEffect(() => {
-        fetchOrderReport(orderReportDays);
-    }, [fetchOrderReport, orderReportDays]);
+        fetchOrderReport(30);
+    }, [fetchOrderReport]);
+
+    const applyOrderReportFilters = useCallback(
+        (newDays) => {
+            setOrderReportDays(newDays);
+            fetchOrderReport(newDays);
+        },
+        [fetchOrderReport]
+    );
 
     const handleExportPdf = useCallback(async () => {
         try {
@@ -130,15 +138,14 @@ const OrderReportsPage = () => {
     }, [accessToken, getRestaurantId]);
 
     return (
-        <div className="max-w-[1600px] mx-auto pb-12">
+        <div className="max-w-[1600px] mx-auto">
             <OrderReports
                 onBack={() => navigate('/reports')}
                 reportData={orderReportData}
                 loading={orderReportLoading}
                 error={orderReportError}
                 days={orderReportDays}
-                onDaysChange={setOrderReportDays}
-                onRefresh={() => fetchOrderReport(orderReportDays)}
+                onApplyFilters={applyOrderReportFilters}
                 onExportPdf={handleExportPdf}
                 onExportCsv={handleExportCsv}
             />

@@ -27,11 +27,11 @@ const ReportsStats = ({ dashboardCards }) => {
     const period = dashboardCards?.month ?? {};
     const stats = dashboardCards
         ? [
-            { title: "Total Sales", value: formatCurrency(period.total_sales), subtitle: "This month" },
-            { title: "Number of Orders", value: (period.number_of_orders ?? 0).toLocaleString(), subtitle: "This month" },
-            { title: "Net Earnings", value: formatCurrency(period.net_earning), subtitle: "This month" },
-            { title: "Commission Paid", value: formatCurrency(period.commission), subtitle: "This month" },
-            { title: "Total Refunds", value: formatCurrency(period.refund), subtitle: "This month" },
+            { title: "Total Sales", value: formatCurrency(period.total_sales), subtitle: "vs previous period" },
+            { title: "Number of Orders", value: (period.number_of_orders ?? 0).toLocaleString(), subtitle: "vs previous period" },
+            { title: "Net Earnings", value: formatCurrency(period.net_earning), subtitle: "vs previous period" },
+            { title: "Commission Paid", value: formatCurrency(period.commission), subtitle: "vs previous period" },
+            { title: "Total Refunds", value: formatCurrency(period.refund), subtitle: "vs previous period" },
         ]
         : [
             { title: "Total Sales", value: "--", subtitle: "Loading..." },

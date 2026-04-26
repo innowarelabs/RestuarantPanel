@@ -1,12 +1,14 @@
 import React from 'react';
 import {
-    BarChart3,
+    Activity,
     Package,
     Wallet,
     Receipt,
-    UtensilsCrossed,
+    ShoppingBag,
     Users,
+    Clock,
     Truck,
+    File,
     Zap,
     Calendar,
     FileSpreadsheet,
@@ -16,48 +18,21 @@ import ReportsStats from './ReportsStats';
 import ReportCategoryCard from './ReportCategoryCard';
 
 const ReportsMain = ({ onSelectReport, dashboardCards }) => {
+    // Order: 2 columns × 5 rows — left to right, top to bottom (matches design)
     const reportCategories = [
+        {
+            id: 'sales',
+            title: "Sales Reports",
+            description: "Track revenue, order values, and sales trends over time",
+            icon: Activity,
+            color: "bg-rose-500",
+        },
         {
             id: 'order',
             title: "Order Reports",
             description: "Analyze order volumes, sources, and fulfillment times",
             icon: Package,
             color: "bg-blue-500",
-        },
-        {
-            id: 'refund',
-            title: "Refund & Adjustment Reports",
-            description: "Monitor refunds, cancellations, and financial adjustments",
-            icon: Receipt,
-            color: "bg-red-500",
-        },
-        {
-            id: 'customer',
-            title: "Customer & Loyalty Reports",
-            description: "Track customer retention, points, and engagement",
-            icon: Users,
-            color: "bg-purple-500",
-        },
-        {
-            id: 'delivery',
-            title: "Delivery Reports",
-            description: "Analyze delivery times, driver performance, and success rates",
-            icon: Truck,
-            color: "bg-cyan-500",
-        },
-        {
-            id: 'integration',
-            title: "Integration Reports",
-            description: "Monitor third-party platform syncs and discrepancies",
-            icon: Zap,
-            color: "bg-orange-500",
-        },
-        {
-            id: 'sales',
-            title: "Sales Reports",
-            description: "Track revenue, order values, and sales trends over time",
-            icon: BarChart3,
-            color: "bg-indigo-500",
         },
         {
             id: 'payout',
@@ -67,11 +42,53 @@ const ReportsMain = ({ onSelectReport, dashboardCards }) => {
             color: "bg-green-500",
         },
         {
+            id: 'refund',
+            title: "Refund & Adjustment Reports",
+            description: "Monitor refunds, cancellations, and financial adjustments",
+            icon: Receipt,
+            color: "bg-red-500",
+        },
+        {
             id: 'menu',
             title: "Menu Performance",
             description: "Identify top-selling items and category breakdowns",
-            icon: UtensilsCrossed,
+            icon: ShoppingBag,
             color: "bg-amber-500",
+        },
+        {
+            id: 'customer',
+            title: "Customer & Loyalty Reports",
+            description: "Track customer retention, points, and engagement",
+            icon: Users,
+            color: "bg-purple-500",
+        },
+        {
+            id: 'staff',
+            title: "Staff Performance Reports",
+            description: "Review shifts, performance metrics, and staff productivity",
+            icon: Clock,
+            color: "bg-pink-500",
+        },
+        {
+            id: 'delivery',
+            title: "Delivery Reports",
+            description: "Analyze delivery times, driver performance, and success rates",
+            icon: Truck,
+            color: "bg-cyan-500",
+        },
+        {
+            id: 'accounting',
+            title: "Accounting & Tax Reports",
+            description: "Summarize tax obligations, sales records, and accounting exports",
+            icon: File,
+            color: "bg-sky-500",
+        },
+        {
+            id: 'integration',
+            title: "Integration Reports",
+            description: "Monitor third-party platform syncs and discrepancies",
+            icon: Zap,
+            color: "bg-orange-500",
         },
     ];
 
@@ -79,7 +96,9 @@ const ReportsMain = ({ onSelectReport, dashboardCards }) => {
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4 bg-[#FFFFFF] border border-[#00000033] p-4 rounded-[16px]">
                 <div className=''>
-                    <h1 className="text-[28px] font-[800] text-general-text">Reports</h1>
+                    <h1 className="font-sans text-[28px] font-bold leading-[33.6px] tracking-normal text-[#0F1724]">
+                        Reports
+                    </h1>
                     <p className="text-[14px] text-gray-500">View detailed sales, order, menu, loyalty, and payout reports.</p>
                 </div>
 
@@ -101,7 +120,7 @@ const ReportsMain = ({ onSelectReport, dashboardCards }) => {
 
             <ReportsStats dashboardCards={dashboardCards} />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 {reportCategories.map(cat => (
                     <ReportCategoryCard
                         key={cat.id}

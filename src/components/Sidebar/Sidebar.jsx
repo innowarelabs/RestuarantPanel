@@ -66,7 +66,11 @@ export default function Sidebar({ isCollapsed, onToggleCollapse }) {
                 <div className="space-y-0.5">
                     {navItems.map((item) => {
                         const Icon = item.icon;
-                        const isActive = item.path === pathname;
+                        // Reports: stay active on /reports and all child routes (e.g. /reports/sales-reports)
+                        const isActive =
+                            item.path === '/reports'
+                                ? pathname === '/reports' || pathname.startsWith('/reports/')
+                                : item.path === pathname;
                         const tooltipId = `sidebar-tooltip-${item.key}`;
 
                         return (

@@ -1,130 +1,238 @@
-import React, { useState } from 'react';
-import { X } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { X, Check } from 'lucide-react';
 
-const Checkbox = ({ label, isChecked, onChange }) => (
-    <label className="flex items-center gap-3 cursor-pointer group py-1 select-none">
-        <div
-            onClick={onChange}
-            className={`w-5 h-5 rounded-md border-2 transition-all flex items-center justify-center ${isChecked ? 'bg-primary border-primary' : 'border-gray-200 group-hover:border-primary'
-                }`}
-        >
-            {isChecked && <div className="w-2.5 h-1.5 border-l-2 border-b-2 border-white -rotate-45 mb-0.5 animate-in zoom-in-50 duration-200"></div>}
-        </div>
-        <span className={`text-[14px] font-bold ${isChecked ? 'text-general-text' : 'text-gray-500'}`}>{label}</span>
-    </label>
-);
+export const RECENT_ORDERS_FILTER_DEFAULTS = {
+    orderStatus: { all: true, completed: false, cancelled: false, refunded: false },
+    orderSource: { all: true, app: false, uberEats: false, deliveroo: false, walkIn: false },
+    payment: { all: true, card: false, cash: false, contactless: false },
+};
 
-const RecentOrdersFilterModal = ({ isOpen, onClose }) => {
-    const [status, setStatus] = useState(['All']);
-    const [payment, setPayment] = useState(['All']);
+const ORDER_STATUS_ROWS = [
+    { key: 'all', label: 'All' },
+    { key: 'completed', label: 'Completed' },
+    { key: 'cancelled', label: 'Cancelled' },
+    { key: 'refunded', label: 'Refunded' },
+];
+
+const ORDER_SOURCE_ROWS = [
+    { key: 'all', label: 'All' },
+    { key: 'app', label: 'App' },
+    { key: 'uberEats', label: 'Uber Eats' },
+    { key: 'deliveroo', label: 'Deliveroo' },
+    { key: 'walkIn', label: 'Walk-in' },
+];
+
+const PAYMENT_ROWS = [
+    { key: 'all', label: 'All' },
+    { key: 'card', label: 'Card' },
+    { key: 'cash', label: 'Cash' },
+    { key: 'contactless', label: 'Contactless' },
+];
+
+function toggleOrderStatus(prev, k) {
+    const next = { ...prev.orderStatus, [k]: !prev.orderStatus[k] };
+    if (k === 'all' && next.all) {
+        return { ...prev, orderStatus: { all: true, completed: false, cancelled: false, refunded: false } };
+    }
+    if (k !== 'all' && next[k]) {
+        return { ...prev, orderStatus: { ...next, all: false } };
+    }
+    const hasSpecific = next.completed || next.cancelled || next.refunded;
+    if (!next.all && !hasSpecific) {
+        return { ...prev, orderStatus: { all: true, completed: false, cancelled: false, refunded: false } };
+    }
+    if (hasSpecific) {
+        return { ...prev, orderStatus: { ...next, all: false } };
+    }
+    return { ...prev, orderStatus: { all: true, completed: false, cancelled: false, refunded: false } };
+}
+
+function toggleOrderSource(prev, k) {
+    const next = { ...prev.orderSource, [k]: !prev.orderSource[k] };
+    if (k === 'all' && next.all) {
+        return {
+            ...prev,
+            orderSource: { all: true, app: false, uberEats: false, deliveroo: false, walkIn: false },
+        };
+    }
+    if (k !== 'all' && next[k]) {
+        return { ...prev, orderSource: { ...next, all: false } };
+    }
+    const hasSpecific = next.app || next.uberEats || next.deliveroo || next.walkIn;
+    if (!next.all && !hasSpecific) {
+        return {
+            ...prev,
+            orderSource: { all: true, app: false, uberEats: false, deliveroo: false, walkIn: false },
+        };
+    }
+    if (hasSpecific) {
+        return { ...prev, orderSource: { ...next, all: false } };
+    }
+    return {
+        ...prev,
+        orderSource: { all: true, app: false, uberEats: false, deliveroo: false, walkIn: false },
+    };
+}
+
+function togglePayment(prev, k) {
+    const next = { ...prev.payment, [k]: !prev.payment[k] };
+    if (k === 'all' && next.all) {
+        return { ...prev, payment: { all: true, card: false, cash: false, contactless: false } };
+    }
+    if (k !== 'all' && next[k]) {
+        return { ...prev, payment: { ...next, all: false } };
+    }
+    const hasSpecific = next.card || next.cash || next.contactless;
+    if (!next.all && !hasSpecific) {
+        return { ...prev, payment: { all: true, card: false, cash: false, contactless: false } };
+    }
+    if (hasSpecific) {
+        return { ...prev, payment: { ...next, all: false } };
+    }
+    return { ...prev, payment: { all: true, card: false, cash: false, contactless: false } };
+}
+
+const RecentOrdersFilterModal = ({ isOpen, onClose, draft, onChange, onReset, onApply }) => {
+    useEffect(() => {
+        if (!isOpen) return;
+        const onKey = (e) => {
+            if (e.key === 'Escape') onClose();
+        };
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+    }, [isOpen, onClose]);
 
     if (!isOpen) return null;
 
-    const toggleFilter = (current, setter, value) => {
-        if (value === 'All') {
-            setter(['All']);
-            return;
-        }
-
-        let next = current.includes('All') ? [] : [...current];
-        if (next.includes(value)) {
-            next = next.filter(v => v !== value);
-        } else {
-            next.push(value);
-        }
-
-        if (next.length === 0) {
-            setter(['All']);
-        } else {
-            setter(next);
-        }
-    };
-
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 animate-in fade-in duration-200" onClick={onClose}>
+        <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="recent-orders-filters-title"
+            onClick={onClose}
+        >
             <div
-                className="bg-white rounded-[24px] w-full max-w-[400px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col"
-                onClick={e => e.stopPropagation()}
+                className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
             >
-                {/* Header */}
-                <div className="px-6 py-5 sm:px-8 sm:py-6 border-b border-gray-50 flex items-center justify-between shrink-0">
-                    <h2 className="text-[20px] font-bold text-general-text">Filters</h2>
-                    <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-full hover:bg-gray-100">
-                        <X className="w-5 h-5" />
+                <div className="flex items-center justify-between border-b border-[#E5E7EB] px-5 py-4">
+                    <h2 id="recent-orders-filters-title" className="text-[16px] font-bold text-[#0F1724]">
+                        Filters
+                    </h2>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+                        aria-label="Close"
+                    >
+                        <X className="h-5 w-5" />
                     </button>
                 </div>
-
-                {/* Body */}
-                <div className="p-6 sm:p-8 space-y-8 max-h-[60vh] overflow-y-auto custom-scrollbar">
-                    {/* Order Status */}
-                    <div className="space-y-4">
-                        <h3 className="text-sm font-bold text-general-text uppercase tracking-widest text-[#9CA3AF]">Order Status</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <Checkbox
-                                label="All Statuses"
-                                isChecked={status.includes('All')}
-                                onChange={() => toggleFilter(status, setStatus, 'All')}
-                            />
-                            <Checkbox
-                                label="Completed"
-                                isChecked={status.includes('Completed')}
-                                onChange={() => toggleFilter(status, setStatus, 'Completed')}
-                            />
-                            <Checkbox
-                                label="Cancelled"
-                                isChecked={status.includes('Cancelled')}
-                                onChange={() => toggleFilter(status, setStatus, 'Cancelled')}
-                            />
-                            <Checkbox
-                                label="Refunded"
-                                isChecked={status.includes('Refunded')}
-                                onChange={() => toggleFilter(status, setStatus, 'Refunded')}
-                            />
-                        </div>
+                <div className="max-h-[60vh] overflow-y-auto px-5 py-5 custom-scrollbar">
+                    <div>
+                        <p className="mb-3 font-sans text-[13px] font-medium leading-[19.5px] tracking-normal text-[#1A1A1A]">Order Status</p>
+                        <ul className="space-y-2.5">
+                            {ORDER_STATUS_ROWS.map((row) => {
+                                const checked = draft.orderStatus[row.key];
+                                return (
+                                    <li key={row.key}>
+                                        <label className="flex cursor-pointer items-center gap-2.5">
+                                            <span className="relative flex h-4 w-4 shrink-0 items-center justify-center">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={checked}
+                                                    onChange={() => onChange((p) => toggleOrderStatus(p, row.key))}
+                                                    className="peer h-4 w-4 cursor-pointer appearance-none rounded border-2 border-primary bg-white focus:ring-2 focus:ring-primary/20 focus:ring-offset-0 checked:border-primary checked:bg-primary"
+                                                />
+                                                {checked && (
+                                                    <Check
+                                                        className="pointer-events-none absolute h-2.5 w-2.5 text-white"
+                                                        strokeWidth={3.5}
+                                                        aria-hidden
+                                                    />
+                                                )}
+                                            </span>
+                                            <span className="text-[14px] text-[#111827]">{row.label}</span>
+                                        </label>
+                                    </li>
+                                );
+                            })}
+                        </ul>
                     </div>
-
-                    {/* Payment Method */}
-                    <div className="space-y-4">
-                        <h3 className="text-sm font-bold text-general-text uppercase tracking-widest text-[#9CA3AF]">Payment Method</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <Checkbox
-                                label="All Methods"
-                                isChecked={payment.includes('All')}
-                                onChange={() => toggleFilter(payment, setPayment, 'All')}
-                            />
-                            <Checkbox
-                                label="Card"
-                                isChecked={payment.includes('Card')}
-                                onChange={() => toggleFilter(payment, setPayment, 'Card')}
-                            />
-                            <Checkbox
-                                label="Cash"
-                                isChecked={payment.includes('Cash')}
-                                onChange={() => toggleFilter(payment, setPayment, 'Cash')}
-                            />
-                            <Checkbox
-                                label="Contactless"
-                                isChecked={payment.includes('Contactless')}
-                                onChange={() => toggleFilter(payment, setPayment, 'Contactless')}
-                            />
-                        </div>
+                    <div className="mt-6">
+                        <p className="mb-3 font-sans text-[13px] font-medium leading-[19.5px] tracking-normal text-[#1A1A1A]">Order Source</p>
+                        <ul className="space-y-2.5">
+                            {ORDER_SOURCE_ROWS.map((row) => {
+                                const checked = draft.orderSource[row.key];
+                                return (
+                                    <li key={row.key}>
+                                        <label className="flex cursor-pointer items-center gap-2.5">
+                                            <span className="relative flex h-4 w-4 shrink-0 items-center justify-center">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={checked}
+                                                    onChange={() => onChange((p) => toggleOrderSource(p, row.key))}
+                                                    className="peer h-4 w-4 cursor-pointer appearance-none rounded border-2 border-primary bg-white focus:ring-2 focus:ring-primary/20 focus:ring-offset-0 checked:border-primary checked:bg-primary"
+                                                />
+                                                {checked && (
+                                                    <Check
+                                                        className="pointer-events-none absolute h-2.5 w-2.5 text-white"
+                                                        strokeWidth={3.5}
+                                                        aria-hidden
+                                                    />
+                                                )}
+                                            </span>
+                                            <span className="text-[14px] text-[#111827]">{row.label}</span>
+                                        </label>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </div>
+                    <div className="mt-6">
+                        <p className="mb-3 font-sans text-[13px] font-medium leading-[19.5px] tracking-normal text-[#1A1A1A]">Payment Method</p>
+                        <ul className="space-y-2.5">
+                            {PAYMENT_ROWS.map((row) => {
+                                const checked = draft.payment[row.key];
+                                return (
+                                    <li key={row.key}>
+                                        <label className="flex cursor-pointer items-center gap-2.5">
+                                            <span className="relative flex h-4 w-4 shrink-0 items-center justify-center">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={checked}
+                                                    onChange={() => onChange((p) => togglePayment(p, row.key))}
+                                                    className="peer h-4 w-4 cursor-pointer appearance-none rounded border-2 border-primary bg-white focus:ring-2 focus:ring-primary/20 focus:ring-offset-0 checked:border-primary checked:bg-primary"
+                                                />
+                                                {checked && (
+                                                    <Check
+                                                        className="pointer-events-none absolute h-2.5 w-2.5 text-white"
+                                                        strokeWidth={3.5}
+                                                        aria-hidden
+                                                    />
+                                                )}
+                                            </span>
+                                            <span className="text-[14px] text-[#111827]">{row.label}</span>
+                                        </label>
+                                    </li>
+                                );
+                            })}
+                        </ul>
                     </div>
                 </div>
-
-                {/* Footer */}
-                <div className="p-5 sm:p-6 border-t border-gray-50 flex flex-col sm:flex-row gap-3 bg-white shrink-0">
+                <div className="flex flex-col gap-2 border-t border-[#E5E7EB] p-4 sm:flex-row sm:items-center sm:justify-stretch sm:gap-3">
                     <button
-                        onClick={() => {
-                            setStatus(['All']);
-                            setPayment(['All']);
-                        }}
-                        className="flex-1 py-3 px-4 border border-[#E5E7EB] text-[#4B5563] font-bold rounded-[12px] hover:bg-gray-50 transition-all active:scale-95 shadow-sm order-2 sm:order-1"
+                        type="button"
+                        onClick={onReset}
+                        className="h-10 flex-1 rounded-lg border border-[#E5E7EB] bg-white px-4 text-[14px] font-[500] text-[#0F1724] transition hover:bg-gray-50"
                     >
                         Reset
                     </button>
                     <button
-                        onClick={onClose}
-                        className="flex-1 py-3 px-4 bg-primary text-white font-bold rounded-[12px] hover:bg-primary/90 transition-all active:scale-95 shadow-lg shadow-primary/20 order-1 sm:order-2"
+                        type="button"
+                        onClick={onApply}
+                        className="h-10 flex-1 rounded-lg bg-primary px-4 text-[14px] font-[600] text-white transition hover:bg-primary/90"
                     >
                         Apply Filters
                     </button>
