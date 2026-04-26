@@ -25,6 +25,8 @@ const LoyaltyProgram = () => {
     const restaurantId = getRestaurantId();
     const [loyaltySettings, setLoyaltySettings] = useState({
         points_per_dollar: 0,
+        fixed_points_per_order: 50,
+        earning_mode: 'fixed_per_order',
         first_order_bonus_points: 0,
         min_order_to_earn_points: 0,
         points_expiry_days: 0,
@@ -63,8 +65,18 @@ const LoyaltyProgram = () => {
             const data = await res.json();
             console.log('GET /api/v1/rewards/loyalty response:', data);
             if (data.code === 'SUCCESS_200' && data.data) {
+                const ppd = data.data.points_per_dollar ?? 0;
+                const fpo = data.data.fixed_points_per_order ?? 0;
+                const em =
+                    data.data.earning_mode === 'per_dollar' || data.data.earning_mode === 'fixed_per_order'
+                        ? data.data.earning_mode
+                        : ppd > 0
+                          ? 'per_dollar'
+                          : 'fixed_per_order';
                 setLoyaltySettings({
-                    points_per_dollar: data.data.points_per_dollar ?? 0,
+                    points_per_dollar: ppd,
+                    fixed_points_per_order: fpo > 0 ? fpo : 50,
+                    earning_mode: em,
                     first_order_bonus_points: data.data.first_order_bonus_points ?? 0,
                     min_order_to_earn_points: data.data.min_order_to_earn_points ?? 0,
                     points_expiry_days: data.data.points_expiry_days ?? 0,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ChevronDown, User } from 'lucide-react';
+import { Search, User, Calendar } from 'lucide-react';
 import Pagination from '../../components/Customers/Pagination';
 import CustomerDetailsModal from '../../components/Customers/CustomerDetailsModal';
 import { useSelector } from 'react-redux';
@@ -9,6 +9,7 @@ export default function Customers() {
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [sortBy, setSortBy] = useState('');
+    const [filterDate, setFilterDate] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [customers, setCustomers] = useState([]);
@@ -35,7 +36,7 @@ export default function Customers() {
 
     const restaurantId = getRestaurantId();
 
-    const fetchCustomersData = async (page = 1, search = '', sort = '') => {
+    const fetchCustomersData = async (page = 1, search = '', sort = '', date = '') => {
         setLoading(true);
         try {
             const baseUrl = import.meta.env.VITE_BACKEND_URL;
@@ -45,6 +46,7 @@ export default function Customers() {
             let url = `${baseUrl}/api/v1/orders/customers?skip=${skip}&limit=20`;
             if (search) url += `&search=${encodeURIComponent(search)}`;
             if (sort) url += `&sort=${sort}`;
+            if (date) url += `&date=${encodeURIComponent(date)}`;
             
             const res = await fetch(url, {
                 method: 'GET',
@@ -88,7 +90,7 @@ export default function Customers() {
     }, [searchTerm]);
 
     useEffect(() => {
-        fetchCustomersData(currentPage, debouncedSearchTerm, sortBy);
+        fetchCustomersData(currentPage, debouncedSearchTerm, sortBy, filterDate);
         
         const fetchCustomerCards = async () => {
             try {
@@ -113,7 +115,7 @@ export default function Customers() {
         };
 
         fetchCustomerCards();
-    }, [accessToken, currentPage, debouncedSearchTerm, sortBy]);
+    }, [accessToken, currentPage, debouncedSearchTerm, sortBy, filterDate]);
 
     const formatDateTime = (dateString) => {
         if (!dateString) return '-';
@@ -129,6 +131,16 @@ export default function Customers() {
         { label: 'Total Customers', value: customerCards?.total_customers.toString() || '0' },
         { label: 'Loyalty Members', value: customerCards?.loyalty_members.toString() || '0', textColor: 'text-[#DD2F26]' },
         { label: 'High Value ($100+)', value: customerCards?.high_value_customers.toString() || '0' },
+        {
+            label: 'Blocked',
+            value:
+                customerCards?.blocked != null
+                    ? String(customerCards.blocked)
+                    : customerCards?.blocked_customers != null
+                      ? String(customerCards.blocked_customers)
+                      : '0',
+            textColor: 'text-primary',
+        },
     ];
 
     const handleRowClick = (customer) => {
@@ -172,6 +184,7 @@ export default function Customers() {
     const handleResetFilters = () => {
         setSearchTerm('');
         setSortBy('');
+        setFilterDate('');
         setCurrentPage(1);
     };
 
@@ -204,11 +217,17 @@ export default function Customers() {
                     </select>
                 </div>
 
-                <div className="w-[180px] relative">
-                    <button className="w-full px-4 py-2 border border-gray-200 rounded-lg flex items-center justify-between bg-white text-[14px] text-gray-600 hover:bg-gray-50 cursor-pointer">
-                        <span>Dd/Mm/Yyyy</span>
-                        <ChevronDown size={16} />
-                    </button>
+                <div className="w-[200px] min-w-[200px] relative">
+                    <input
+                        type="date"
+                        value={filterDate}
+                        onChange={(e) => {
+                            setFilterDate(e.target.value);
+                            setCurrentPage(1);
+                        }}
+                        className="w-full cursor-pointer appearance-none rounded-lg border border-gray-200 bg-white py-2 pl-2 pr-3 text-[14px] font-[500] text-gray-600 hover:bg-gray-50 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary [color-scheme:light]"
+                        title="Filter by date"
+                    />
                 </div>
 
                 <button 
@@ -219,7 +238,7 @@ export default function Customers() {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+            <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
                 {stats.map((stat, index) => (
                     <div key={index} className="bg-white p-5 rounded-[12px] h-[100px] border border-[#E5E7EB]">
                         <p className="text-[13px] text-gray-500 mb-1">{stat.label}</p>
@@ -272,7 +291,7 @@ export default function Customers() {
                                         <td className="px-6 py-4 whitespace-nowrap text-[14px] font-[400] text-[#374151]">{customer.total_orders}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-[14px] font-[500] text-[#0F1724]">{formatCurrency(customer.total_spending)}</td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="inline-flex items-center px-3 py-1.5 rounded-[8px] text-[12px] font-medium bg-[#ECFDF5] text-[#059669]">
+                                            <span className="inline-flex items-center rounded-[8px] bg-primary-bg px-3 py-1.5 text-[12px] font-medium text-primary">
                                                 Active
                                             </span>
                                         </td>

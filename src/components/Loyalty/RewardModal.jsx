@@ -1,14 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { X, Image as ImageIcon } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const getInitialFormData = (reward, mode) => {
     if (reward && (mode === 'edit' || mode === 'reactivate')) {
+        const { reward_image, reward_emoji } = getRewardImageFromApi(reward);
         return {
             reward_name: reward.reward_name || reward.name || '',
             points_required: reward.points_required || reward.points || '',
             menu_item_id: reward.menu_item_id || reward.linked_item || reward.menuItemId || '',
             description: reward.description || '',
-            reward_image: reward.reward_image || reward.image || '',
+            reward_image,
+            reward_emoji,
             is_active: mode === 'edit' ? reward.is_active || reward.status === 'Active' : false,
             reward_type: typeof reward.reward_type === 'string' ? reward.reward_type : '',
             reward_value: reward.reward_value ?? '',
@@ -23,11 +26,27 @@ const getInitialFormData = (reward, mode) => {
         menu_item_id: '',
         description: '',
         reward_image: '',
+        reward_emoji: '',
         is_active: true,
         reward_type: '',
         reward_value: '',
         valid_until: '',
     };
+};
+
+const MAX_REWARD_IMAGE_BYTES = 1.5 * 1024 * 1024;
+
+const isImageUrlValue = (v) => {
+    if (typeof v !== 'string' || !v) return false;
+    return v.startsWith('data:image/') || /^https?:\/\//i.test(v);
+};
+
+const getRewardImageFromApi = (reward) => {
+    const raw = (reward && (reward.reward_image || reward.image)) || '';
+    if (isImageUrlValue(raw) || (typeof raw === 'string' && /^https?:\/\//i.test(raw))) {
+        return { reward_image: raw, reward_emoji: '' };
+    }
+    return { reward_image: '', reward_emoji: raw || '' };
 };
 
 const RewardModalInner = ({
@@ -44,6 +63,7 @@ const RewardModalInner = ({
     const [formData, setFormData] = useState(() => getInitialFormData(reward, mode));
     const [submitting, setSubmitting] = useState(false);
     const [selectedCategoryId, setSelectedCategoryId] = useState('');
+    const imageFileInputRef = useRef(null);
 
     const title = mode === 'add' ? 'Add Reward Item' : mode === 'edit' ? 'Edit Reward Item' : 'Reactivate Reward Item';
     const buttonText = submitting ? 'Saving...' : (mode === 'add' ? 'Save Reward' : 'Save Changes');
@@ -54,6 +74,40 @@ const RewardModalInner = ({
 
     const isFreeItem = formData.reward_type === 'free_item';
     const isRewardValueRequired = !!selectedTypeConfig?.reward_value_required;
+
+    const handleRewardImageFile = (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            toast.error('Please choose an image file (PNG, JPG, etc.).');
+            return;
+        }
+        if (file.size > MAX_REWARD_IMAGE_BYTES) {
+            toast.error('Image is too large. Please use a file under 1.5 MB.');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+            setFormData((prev) => ({
+                ...prev,
+                reward_image: String(reader.result || ''),
+                reward_emoji: '',
+            }));
+        };
+        reader.onerror = () => toast.error('Could not read that file.');
+        reader.readAsDataURL(file);
+    };
+
+    const clearRewardImage = () => {
+        setFormData((prev) => ({ ...prev, reward_image: '' }));
+        if (imageFileInputRef.current) imageFileInputRef.current.value = '';
+    };
+
+    const canShowRemoveImage = () =>
+        Boolean(
+            (formData.reward_image && (isImageUrlValue(formData.reward_image) || /^https?:\/\//i.test(formData.reward_image)))
+        );
 
     const handleSubmit = async () => {
         setSubmitting(true);
@@ -81,8 +135,16 @@ const RewardModalInner = ({
                 }
             }
 
+            const mergedRewardImage = (() => {
+                const img = String(formData.reward_image || '');
+                if (isImageUrlValue(img) || /^https?:\/\//i.test(img)) return img;
+                return String(formData.reward_emoji || '');
+            })();
+            const formWithoutEmoji = { ...formData };
+            delete formWithoutEmoji.reward_emoji;
             const payload = {
-                ...formData,
+                ...formWithoutEmoji,
+                reward_image: mergedRewardImage,
                 valid_until: formData.valid_until
                     ? new Date(formData.valid_until).toISOString()
                     : null,
@@ -146,7 +208,7 @@ const RewardModalInner = ({
                                     setSelectedCategoryId('');
                                 }
                             }}
-                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none"
+                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none"
                             disabled={loadingRewardTypes}
                         >
                             <option value="">{loadingRewardTypes ? 'Loading types...' : 'Select reward type'}</option>
@@ -171,7 +233,7 @@ const RewardModalInner = ({
                             placeholder="e.g., Free Ice Cream"
                             value={formData.reward_name}
                             onChange={(e) => setFormData({ ...formData, reward_name: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                         />
                     </div>
 
@@ -183,7 +245,7 @@ const RewardModalInner = ({
                             placeholder="e.g., 175"
                             value={formData.points_required}
                             onChange={(e) => setFormData({ ...formData, points_required: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                         />
                     </div>
 
@@ -198,7 +260,7 @@ const RewardModalInner = ({
                                         setSelectedCategoryId(e.target.value);
                                         setFormData({ ...formData, menu_item_id: '' });
                                     }}
-                                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none"
+                                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none"
                                     disabled={loadingMenuItems}
                                 >
                                     <option value="">{loadingMenuItems ? 'Loading categories...' : 'Select a category'}</option>
@@ -213,7 +275,7 @@ const RewardModalInner = ({
                                 <select
                                     value={formData.menu_item_id}
                                     onChange={(e) => setFormData({ ...formData, menu_item_id: e.target.value })}
-                                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none"
+                                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none"
                                     disabled={loadingMenuItems || !selectedCategoryId}
                                 >
                                     <option value="">{loadingMenuItems ? 'Loading items...' : (selectedCategoryId ? 'Select an item' : 'Select a category first')}</option>
@@ -233,24 +295,79 @@ const RewardModalInner = ({
                             placeholder="Brief description of the reward"
                             value={formData.description}
                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"
+                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"
                         ></textarea>
                     </div>
 
-                    {/* Reward Image (Emoji) */}
+                    {/* Reward image: click box to upload, emoji field beside */}
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Reward Image (Emoji)</label>
-                        <div className="flex gap-3">
-                            <div className="w-12 h-12 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-center text-2xl">
-                                {formData.reward_image || <ImageIcon className="w-6 h-6 text-gray-300" />}
+                        <label className="block text-sm font-semibold text-gray-700 mb-0.5">Reward image (optional)</label>
+                        <p className="text-xs text-gray-500 mb-2.5">Click the box to upload, or add an emoji in the field</p>
+                        <input
+                            ref={imageFileInputRef}
+                            type="file"
+                            accept="image/*"
+                            className="sr-only"
+                            onChange={handleRewardImageFile}
+                        />
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
+                            <div className="relative shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={() => imageFileInputRef.current?.click()}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault();
+                                            imageFileInputRef.current?.click();
+                                        }
+                                    }}
+                                    className="group h-20 w-20 cursor-pointer overflow-hidden rounded-xl border border-dashed border-gray-300 bg-gray-50 text-left transition-colors hover:border-primary/50 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                                    title="Click to upload image"
+                                    aria-label="Upload reward image"
+                                >
+                                    {isImageUrlValue(formData.reward_image) || /^https?:\/\//i.test(String(formData.reward_image || '')) ? (
+                                        <img
+                                            src={formData.reward_image}
+                                            alt=""
+                                            className="h-full w-full object-cover"
+                                        />
+                                    ) : formData.reward_emoji ? (
+                                        <span className="flex h-full w-full select-none items-center justify-center text-3xl" role="img" aria-hidden>
+                                            {formData.reward_emoji}
+                                        </span>
+                                    ) : (
+                                        <span className="flex h-full w-full flex-col items-center justify-center gap-0.5 px-1 text-center text-[10px] font-medium leading-tight text-gray-400 group-hover:text-gray-500">
+                                            <ImageIcon className="mx-auto h-7 w-7 text-gray-300 group-hover:text-gray-400" />
+                                        </span>
+                                    )}
+                                </button>
+                                {canShowRemoveImage() && (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            clearRewardImage();
+                                        }}
+                                        className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 bg-white text-[10px] font-bold text-gray-500 shadow-sm hover:bg-gray-50"
+                                        title="Remove image"
+                                        aria-label="Remove image"
+                                    >
+                                        ×
+                                    </button>
+                                )}
                             </div>
-                            <input
-                                type="text"
-                                placeholder="Paste emoji or icon"
-                                value={formData.reward_image}
-                                onChange={(e) => setFormData({ ...formData, reward_image: e.target.value })}
-                                className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                            />
+                            <div className="min-w-0 flex-1 flex items-center">
+                                <input
+                                    id="reward-emoji"
+                                    type="text"
+                                    inputMode="text"
+                                    autoComplete="off"
+                                    placeholder=""
+                                    value={formData.reward_emoji}
+                                    onChange={(e) => setFormData((prev) => ({ ...prev, reward_emoji: e.target.value }))}
+                                    className="w-full h-11 min-h-0 px-4 py-2 bg-white border border-gray-200 rounded-xl text-lg leading-normal focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -261,7 +378,7 @@ const RewardModalInner = ({
                             type="datetime-local"
                             value={formData.valid_until}
                             onChange={(e) => setFormData({ ...formData, valid_until: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                         />
                     </div>
 
@@ -274,7 +391,7 @@ const RewardModalInner = ({
                                 placeholder="e.g., 10"
                                 value={formData.reward_value}
                                 onChange={(e) => setFormData({ ...formData, reward_value: e.target.value })}
-                                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                             />
                             <p className="mt-1 text-xs text-gray-500">
                                 {formData.reward_type === 'discount' &&
@@ -300,7 +417,7 @@ const RewardModalInner = ({
                                 onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                                 className="sr-only peer"
                             />
-                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                            <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                         </label>
                     </div>
                 </div>

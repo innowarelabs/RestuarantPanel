@@ -22,6 +22,10 @@ const RewardCard = ({ reward, onEdit, onReactivate, onDelete }) => {
     const displayMenuItem = menu_item_id || linked_item || linkedItem;
     const displayImage = reward_image || image;
     const displayStatus = is_active !== undefined ? (is_active ? 'Active' : 'Inactive') : status;
+    const imageLooksLikeUrl = (s) => {
+        if (typeof s !== 'string' || !s) return false;
+        return s.startsWith('data:image/') || /^https?:\/\//i.test(s);
+    };
 
     return (
         <div className="bg-white rounded-[16px] border border-[#E5E7EB] p-5 flex flex-col items-start relative shadow-sm">
@@ -29,8 +33,18 @@ const RewardCard = ({ reward, onEdit, onReactivate, onDelete }) => {
                 {displayStatus}
             </span>
 
-            <div className="w-16 h-16 bg-[#F6F8F9] rounded-[12px] flex items-center justify-center mb-4 text-3xl">
-                {displayImage}
+            <div className="w-16 h-16 bg-[#F6F8F9] rounded-[12px] flex items-center justify-center mb-4 overflow-hidden text-3xl">
+                {imageLooksLikeUrl(displayImage) ? (
+                    <img
+                        src={displayImage}
+                        alt=""
+                        className="h-full w-full object-cover"
+                    />
+                ) : displayImage ? (
+                    displayImage
+                ) : (
+                    <Award className="h-8 w-8 text-gray-300" />
+                )}
             </div>
 
             <h3 className="text-[#1F2937] text-[18px] font-semibold mb-1">{displayName}</h3>
