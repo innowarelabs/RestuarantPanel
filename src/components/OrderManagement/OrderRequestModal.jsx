@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, User, Phone, MapPin, ChevronDown, ChevronUp, Check } from 'lucide-react';
+import { X, User, Phone, MapPin, ChevronDown, ChevronUp, CircleCheckBig } from 'lucide-react';
 
 export default function OrderRequestModal({ isOpen, onClose, order, onAccept, onReject }) {
     // Accordion State
@@ -17,19 +17,23 @@ export default function OrderRequestModal({ isOpen, onClose, order, onAccept, on
 
     if (!isOpen || !order) return null;
 
-    // Mock Timeline Data
-    const timelineEvents = order.status === 'Cancelled' ? [
-        { status: 'Order Placed', time: '01:15', active: true },
-        { status: 'Cancelled', time: '', active: false, isCancelled: true },
-    ] : [
-        { status: 'Order Placed', time: '01:15', active: true },
-        { status: 'Accepted', time: '', active: false },
-        { status: 'Preparing', time: '', active: false },
-        { status: 'Ready', time: '', active: false },
-        { status: 'Driver Assigned', time: '', active: false },
-        { status: 'On the Way', time: '', active: false },
-        { status: 'Delivered', time: '', active: false },
-    ];
+    const isCancelled = String(order.status || '').toLowerCase() === 'cancelled';
+
+    // Mock timeline — replace with API fields when available
+    const timelineEvents = isCancelled
+        ? [
+            { status: 'Order Placed', time: '01:15', active: true },
+            { status: 'Cancelled', time: '', active: false, isCancelled: true },
+        ]
+        : [
+            { status: 'Order Placed', time: '01:15', active: true },
+            { status: 'Accepted', time: '', active: false },
+            { status: 'Preparing', time: '', active: false },
+            { status: 'Ready', time: '', active: false },
+            { status: 'Driver Assigned', time: '', active: false },
+            { status: 'On the Way', time: '', active: false },
+            { status: 'Delivered', time: '', active: false },
+        ];
 
     return (
         <div className="fixed inset-0 z-50 flex justify-end">
@@ -40,56 +44,79 @@ export default function OrderRequestModal({ isOpen, onClose, order, onAccept, on
             ></div>
 
             {/* Drawer Content */}
-            <div className="relative w-full max-w-[400px] bg-white h-full shadow-xl flex flex-col animate-in slide-in-from-right duration-300">
+            <div className="relative w-full max-w-[600px] bg-white h-full shadow-xl flex flex-col animate-in slide-in-from-right duration-300">
 
                 {/* Header */}
                 <div className="flex items-center justify-between p-5 border-b border-gray-100">
                     <div>
-                        <h2 className="text-[18px] font-bold text-[#111827]">{order.id}</h2>
-                        <p className="text-[12px] text-gray-500">{order.type} Order</p>
+                        <h2 className="font-sans text-[22px] font-[700] leading-[26.4px] tracking-normal text-[#0F1724]">
+                            {order.id}
+                        </h2>
+                        <p className="mt-0.5 font-sans text-[14px] font-[400] leading-[21px] tracking-normal text-[#6B7280]">
+                            {order.type} Order
+                        </p>
                     </div>
                     <button
+                        type="button"
                         onClick={onClose}
                         className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                        aria-label="Close"
                     >
-                        <X size={20} className="text-gray-400" />
+                        <X size={20} className="text-[#6B7280]" />
                     </button>
                 </div>
 
-                {/* Scrollable Body */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {/* Scrollable Body — 24px horizontal inset from drawer */}
+                <div className="flex-1 overflow-y-auto space-y-4 px-6 py-4">
 
                     {/* Customer Information */}
-                    <div className="bg-[#F9FAFB] rounded-lg overflow-hidden border border-gray-100">
+                    <div className="overflow-hidden rounded-lg border border-gray-100 bg-white">
                         <button
+                            type="button"
                             onClick={() => toggleSection('customerInfo')}
-                            className="w-full flex items-center justify-between p-3 text-[13px] font-semibold text-[#374151]"
+                            className="flex w-full items-center justify-between gap-2 bg-[#F6F8F9] px-4 py-3"
                         >
-                            Customer Information
-                            {openSections.customerInfo ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            <span className="text-left font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
+                                Customer Information
+                            </span>
+                            <span className="shrink-0 text-[#0F1724]">
+                                {openSections.customerInfo ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            </span>
                         </button>
 
                         {openSections.customerInfo && (
-                            <div className="px-3 pb-3 space-y-3">
+                            <div className="space-y-3 bg-white px-4 py-3">
                                 <div className="flex gap-3">
-                                    <User size={16} className="text-gray-400 mt-0.5 shrink-0" />
-                                    <div>
-                                        <p className="text-[11px] text-gray-500">Name</p>
-                                        <p className="text-[13px] font-medium text-[#111827]">{order.customerName}</p>
+                                    <User size={17} className="mt-1 shrink-0 text-[#6B7280]" strokeWidth={2} />
+                                    <div className="min-w-0">
+                                        <p className="font-sans text-[13px] font-normal leading-[19.5px] tracking-normal text-[#6B7280]">
+                                            Name
+                                        </p>
+                                        <p className="mt-0.5 font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
+                                            {order.customerName || '—'}
+                                        </p>
                                     </div>
                                 </div>
                                 <div className="flex gap-3">
-                                    <Phone size={16} className="text-gray-400 mt-0.5 shrink-0" />
-                                    <div>
-                                        <p className="text-[11px] text-gray-500">Phone</p>
-                                        <p className="text-[13px] font-medium text-[#111827]">{order.customerPhone}</p>
+                                    <Phone size={17} className="mt-1 shrink-0 text-[#6B7280]" strokeWidth={2} />
+                                    <div className="min-w-0">
+                                        <p className="font-sans text-[13px] font-normal leading-[19.5px] tracking-normal text-[#6B7280]">
+                                            Phone
+                                        </p>
+                                        <p className="mt-0.5 font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
+                                            {order.customerPhone || '—'}
+                                        </p>
                                     </div>
                                 </div>
                                 <div className="flex gap-3">
-                                    <MapPin size={16} className="text-gray-400 mt-0.5 shrink-0" />
-                                    <div>
-                                        <p className="text-[11px] text-gray-500">Delivery Address</p>
-                                        <p className="text-[13px] font-medium text-[#111827]">123 High Street, London, SW1A 1AA</p>
+                                    <MapPin size={17} className="mt-1 shrink-0 text-[#6B7280]" strokeWidth={2} />
+                                    <div className="min-w-0">
+                                        <p className="font-sans text-[13px] font-normal leading-[19.5px] tracking-normal text-[#6B7280]">
+                                            Delivery Address
+                                        </p>
+                                        <p className="mt-0.5 font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
+                                            {order.deliveryAddress?.trim() ? order.deliveryAddress : '—'}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -97,121 +124,211 @@ export default function OrderRequestModal({ isOpen, onClose, order, onAccept, on
                     </div>
 
                     {/* Order Timeline */}
-                    <div className="bg-[#F9FAFB] rounded-lg overflow-hidden border border-gray-100">
+                    <div className="overflow-hidden rounded-lg border border-gray-100 bg-white">
                         <button
+                            type="button"
                             onClick={() => toggleSection('timeline')}
-                            className="w-full flex items-center justify-between p-3 text-[13px] font-semibold text-[#374151]"
+                            className="flex w-full items-center justify-between gap-2 bg-[#F6F8F9] px-4 py-3"
                         >
-                            Order Timeline
-                            {openSections.timeline ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            <span className="text-left font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
+                                Order Timeline
+                            </span>
+                            <span className="shrink-0 text-[#0F1724]">
+                                {openSections.timeline ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            </span>
                         </button>
 
                         {openSections.timeline && (
-                            <div className="px-4 pb-4 pt-1">
-                                <div className="relative border-l border-gray-200 ml-3 space-y-6">
-                                    {timelineEvents.map((event, index) => (
-                                        <div key={index} className="relative pl-6">
-                                            {/* Dot/Icon */}
-                                            <div className={`absolute -left-[11px] top-0 w-6 h-6 rounded-full border-2 flex items-center justify-center bg-white
-                                                ${event.active ? 'border-[#DD2F26] text-[#DD2F26]' : 'border-gray-200 text-gray-300'}`}>
-                                                {event.active ? (
-                                                    <div className="w-6 h-6 rounded-full bg-[#DD2F26] flex items-center justify-center">
-                                                        <Check size={14} className="text-white" />
+                            <div className="bg-white px-4 py-3">
+                                <ol className="m-0 list-none p-0">
+                                    {timelineEvents.map((event, index) => {
+                                        const isLast = index === timelineEvents.length - 1;
+                                        /** Line below this node: red while step is active (per design), else inactive gray */
+                                        const downLineClass = event.active
+                                            ? 'bg-primary'
+                                            : 'bg-[#E5E7EB]';
+                                        return (
+                                            <li key={index} className="flex items-start gap-3">
+                                                <div className="flex w-8 shrink-0 flex-col items-center">
+                                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center">
+                                                        {event.isCancelled ? (
+                                                            <div
+                                                                className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-red-200 bg-red-50"
+                                                                aria-hidden
+                                                            />
+                                                        ) : event.active ? (
+                                                            <div
+                                                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary"
+                                                                aria-hidden
+                                                            >
+                                                                <CircleCheckBig
+                                                                    size={18}
+                                                                    strokeWidth={2.5}
+                                                                    className="text-white"
+                                                                />
+                                                            </div>
+                                                        ) : (
+                                                            <div
+                                                                className="h-8 w-8 shrink-0 rounded-full bg-[#E5E7EB]"
+                                                                aria-hidden
+                                                            />
+                                                        )}
                                                     </div>
-                                                ) : (
-                                                    <div className="w-3 h-3 rounded-full bg-gray-200" />
-                                                )}
-                                            </div>
-
-                                            <div>
-                                                <p className={`text-[13px] font-medium ${event.active ? 'text-[#111827]' : 'text-gray-400'}`}>
-                                                    {event.status}
-                                                </p>
-                                                {event.time && <p className="text-[11px] text-gray-400">{event.time}</p>}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                                                    {!isLast && (
+                                                        <div
+                                                            className={`h-12 w-[2px] shrink-0 ${downLineClass}`}
+                                                            aria-hidden
+                                                        />
+                                                    )}
+                                                </div>
+                                                <div
+                                                    className={`min-w-0 flex-1 pt-1.5 ${
+                                                        isLast ? 'pb-0' : 'pb-7'
+                                                    }`}
+                                                >
+                                                    <p
+                                                        className={`font-sans text-[15px] font-medium leading-[22.5px] tracking-normal ${
+                                                            event.active
+                                                                ? 'text-[#0F1724]'
+                                                                : event.isCancelled
+                                                                  ? 'text-red-600'
+                                                                  : 'text-[#9CA3AF]'
+                                                        }`}
+                                                    >
+                                                        {event.status}
+                                                    </p>
+                                                    {event.active && !!event.time && (
+                                                        <p className="mt-0.5 font-sans text-[13px] font-normal leading-[19.5px] tracking-normal text-[#6B7280]">
+                                                            {event.time}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </li>
+                                        );
+                                    })}
+                                </ol>
                             </div>
                         )}
                     </div>
 
                     {/* Order Items */}
-                    <div className="bg-[#F9FAFB] rounded-lg overflow-hidden border border-gray-100">
+                    <div className="overflow-hidden rounded-lg border border-gray-100 bg-white">
                         <button
+                            type="button"
                             onClick={() => toggleSection('items')}
-                            className="w-full flex items-center justify-between p-3 text-[13px] font-semibold text-[#374151]"
+                            className="flex w-full items-center justify-between gap-2 bg-[#F6F8F9] px-4 py-3"
                         >
-                            Order Items
-                            {openSections.items ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            <span className="text-left font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
+                                Order Items
+                            </span>
+                            <span className="shrink-0 text-[#0F1724]">
+                                {openSections.items ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            </span>
                         </button>
 
                         {openSections.items && (
-                            <div className="px-3 pb-3 space-y-2">
-                                <div className="bg-white p-3 rounded border border-gray-100 flex justify-between items-start">
-                                    <div>
-                                        <p className="text-[13px] font-medium text-[#111827]"><span className="font-bold">1x</span> Chicken Tikka Masala</p>
-                                        <p className="text-[11px] text-gray-500">Large</p>
+                            <div className="space-y-2 bg-white px-4 py-3">
+                                <div className="flex items-start justify-between gap-3 rounded-lg border border-gray-100 bg-[#F6F8F9] p-3">
+                                    <div className="min-w-0">
+                                        <p className="font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
+                                            1x Chicken Tikka Masala
+                                        </p>
+                                        <p className="mt-0.5 font-sans text-[13px] font-normal leading-[19.5px] tracking-normal text-[#6B7280]">
+                                            Large
+                                        </p>
                                     </div>
-                                    <p className="text-[13px] font-medium text-[#111827]">$8.50</p>
+                                    <p className="shrink-0 text-right font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
+                                        $8.50
+                                    </p>
                                 </div>
-                                <div className="bg-white p-3 rounded border border-gray-100 flex justify-between items-start">
-                                    <div>
-                                        <p className="text-[13px] font-medium text-[#111827]"><span className="font-bold">2x</span> Naan Bread</p>
-                                        <p className="text-[11px] text-gray-500">Garlic</p>
+                                <div className="flex items-start justify-between gap-3 rounded-lg border border-gray-100 bg-[#F6F8F9] p-3">
+                                    <div className="min-w-0">
+                                        <p className="font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
+                                            2x Naan Bread
+                                        </p>
+                                        <p className="mt-0.5 font-sans text-[13px] font-normal leading-[19.5px] tracking-normal text-[#6B7280]">
+                                            Garlic
+                                        </p>
                                     </div>
-                                    <p className="text-[13px] font-medium text-[#111827]">$4.40</p>
+                                    <p className="shrink-0 text-right font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
+                                        $4.40
+                                    </p>
                                 </div>
                             </div>
                         )}
                     </div>
 
                     {/* Pricing & Payment */}
-                    <div className="bg-[#F9FAFB] rounded-lg overflow-hidden border border-gray-100">
+                    <div className="overflow-hidden rounded-lg border border-gray-100 bg-white">
                         <button
+                            type="button"
                             onClick={() => toggleSection('pricing')}
-                            className="w-full flex items-center justify-between p-3 text-[13px] font-semibold text-[#374151]"
+                            className="flex w-full items-center justify-between gap-2 bg-[#F6F8F9] px-4 py-3"
                         >
-                            Pricing & Payment
-                            {openSections.pricing ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            <span className="text-left font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
+                                Pricing & Payment
+                            </span>
+                            <span className="shrink-0 text-[#0F1724]">
+                                {openSections.pricing ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            </span>
                         </button>
 
                         {openSections.pricing && (
-                            <div className="px-3 pb-3">
-                                <div className="bg-white p-3 rounded border border-gray-100 space-y-2">
-                                    <div className="flex justify-between text-[13px] text-gray-500">
-                                        <span>Subtotal</span>
-                                        <span>$10.70</span>
-                                    </div>
-                                    <div className="flex justify-between text-[13px] text-gray-500">
-                                        <span>VAT</span>
-                                        <span>$2.20</span>
-                                    </div>
-                                    <div className="flex justify-between text-[14px] font-bold text-[#111827] py-2 border-t border-gray-100 mt-1">
-                                        <span>Total</span>
-                                        <span>{order.total}</span>
-                                    </div>
+                            <div className="space-y-2 bg-white px-4 py-3">
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
+                                        Subtotal
+                                    </span>
+                                    <span className="shrink-0 text-right font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
+                                        $10.70
+                                    </span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
+                                        VAT
+                                    </span>
+                                    <span className="shrink-0 text-right font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
+                                        $2.20
+                                    </span>
+                                </div>
+                                <div className="mt-1 flex items-start justify-between gap-3 border-t border-gray-100 pt-2">
+                                    <span className="font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
+                                        Total
+                                    </span>
+                                    <span className="shrink-0 text-right font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
+                                        {order.total}
+                                    </span>
+                                </div>
 
-                                    <div className="bg-[#F9FAFB] p-2.5 rounded text-[12px] mt-2">
-                                        <p className="text-gray-500 mb-1">Payment Method</p>
-                                        <p className="font-medium text-[#111827] flex items-center gap-2">
-                                            {order.paymentStatus === 'Cash'
-                                                ? `Cash on ${order.type}`
-                                                : 'Card ending *4912'}
-                                        </p>
-                                        <span className={`font-medium mt-1 block ${order.paymentStatus === 'Cash'
-                                            ? 'text-[#ea580c]'
-                                            : 'text-[#DD2F26]'
-                                            }`}>
-                                            {order.paymentStatus}
-                                        </span>
-                                    </div>
+                                <div className="mt-1 rounded-lg border border-gray-100 bg-[#F6F8F9] p-3">
+                                    <p className="font-sans text-[13px] font-normal leading-[19.5px] tracking-normal text-[#6B7280]">
+                                        Payment Method
+                                    </p>
+                                    <p className="mt-0.5 font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
+                                        {order.paymentStatus === 'Cash'
+                                            ? `Cash on ${order.type}`
+                                            : 'Card ending *4912'}
+                                    </p>
+                                    <span
+                                        className={`mt-0.5 block font-sans text-[13px] font-normal capitalize leading-[19.5px] tracking-normal ${
+                                            String(order.paymentStatus || '')
+                                                .toLowerCase() === 'paid'
+                                                ? 'text-[#10B981]'
+                                                : order.paymentStatus === 'Cash'
+                                                  ? 'text-[#ea580c]'
+                                                  : 'text-[#DD2F26]'
+                                        }`}
+                                    >
+                                        {String(order.paymentStatus || '')
+                                            .replace(/_/g, ' ')
+                                            .toLowerCase()}
+                                    </span>
                                 </div>
                             </div>
                         )}
                     </div>
                     {/* Cancellation Details */}
-                    {order.status === 'Cancelled' && (
+                    {isCancelled && (
                         <div className="bg-[#F9FAFB] rounded-lg overflow-hidden border border-gray-100">
                             <button
                                 onClick={() => toggleSection('cancellation')}
