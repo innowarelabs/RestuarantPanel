@@ -22,7 +22,7 @@ export default function ActiveOrders({ orders = [], loading = false }) {
                     {orders.map((order) => (
                         <div
                             key={order.order_id}
-                            className="bg-[#DD2F2633] p-4 rounded-[12px] border border-[#DD2F26]"
+                            className="bg-[#DD2F260D] p-4 rounded-[12px] border border-[#DD2F26]"
                         >
                             <div className="flex justify-between items-start mb-2">
                                 <div className="flex items-center gap-2">

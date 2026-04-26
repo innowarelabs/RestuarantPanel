@@ -57,6 +57,60 @@ const deleteCookie = (name) => {
     document.cookie = `${encodeURIComponent(name)}=; Path=/; Max-Age=0; SameSite=Lax`;
 };
 
+/** Keys used by onboarding draft, auth, 2FA, sidebar — cleared on logout */
+const APP_LOCAL_STORAGE_KEYS = [
+    'user',
+    ONBOARDING_STEP_STORAGE_KEY,
+    RESTAURANT_NAME_STORAGE_KEY,
+    'restaurant_id',
+    'onboardingFormData',
+    'onboardingCategories',
+    'onboardingItems',
+    'onboardingMaxStepReached',
+    'onboardingCurrentStep',
+    'twoFAStatus',
+    'twoFANextRoute',
+    'twoFAGoto',
+    'twoFAUserId',
+    'sidebarSelected',
+];
+
+const clearAppLocalStorage = () => {
+    try {
+        for (const key of APP_LOCAL_STORAGE_KEYS) {
+            localStorage.removeItem(key);
+        }
+    } catch {
+        /* ignore quota / private mode */
+    }
+};
+
+const clearSiteCookies = () => {
+    if (typeof document === 'undefined') return;
+    deleteCookie(ACCESS_TOKEN_COOKIE_KEY);
+    deleteCookie(REFRESH_TOKEN_COOKIE_KEY);
+    try {
+        const seen = new Set();
+        document.cookie.split(';').forEach((raw) => {
+            const name = raw.split('=')[0]?.trim();
+            if (!name || seen.has(name)) return;
+            seen.add(name);
+            deleteCookie(name);
+        });
+    } catch {
+        /* ignore */
+    }
+};
+
+const clearSessionStorage = () => {
+    try {
+        sessionStorage.removeItem('twoFAEmail');
+        sessionStorage.removeItem('twoFAPassword');
+    } catch {
+        /* ignore */
+    }
+};
+
 const authSlice = createSlice({
     name: 'auth',
     initialState: {
@@ -100,11 +154,9 @@ const authSlice = createSlice({
             state.refreshToken = null;
             state.onboardingStep = 'step1';
             state.restaurantName = '';
-            localStorage.removeItem("user");
-            localStorage.removeItem(ONBOARDING_STEP_STORAGE_KEY);
-            localStorage.removeItem(RESTAURANT_NAME_STORAGE_KEY);
-            deleteCookie(ACCESS_TOKEN_COOKIE_KEY);
-            deleteCookie(REFRESH_TOKEN_COOKIE_KEY);
+            clearAppLocalStorage();
+            clearSiteCookies();
+            clearSessionStorage();
         }
     }
 });

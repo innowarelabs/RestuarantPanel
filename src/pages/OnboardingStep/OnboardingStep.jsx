@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
     User, Eye, Check, MapPin, Menu, Settings, Gift,
     ChevronDown,
-    CreditCard, Bell, MessageSquare, X, Image, AlertCircle
+    CreditCard, Bell, MessageSquare, X, Image, AlertCircle, Link2,
 } from 'lucide-react';
 
 import Step1 from './Step1';
@@ -15,6 +16,7 @@ import Step5 from './Step5';
 import Step6 from './Step6';
 import Step7 from './Step7';
 import Step8 from './Step8';
+import Step9 from './Step9';
 import Step10 from './Step10';
 import Toggle from './Toggle';
 import { setOnboardingStep } from '../../redux/store';
@@ -28,6 +30,8 @@ const steps = [
     { id: 6, name: 'Bank Details', icon: CreditCard },
     { id: 7, name: 'Notifications Settings', icon: Bell },
     { id: 8, name: 'Support Setup', icon: MessageSquare },
+    { id: 9, name: 'Integrations', icon: Link2 },
+    { id: 10, name: 'Preview', icon: Eye },
 ];
 
 const WEBSITE_HEADER_REQUIRED_PX = { width: 1440, height: 495 };
@@ -41,7 +45,7 @@ export default function OnboardingStep() {
     const LS_ITEMS = 'onboardingItems';
     const LS_MAX_REACHED = 'onboardingMaxStepReached';
     const LS_CURRENT_STEP = 'onboardingCurrentStep';
-    const FLOW_LAST_STEP = 8;
+    const FLOW_LAST_STEP = 10;
 
     const navigate = useNavigate();
     const dispatch = useDispatch();
@@ -450,6 +454,8 @@ export default function OnboardingStep() {
         minOrder: '',
         allowInstructions: true,
         cancelPolicy: '',
+        newOrderSoundNotification: true,
+        riderPickupInstructions: '',
         // Step 5
         loyaltyEnabled: true,
         pointsPerDollar: '10',
@@ -478,6 +484,9 @@ export default function OnboardingStep() {
         autoReply: '',
         chatGreeting: '',
         chatHours: '',
+        // Step 9 integrations (saved with onboarding draft)
+        doorDashConnected: false,
+        posConnected: false,
     };
 
     const mergeOpeningHours = (saved) => {
@@ -552,7 +561,7 @@ export default function OnboardingStep() {
         const Icon = step.icon;
 
         let title = "Create Your Account";
-        let desc = "Add your basic account and brand details to access your restaurant dashboard.";
+        let desc = "Set up your login credentials to access your restaurant dashboard.";
 
         switch (currentStep) {
             case 2: title = "Restaurant Operational Information"; desc = "Add operational settings so customers know when you're open and how you operate."; break;
@@ -562,6 +571,7 @@ export default function OnboardingStep() {
             case 6: title = "Bank Information"; desc = "Add your payout details securely."; break;
             case 7: title = "Notification Preferences"; desc = "Choose how you want to be notified about important events."; break;
             case 8: title = "Support & Communication Setup"; desc = "Configure how you communicate with your customers."; break;
+            case 9: title = "Integrations"; desc = "Connect delivery partners to sync orders and grow your reach."; break;
             case 10: title = "Review Your Information"; desc = "You can review or edit before completing setup."; break;
         }
 
@@ -572,7 +582,9 @@ export default function OnboardingStep() {
                 </div>
                 <div>
                     <p className="text-[#6B7280] text-[14px] font-[500] mb-1">Step {Math.min(currentStep, steps.length)} of {steps.length}</p>
-                    <h1 className="text-[26px] font-[800] text-[#1A1A1A] leading-tight">{title}</h1>
+                    <h1 className="font-sans text-[26px] font-bold leading-[31.2px] tracking-normal text-[#0F1724]">
+                        {title}
+                    </h1>
                     <p className="text-[#6B6B6B] text-[14px] mt-3 leading-relaxed max-w-[400px]">
                         {desc}
                     </p>
@@ -1034,7 +1046,10 @@ export default function OnboardingStep() {
             );
             case 6: return <Step6 formData={formData} setFormData={setFormData} handlePrev={handlePrev} handleNext={handleNext} />;
             case 7: return <Step7 formData={formData} setFormData={setFormData} handlePrev={handlePrev} handleNext={handleNext} />;
-            case 8: return <Step8 formData={formData} setFormData={setFormData} handlePrev={handlePrev} handleNext={handleCompleteSetup} />;
+            case 8: return <Step8 formData={formData} setFormData={setFormData} handlePrev={handlePrev} handleNext={handleNext} />;
+            case 9: return (
+                <Step9 formData={formData} setFormData={setFormData} handlePrev={handlePrev} handleNext={handleNext} />
+            );
             case 10: return <Step10 setShowPreviewModal={setShowPreviewModal} onComplete={handleCompleteSetup} handlePrev={handlePrev} />;
             default: return null;
         }
@@ -1067,7 +1082,7 @@ export default function OnboardingStep() {
 
             <div className="w-full bg-white border-b border-gray-100 pt-8 pb-3 px-4 sticky top-[72px] z-40">
                 <div className="max-w-[1240px] mx-auto overflow-x-auto scrollbar-hide">
-                    <div className="flex items-start justify-between min-w-[1000px] px-4">
+                    <div className="flex items-start justify-between min-w-[1180px] px-4">
                         {steps.map((step, index) => (
                             <React.Fragment key={step.id}>
                                 <div
@@ -1100,41 +1115,100 @@ export default function OnboardingStep() {
                 </div>
             </main>
 
-            {showPreviewModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowPreviewModal(false)} />
-                    <div className="bg-white w-full max-w-[800px] rounded-[32px] overflow-hidden shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
-                        <div className="p-8 border-b border-gray-100 flex items-center justify-between">
-                            <h2 className="text-[24px] font-bold text-[#1A1A1A]">Preview Your Setup</h2>
-                            <button onClick={() => setShowPreviewModal(false)} className="text-2xl text-gray-400">×</button>
-                        </div>
-                        <div className="p-8 max-h-[75vh] overflow-y-auto space-y-10 custom-scrollbar">
-                            <section>
-                                <h3 className="text-[17px] font-bold text-[#1A1A1A] mb-6 border-b border-gray-100 pb-2">A. Account</h3>
-                                <div className="grid grid-cols-2 gap-y-6 text-[14px]">
-                                    <div><p className="text-[#9CA3AF] font-[500] mb-1">Name</p><p className="font-semibold text-[#111827]">{formData.fullName}</p></div>
-                                    <div><p className="text-[#9CA3AF] font-[500] mb-1">Email</p><p className="font-semibold text-[#111827]">{formData.email}</p></div>
-                                    <div><p className="text-[#9CA3AF] font-[500] mb-1">Two-Factor Auth</p><p className="font-semibold text-[#111827]">{(typeof formData.is_2fa_enabled === 'boolean' ? formData.is_2fa_enabled : formData.twoFactor) ? 'Enabled' : 'Disabled'}</p></div>
-                                </div>
-                            </section>
+            {showPreviewModal &&
+                typeof document !== 'undefined' &&
+                createPortal(
+                    <div className="fixed inset-0 z-[200] flex items-center justify-center px-4 py-8 sm:px-6 sm:py-10">
+                        <div
+                            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                            onClick={() => setShowPreviewModal(false)}
+                            aria-hidden
+                        />
+                        <div
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="preview-setup-title"
+                            className="bg-white w-full max-w-[800px] max-h-[calc(100dvh-4rem)] sm:max-h-[calc(100dvh-5rem)] rounded-[32px] overflow-hidden shadow-2xl relative z-[1] border border-[#E5E7EB] animate-in fade-in zoom-in-95 duration-200 flex flex-col"
+                        >
+                            <div className="p-8 border-b border-gray-100 flex items-center justify-between gap-4 shrink-0">
+                                <h2 id="preview-setup-title" className="text-[24px] font-bold text-[#1A1A1A]">
+                                    Preview Your Setup
+                                </h2>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPreviewModal(false)}
+                                    className="text-gray-500 hover:text-[#111827] p-2.5 min-h-[48px] min-w-[48px] inline-flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors"
+                                    aria-label="Close preview"
+                                >
+                                    <X size={28} strokeWidth={2} />
+                                </button>
+                            </div>
+                            <div className="p-8 flex-1 min-h-0 overflow-y-auto space-y-10 custom-scrollbar">
+                                <section>
+                                    <h3 className="text-[17px] font-bold text-[#1A1A1A] mb-6 border-b border-gray-100 pb-2">A. Account</h3>
+                                    <div className="grid grid-cols-2 gap-x-8 gap-y-6 text-[14px]">
+                                        <div>
+                                            <p className="text-[#9CA3AF] font-[500] mb-1">Name</p>
+                                            <p className="font-semibold text-[#111827]">{formData.fullName}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[#9CA3AF] font-[500] mb-1">Email</p>
+                                            <p className="font-semibold text-[#111827]">{formData.email}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[#9CA3AF] font-[500] mb-1">Two-Factor Auth</p>
+                                            <p className="font-semibold text-[#111827]">
+                                                {(typeof formData.is_2fa_enabled === 'boolean' ? formData.is_2fa_enabled : formData.twoFactor)
+                                                    ? 'Enabled'
+                                                    : 'Disabled'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </section>
 
-                            <section>
-                                <h3 className="text-[17px] font-bold text-[#1A1A1A] mb-6 border-b border-gray-100 pb-2">B. Operational Info</h3>
-                                <div className="grid grid-cols-2 gap-y-6 text-[14px]">
-                                    <div className="col-span-2"><p className="text-[#9CA3AF] font-[500] mb-1">Address</p><p className="font-semibold text-[#111827]">{formData.address}</p></div>
-                                    <div><p className="text-[#9CA3AF] font-[500] mb-1">Phone</p><p className="font-semibold text-[#111827]">{formData.contact}</p></div>
-                                    <div><p className="text-[#9CA3AF] font-[500] mb-1">Avg Prep Time</p><p className="font-semibold text-[#111827]">{formData.prepTime}</p></div>
-                                    <div><p className="text-[#9CA3AF] font-[500] mb-1">Services</p><p className="font-semibold text-[#111827]">{[formData.enableDelivery && 'Delivery', formData.enablePickup && 'Pickup'].filter(Boolean).join(', ')}</p></div>
-                                </div>
-                            </section>
+                                <section>
+                                    <h3 className="text-[17px] font-bold text-[#1A1A1A] mb-6 border-b border-gray-100 pb-2">B. Operational Info</h3>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-6 text-[14px]">
+                                        <div className="space-y-6">
+                                            <div>
+                                                <p className="text-[#9CA3AF] font-[500] mb-1">Address</p>
+                                                <p className="font-semibold text-[#111827]">{formData.address}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[#9CA3AF] font-[500] mb-1">Avg Prep Time</p>
+                                                <p className="font-semibold text-[#111827]">{formData.prepTime}</p>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-6">
+                                            <div>
+                                                <p className="text-[#9CA3AF] font-[500] mb-1">Phone</p>
+                                                <p className="font-semibold text-[#111827]">{formData.contact}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[#9CA3AF] font-[500] mb-1">Services</p>
+                                                <p className="font-semibold text-[#111827]">
+                                                    {[formData.enableDelivery && 'Delivery', formData.enablePickup && 'Pickup'].filter(Boolean).join(', ') ||
+                                                        '—'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </section>
 
-                            <section>
-                                <h3 className="text-[17px] font-bold text-[#1A1A1A] mb-6 border-b border-gray-100 pb-2">C. Menu Setup</h3>
-                                <div className="grid grid-cols-2 gap-y-6 text-[14px]">
-                                    <div><p className="text-[#9CA3AF] font-[500] mb-1">Categories</p><p className="font-semibold text-[#111827]">{formData.categoriesCount} categories</p></div>
-                                    <div><p className="text-[#9CA3AF] font-[500] mb-1">Items</p><p className="font-semibold text-[#111827]">{formData.itemsCount} items added</p></div>
-                                </div>
-                            </section>
+                                <section>
+                                    <h3 className="text-[17px] font-bold text-[#1A1A1A] mb-6 border-b border-gray-100 pb-2">C. Menu</h3>
+                                    <div className="grid grid-cols-2 gap-x-8 gap-y-6 text-[14px]">
+                                        <div>
+                                            <p className="text-[#9CA3AF] font-[500] mb-1">Categories</p>
+                                            <p className="font-semibold text-[#111827]">{formData.categoriesCount} categories</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[#9CA3AF] font-[500] mb-1">Items per category</p>
+                                            <p className="font-semibold text-[#111827]">{formData.itemsCount} items</p>
+                                            <p className="text-[12px] text-[#9CA3AF] mt-1">(add items later)</p>
+                                        </div>
+                                    </div>
+                                </section>
 
                             <section>
                                 <h3 className="text-[17px] font-bold text-[#1A1A1A] mb-6 border-b border-gray-100 pb-2">D. Order Settings</h3>
@@ -1185,14 +1259,25 @@ export default function OnboardingStep() {
                             <section>
                                 <h3 className="text-[17px] font-bold text-[#1A1A1A] mb-6 border-b border-gray-100 pb-2">I. Integrations</h3>
                                 <div className="bg-[#F8FAFC] p-4 rounded-[12px] border border-gray-100">
-                                    <p className="text-[13px] text-[#64748B]">Multiple delivery and POS integrations available to be connected after setup.</p>
+                                    <p className="text-[13px] text-[#64748B]">
+                                        Door Dash and other partners can be connected from the Integrations step after setup.
+                                    </p>
                                 </div>
                             </section>
                         </div>
-                        <div className="p-8 pt-4"><button onClick={() => setShowPreviewModal(false)} className="w-full h-[56px] bg-[#DD2F26] text-white rounded-[16px] font-bold">Close Preview</button></div>
+                        <div className="p-8 pt-4 shrink-0 border-t border-gray-100">
+                            <button
+                                type="button"
+                                onClick={() => setShowPreviewModal(false)}
+                                className="w-full h-[56px] bg-[#DD2F26] text-white rounded-[16px] font-bold hover:bg-[#C52820] transition-colors"
+                            >
+                                Close Preview
+                            </button>
+                        </div>
                     </div>
-                </div>
-            )}
+                </div>,
+                    document.body,
+                )}
 
             {/* Add Reward Item Modal */}
             {showAddRewardModal && (

@@ -138,7 +138,7 @@ export default function Step6({ formData, setFormData, handlePrev, handleNext })
             </div>
 
             <div className="space-y-2">
-                <label className="block text-[14px] font-[500] text-[#1A1A1A]">Routing Number</label>
+                <label className="block text-[14px] font-[500] text-[#1A1A1A]">Routing Number <span className="text-red-500">*</span></label>
                 <input
                     type="text"
                     placeholder="9-digit routing number"
@@ -165,7 +165,7 @@ export default function Step6({ formData, setFormData, handlePrev, handleNext })
                 </div>
             </div>
 
-            <div className="bg-[#FEF2F2] p-5 rounded-[12px] mt-4">
+            <div className="bg-[#DD2F2626] p-5 rounded-[12px] mt-4">
                 <p className="text-[13px] text-[#475569]">
                     <span className="font-[600]">Expected payout:</span> {normalizedPayoutFreq ? `${normalizedPayoutFreq} settlement` : 'Select frequency above'}
                 </p>

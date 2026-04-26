@@ -658,7 +658,7 @@ export default function Step3({
                                 <div className="min-w-0">
                                     <div className="flex items-center gap-2 flex-wrap">
                                         <p className="text-[14px] font-[600] text-[#1A1A1A] truncate">{category.name}</p>
-                                        <span className={`text-[10px] px-2 py-0.5 rounded-[999px] ${category.visible ? 'bg-[#ECFDF5] text-[#10B981]' : 'bg-[#FEF2F2] text-[#EF4444]'}`}>
+                                        <span className={`text-[10px] px-2 py-0.5 rounded-[999px] ${category.visible ? 'bg-primary-bg text-primary' : 'bg-[#FEF2F2] text-[#EF4444]'}`}>
                                             {category.visible ? 'Enabled' : 'Disabled'}
                                         </span>
                                     </div>
@@ -887,7 +887,7 @@ export default function Step3({
                                             <button
                                                 type="button"
                                                 onClick={addVariant}
-                                                className="h-[36px] px-4 border border-primary text-primary rounded-[10px] text-[13px] font-[500] hover:bg-[#E8FFFA] transition-colors flex items-center gap-2"
+                                                className="h-[36px] px-4 border border-primary text-primary rounded-[10px] text-[13px] font-[500] hover:bg-primary-bg transition-colors flex items-center gap-2"
                                             >
                                                 <Plus size={14} /> Add variant
                                             </button>
@@ -941,7 +941,7 @@ export default function Step3({
                                         <button
                                             type="button"
                                             onClick={addAddOn}
-                                            className="h-[36px] px-4 border border-primary text-primary rounded-[10px] text-[13px] font-[500] hover:bg-[#E8FFFA] transition-colors flex items-center gap-2"
+                                            className="h-[36px] px-4 border border-primary text-primary rounded-[10px] text-[13px] font-[500] hover:bg-primary-bg transition-colors flex items-center gap-2"
                                         >
                                             <Plus size={14} /> Add Add-on
                                         </button>
@@ -1092,7 +1092,7 @@ export default function Step3({
                                     type="button"
                                     disabled={!canSaveItem || savingItem}
                                     onClick={handleCreateItem}
-                                    className={`h-[52px] px-8 font-[600] rounded-[12px] transition-colors ${savingItem ? 'bg-[#E5E7EB] text-[#9CA3AF]' : canSaveItem ? 'bg-primary text-white hover:bg-[#1da88f]' : 'bg-[#E5E7EB] text-[#9CA3AF]'}`}
+                                    className={`h-[52px] px-8 font-[600] rounded-[12px] transition-colors ${savingItem ? 'bg-[#E5E7EB] text-[#9CA3AF]' : canSaveItem ? 'bg-primary text-white hover:bg-primary/90' : 'bg-[#E5E7EB] text-[#9CA3AF]'}`}
                                 >
                                     {savingItem ? 'Saving...' : 'Save Item'}
                                 </button>

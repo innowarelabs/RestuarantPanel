@@ -41,6 +41,9 @@ export default function Step5({
         return normalized.endsWith('_200') || normalized.endsWith('_201');
     };
 
+    /** Treat missing/legacy state as ON (matches defaultFormData). Only explicit `false` turns bonus off. */
+    const firstOrderBonusEnabled = formData.bonusFirstOrder !== false;
+
     const handleSubmitStep5 = async () => {
         const restaurantId = formData.restaurantId?.trim();
         if (submitting) return;
@@ -56,7 +59,8 @@ export default function Step5({
             if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
 
             const pointsPerDollarValue = Number(formData.pointsPerDollar?.trim());
-            const bonusFirstOrderPointsValue = Number(formData.bonusFirstOrder ? formData.bonusAmount?.trim() : 0);
+            const firstOrderOn = formData.bonusFirstOrder !== false;
+            const bonusFirstOrderPointsValue = Number(firstOrderOn ? formData.bonusAmount?.trim() : 0);
             const minOrderToEarnPointsValue = Number(formData.minOrderLoyalty ? formData.minOrderAmount?.trim() : 0);
             const expiryDaysRaw = Number(formData.expiryPeriod?.trim());
             const pointsExpiryDaysValue = formData.pointsExpire ? (Number.isFinite(expiryDaysRaw) ? Math.trunc(expiryDaysRaw) : 365) : 0;
@@ -145,16 +149,23 @@ export default function Step5({
                     />
                 </div>
 
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div>
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
                             <p className="text-[14px] font-[500] text-[#1A1A1A]">Give bonus points on first order?</p>
                             <p className="text-[12px] text-[#6B7280] mt-0.5">Reward new customers with extra points</p>
                         </div>
-                        <Toggle active={formData.bonusFirstOrder} onClick={() => setFormData({ ...formData, bonusFirstOrder: !formData.bonusFirstOrder })} />
+                        <div className="shrink-0">
+                            <Toggle
+                                active={firstOrderBonusEnabled}
+                                onClick={() =>
+                                    setFormData({ ...formData, bonusFirstOrder: !firstOrderBonusEnabled })
+                                }
+                            />
+                        </div>
                     </div>
-                    {formData.bonusFirstOrder && (
-                        <div className="pl-6 border-l-[3px] border-primary ml-1 space-y-3 animate-in slide-in-from-left-2 duration-300">
+                    {firstOrderBonusEnabled ? (
+                        <div className="pl-4 border-l-[3px] border-primary space-y-2 pt-0.5">
                             <label className="block text-[14px] font-[500] text-[#1A1A1A]">Bonus points amount</label>
                             <input
                                 type="text"
@@ -163,19 +174,21 @@ export default function Step5({
                                 className="onboarding-input"
                             />
                         </div>
-                    )}
+                    ) : null}
                 </div>
 
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div>
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
                             <p className="text-[14px] font-[500] text-[#1A1A1A]">Minimum order amount to earn points?</p>
                             <p className="text-[12px] text-[#6B7280] mt-0.5">Set a minimum spend requirement</p>
                         </div>
-                        <Toggle active={formData.minOrderLoyalty} onClick={() => setFormData({ ...formData, minOrderLoyalty: !formData.minOrderLoyalty })} />
+                        <div className="shrink-0">
+                            <Toggle active={formData.minOrderLoyalty} onClick={() => setFormData({ ...formData, minOrderLoyalty: !formData.minOrderLoyalty })} />
+                        </div>
                     </div>
-                    {formData.minOrderLoyalty && (
-                        <div className="pl-6 border-l-[3px] border-primary ml-1 space-y-3 animate-in slide-in-from-left-2 duration-300">
+                    {formData.minOrderLoyalty ? (
+                        <div className="pl-4 border-l-[3px] border-primary space-y-2 pt-0.5">
                             <label className="block text-[14px] font-[500] text-[#1A1A1A]">Minimum amount ($)</label>
                             <input
                                 type="text"
@@ -184,19 +197,21 @@ export default function Step5({
                                 className="onboarding-input"
                             />
                         </div>
-                    )}
+                    ) : null}
                 </div>
 
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div>
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
                             <p className="text-[14px] font-[500] text-[#1A1A1A]">Points expire?</p>
                             <p className="text-[12px] text-[#6B7280] mt-0.5">Set an expiration period for points</p>
                         </div>
-                        <Toggle active={formData.pointsExpire} onClick={() => setFormData({ ...formData, pointsExpire: !formData.pointsExpire })} />
+                        <div className="shrink-0">
+                            <Toggle active={formData.pointsExpire} onClick={() => setFormData({ ...formData, pointsExpire: !formData.pointsExpire })} />
+                        </div>
                     </div>
-                    {formData.pointsExpire && (
-                        <div className="pl-6 border-l-[3px] border-primary ml-1 space-y-3 animate-in slide-in-from-left-2 duration-300">
+                    {formData.pointsExpire ? (
+                        <div className="pl-4 border-l-[3px] border-primary space-y-2 pt-0.5">
                             <label className="block text-[14px] font-[500] text-[#1A1A1A]">Expiry period</label>
                             <input
                                 type="text"
@@ -206,7 +221,7 @@ export default function Step5({
                                 className="onboarding-input"
                             />
                         </div>
-                    )}
+                    ) : null}
                 </div>
             </div>
 
@@ -282,7 +297,7 @@ export default function Step5({
                         <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
                         <span>Earn {formData.pointsPerDollar || '0'} points per $1 spent</span>
                     </li>
-                    {formData.bonusFirstOrder && (
+                    {firstOrderBonusEnabled && (
                         <li className="text-[12px] text-[#475569] flex items-start gap-2">
                             <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
                             <span>New customers get {formData.bonusAmount || '0'} bonus points on first order</span>

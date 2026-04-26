@@ -98,7 +98,9 @@ export default function Step7({ formData, setFormData, handlePrev, handleNext })
     return (
         <div className="space-y-10">
             <div className="space-y-6">
-                <h3 className="text-[15px] font-[400] text-[#111827]">General Notifications</h3>
+                <h3 className="font-sans text-[15px] font-semibold leading-[18px] tracking-normal text-[#0F1724]">
+                    General Notifications
+                </h3>
                 <div className="space-y-6">
                     <NotificationToggle
                         title="App Notifications"
@@ -147,7 +149,7 @@ export default function Step7({ formData, setFormData, handlePrev, handleNext })
                 </div>
             </div>
 
-            <div className="bg-[#FEF2F2] p-5 rounded-[8px] mt-2">
+            <div className="bg-[#DD2F2626] p-5 rounded-[8px] mt-2">
                 <p className="text-[13px] text-[#475569]">
                     You have {enabledChannels} notification {enabledChannels === 1 ? 'channel' : 'channels'} enabled
                 </p>

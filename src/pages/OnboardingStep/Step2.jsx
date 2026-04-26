@@ -4,6 +4,35 @@ import { useSelector } from 'react-redux';
 
 import Toggle from './Toggle';
 
+/** Rejects invalid 12h times (e.g. 13 AM) and invalid 24h; allows 1–12 with AM/PM or HH:MM (0–23). */
+function isValidOpeningHourTime(raw) {
+    const s = typeof raw === 'string' ? raw.trim() : '';
+    if (!s) return false;
+    const normalized = s.replace(/\./g, '').trim();
+
+    const twelve = /^(\d{1,2})(:(\d{2}))?\s*(am|pm)$/i.exec(normalized);
+    if (twelve) {
+        const hour = parseInt(twelve[1], 10);
+        const minute = twelve[3] !== undefined ? parseInt(twelve[3], 10) : 0;
+        if (!Number.isFinite(hour) || !Number.isFinite(minute)) return false;
+        if (hour < 1 || hour > 12) return false;
+        if (minute < 0 || minute > 59) return false;
+        return true;
+    }
+
+    const twentyFour = /^(\d{1,2}):(\d{2})$/i.exec(normalized);
+    if (twentyFour) {
+        const hour = parseInt(twentyFour[1], 10);
+        const minute = parseInt(twentyFour[2], 10);
+        if (!Number.isFinite(hour) || !Number.isFinite(minute)) return false;
+        if (hour < 0 || hour > 23) return false;
+        if (minute < 0 || minute > 59) return false;
+        return true;
+    }
+
+    return false;
+}
+
 export default function Step2({
     formData,
     setFormData,
@@ -104,7 +133,24 @@ export default function Step2({
     const requiredDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
     const openingHoursValid = requiredDays.every((day) => {
         const entry = openingHours[day] || {};
-        return !!entry.open?.trim() && !!entry.close?.trim();
+        const open = entry.open?.trim() ?? '';
+        const close = entry.close?.trim() ?? '';
+        if (!open || !close) return false;
+        return isValidOpeningHourTime(open) && isValidOpeningHourTime(close);
+    });
+
+    const isOpeningHourValueInvalid = (value) => {
+        const t = typeof value === 'string' ? value.trim() : '';
+        if (!t) return false;
+        return !isValidOpeningHourTime(t);
+    };
+
+    const openingHoursHasFormatError = requiredDays.some((day) => {
+        const entry = openingHours[day] || {};
+        return (
+            isOpeningHourValueInvalid(entry.open) ||
+            isOpeningHourValueInvalid(entry.close)
+        );
     });
 
     const headerOk = !!formData.websiteHeaderUrl?.trim() || !!brandingFiles.websiteHeader;
@@ -430,51 +476,71 @@ export default function Step2({
                         { label: 'Friday', key: 'friday' },
                         { label: 'Saturday', key: 'saturday' },
                         { label: 'Sunday', key: 'sunday' },
-                    ].map((day) => (
-                        <div key={day.key} className="grid grid-cols-12 items-center gap-4">
-                            <span className="col-span-6 text-[13px] text-[#1A1A1A] font-[500]">{day.label}</span>
-                            <div className="col-span-6 flex items-center gap-2">
-                                <input
-                                    type="text"
-                                    value={openingHours?.[day.key]?.open || ''}
-                                    onChange={(e) =>
-                                        setFormData((prev) => ({
-                                            ...prev,
-                                            openingHours: {
-                                                ...(prev.openingHours || {}),
-                                                [day.key]: {
-                                                    open: e.target.value,
-                                                    close: prev.openingHours?.[day.key]?.close || '',
+                    ].map((day) => {
+                        const openVal = openingHours?.[day.key]?.open || '';
+                        const closeVal = openingHours?.[day.key]?.close || '';
+                        const openInvalid = isOpeningHourValueInvalid(openVal);
+                        const closeInvalid = isOpeningHourValueInvalid(closeVal);
+                        const fieldBorder = (invalid) =>
+                            invalid
+                                ? 'border-[#EB5757] ring-1 ring-[#EB5757]/30'
+                                : 'border-gray-200';
+                        return (
+                            <div key={day.key} className="grid grid-cols-12 items-center gap-4">
+                                <span className="col-span-6 text-[13px] text-[#1A1A1A] font-[500]">{day.label}</span>
+                                <div className="col-span-6 flex items-center gap-2">
+                                    <input
+                                        type="text"
+                                        value={openVal}
+                                        onChange={(e) =>
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                openingHours: {
+                                                    ...(prev.openingHours || {}),
+                                                    [day.key]: {
+                                                        open: e.target.value,
+                                                        close: prev.openingHours?.[day.key]?.close || '',
+                                                    },
                                                 },
-                                            },
-                                        }))
-                                    }
-                                    className="h-9 w-full bg-white border border-gray-200 rounded-lg px-2 text-[12px] text-center"
-                                    placeholder="--:--"
-                                />
-                                <span className="text-gray-400">—</span>
-                                <input
-                                    type="text"
-                                    value={openingHours?.[day.key]?.close || ''}
-                                    onChange={(e) =>
-                                        setFormData((prev) => ({
-                                            ...prev,
-                                            openingHours: {
-                                                ...(prev.openingHours || {}),
-                                                [day.key]: {
-                                                    open: prev.openingHours?.[day.key]?.open || '',
-                                                    close: e.target.value,
+                                            }))
+                                        }
+                                        aria-invalid={openInvalid}
+                                        className={`h-9 w-full bg-white border rounded-lg px-2 text-[12px] text-center ${fieldBorder(openInvalid)}`}
+                                        placeholder="--:--"
+                                    />
+                                    <span className="text-gray-400">—</span>
+                                    <input
+                                        type="text"
+                                        value={closeVal}
+                                        onChange={(e) =>
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                openingHours: {
+                                                    ...(prev.openingHours || {}),
+                                                    [day.key]: {
+                                                        open: prev.openingHours?.[day.key]?.open || '',
+                                                        close: e.target.value,
+                                                    },
                                                 },
-                                            },
-                                        }))
-                                    }
-                                    className="h-9 w-full bg-white border border-gray-200 rounded-lg px-2 text-[12px] text-center"
-                                    placeholder="--:--"
-                                />
+                                            }))
+                                        }
+                                        aria-invalid={closeInvalid}
+                                        className={`h-9 w-full bg-white border rounded-lg px-2 text-[12px] text-center ${fieldBorder(closeInvalid)}`}
+                                        placeholder="--:--"
+                                    />
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
+                {openingHoursHasFormatError && (
+                    <div className="mt-2 flex items-start gap-2 rounded-lg border border-[#F7515133] bg-[#F7515114] px-3 py-2">
+                        <AlertCircle size={16} className="text-[#EB5757] shrink-0 mt-0.5" aria-hidden />
+                        <p className="text-[12px] text-[#47464A] leading-snug">
+                            Invalid time. Use 1–12 with AM or PM (for example 9:00 AM), or 24-hour format (for example 14:00). Values like 13 AM are not valid.
+                        </p>
+                    </div>
+                )}
             </div>
             <div>
                 <label className="block text-[14px] font-[500] text-[#1A1A1A] mb-2">Average Preparation Time <span className="text-red-500">*</span></label>

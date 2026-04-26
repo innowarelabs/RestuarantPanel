@@ -149,7 +149,7 @@ export default function Step8({ formData, setFormData, handlePrev, handleNext })
                 />
             </div>
 
-            <div className="bg-[#FEF2F2] border border-[#DD2F26]/30 p-5 rounded-[12px] mt-4 space-y-3">
+            <div className="bg-[#DD2F2626] border border-[#DD2F26]/30 p-5 rounded-[12px] mt-4 space-y-3">
                 <h4 className="text-[13px] font-[600] text-primary">Preview: Auto-reply</h4>
                 <div className="bg-white p-4 rounded-[8px] border border-[#DD2F26]/10">
                     <p className="text-[14px] text-[#111827] leading-relaxed">

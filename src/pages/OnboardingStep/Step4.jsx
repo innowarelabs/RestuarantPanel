@@ -65,6 +65,8 @@ export default function Step4({ formData, setFormData, handlePrev, handleNext })
                     minimum_order: minOrderValue,
                     allow_special_instructions: !!formData.allowInstructions,
                     cancellation_policy: formData.cancelPolicy?.trim() || '',
+                    new_order_sound_notification: !!formData.newOrderSoundNotification,
+                    rider_pickup_instructions: formData.riderPickupInstructions?.trim() || '',
                 }),
             });
 
@@ -120,7 +122,7 @@ export default function Step4({ formData, setFormData, handlePrev, handleNext })
                     <Toggle active={formData.autoAccept} onClick={() => setFormData({ ...formData, autoAccept: !formData.autoAccept })} />
                 </div>
             </div>
-            <div className="bg-[#FEF2F2] p-5 rounded-[8px] border border-[#FEF2F2] space-y-3">
+            <div className="bg-[#DD2F2626] p-5 rounded-[8px] border-l-2 border-l-primary border-y-0 border-r-0 border-solid space-y-3">
                 <label className="block text-[14px] font-[500] text-[#1A1A1A]">Accept Order Time Limit (minutes)</label>
                 <input type="text" value={formData.timeLimit} onChange={(e) => setFormData({ ...formData, timeLimit: e.target.value })} className="onboarding-input h-11" />
                 <p className="text-[12px] text-[#6B7280]">Orders will be auto-cancelled if not accepted within this time</p>
@@ -154,6 +156,32 @@ export default function Step4({ formData, setFormData, handlePrev, handleNext })
                     className="onboarding-textarea"
                 />
             </div>
+
+            <div className="flex items-start sm:items-center justify-between py-2 gap-4">
+                <div className="flex-1">
+                    <p className="text-[14px] font-[500] text-[#1A1A1A]">New Order Sound Notification</p>
+                    <p className="text-[12px] text-[#6B7280] mt-1">Play a sound when new orders arrive</p>
+                </div>
+                <div className="shrink-0">
+                    <Toggle
+                        active={!!formData.newOrderSoundNotification}
+                        onClick={() =>
+                            setFormData({ ...formData, newOrderSoundNotification: !formData.newOrderSoundNotification })
+                        }
+                    />
+                </div>
+            </div>
+
+            <div>
+                <label className="block text-[14px] font-[500] text-[#1A1A1A] mb-2">Rider Pickup Instructions</label>
+                <textarea
+                    placeholder="e.g., Please use the side entrance for pickups..."
+                    value={formData.riderPickupInstructions ?? ''}
+                    onChange={(e) => setFormData({ ...formData, riderPickupInstructions: e.target.value })}
+                    className="onboarding-textarea"
+                />
+            </div>
+
             {!!errorLines.length && (
                 <div className="bg-[#F751511F] rounded-[12px] py-[10px] px-[12px]">
                     <div className="flex items-start gap-2">

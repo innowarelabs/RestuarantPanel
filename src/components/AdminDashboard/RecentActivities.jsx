@@ -1,16 +1,23 @@
 import React from 'react';
-import { Clock, CheckCircle2, DollarSign, XCircle } from 'lucide-react';
+import { Clock, CircleCheckBig, DollarSign, CircleX } from 'lucide-react';
 
+/** API types: e.g. `cancelled`, `completed`, `payment` (+ legacy snake_case) */
 const getIconConfig = (type) => {
-    switch (type) {
+    const t = (type && String(type).toLowerCase().trim()) || '';
+    const primaryTint = { iconColor: 'text-primary', iconBg: 'bg-primary-bg' };
+
+    switch (t) {
         case 'new_order':
             return { icon: Clock, iconColor: 'text-[#3B82F6]', iconBg: 'bg-[#EFF6FF]' };
         case 'order_completed':
-            return { icon: CheckCircle2, iconColor: 'text-[#10B981]', iconBg: 'bg-[#ECFDF5]' };
+        case 'completed':
+            return { icon: CircleCheckBig, iconColor: 'text-[#10B981]', iconBg: 'bg-[#ECFDF5]' };
+        case 'payment':
         case 'payment_received':
-            return { icon: DollarSign, iconColor: 'text-[#15B99E]', iconBg: 'bg-[#FEF2F2]' };
+            return { icon: DollarSign, ...primaryTint };
         case 'order_cancelled':
-            return { icon: XCircle, iconColor: 'text-[#EF4444]', iconBg: 'bg-[#FEF2F2]' };
+        case 'cancelled':
+            return { icon: CircleX, ...primaryTint };
         default:
             return { icon: Clock, iconColor: 'text-[#6B7280]', iconBg: 'bg-gray-100' };
     }
@@ -60,7 +67,7 @@ const RecentActivities = ({ activities = [], loading = false }) => {
                 )}
             </div>
 
-            <div className="mt-auto p-4 bg-[#E5F9F6] rounded-b-[16px] border-t border-[#E5E7EB]">
+            <div className="mt-auto p-4 bg-[#DD2F2626] rounded-b-[16px] border-t border-[#E5E7EB]">
                 <button className="w-full text-center text-[14px] font-[800] text-[#111827] hover:opacity-80 transition-opacity cursor-pointer">
                     Dismiss All
                 </button>
