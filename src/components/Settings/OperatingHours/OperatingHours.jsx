@@ -30,7 +30,9 @@ const OperatingHours = () => {
 
             {/* Weekly Hours */}
             <div className="bg-white rounded-[12px] border border-[#E8E8E8] p-5">
-                <h3 className="text-[18px] font-[800] text-[#1A1A1A] mb-2">Weekly Hours</h3>
+                <h3 className="mb-4 font-sans text-[18px] font-bold leading-[21.6px] tracking-normal text-[#0F1724]">
+                    Weekly Hours
+                </h3>
                 <div className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar">
                     <div className="min-w-[600px] space-y-0">
                         {days.map((day) => (
@@ -98,8 +100,10 @@ const OperatingHours = () => {
 
             {/* Special Days */}
             <div className="bg-white rounded-[12px] border border-[#E8E8E8] p-5">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[18px] font-[800] text-[#1A1A1A]">Special Days</h3>
+                <div className="mb-4 flex items-center justify-between">
+                    <h3 className="font-sans text-[18px] font-bold leading-[21.6px] tracking-normal text-[#0F1724]">
+                        Special Days
+                    </h3>
                     <button
                         onClick={() => setIsAddSpecialDayModalOpen(true)}
                         className="flex items-center gap-2 bg-[#DD2F26] text-white px-4 py-2 rounded-[8px] text-[14px] font-[500] hover:bg-[#C52820] transition"

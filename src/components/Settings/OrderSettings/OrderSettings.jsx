@@ -15,7 +15,9 @@ const OrderSettings = () => {
 
             {/* Order Rules */}
             <div className="bg-white rounded-xl border border-[#E8E8E8] p-5">
-                <h3 className="text-[18px] font-semibold text-[#1A1A1A] mb-4">Order Rules</h3>
+                <h3 className="mb-4 font-sans text-[18px] font-bold leading-[21.6px] tracking-normal text-[#0F1724]">
+                    Order Rules
+                </h3>
                 <div className="space-y-6">
                     {/* Row 1 */}
                     <div className="flex items-center justify-between py-2 border-b border-[#E8E8E8]">
@@ -128,7 +130,7 @@ const OrderSettings = () => {
             </div>
 
             {/* Active Delay Card */}
-            <div className="bg-[#FEF2F2] rounded-xl border border-[#FEE2E2] p-6">
+            <div className="rounded-xl border border-[#DD2F26] bg-[#DD2F2633] p-6">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                     <div className="space-y-2">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#DD2F26] text-white">

@@ -30,7 +30,9 @@ const SecuritySettings = () => {
 
             {/* Password Management */}
             <div className="bg-white rounded-[16px] border border-[#00000033] p-5 space-y-4">
-                <h3 className="text-[18px] font-[800] text-[#1A1A1A]">Password Management</h3>
+                <h3 className="mb-1 font-sans text-[18px] font-bold leading-[21.6px] tracking-normal text-[#0F1724]">
+                    Password Management
+                </h3>
                 <p className="text-[14px] text-[#6B6B6B]">Update your password regularly to keep your account secure</p>
                 <button
                     onClick={() => setIsPasswordModalOpen(true)}
@@ -45,7 +47,9 @@ const SecuritySettings = () => {
             <div className="bg-white rounded-[16px] border border-[#00000033] p-5 space-y-8">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <h3 className="text-[18px] font-[800] text-[#1A1A1A]">Two-Factor Authentication (2FA)</h3>
+                        <h3 className="font-sans text-[18px] font-bold leading-[21.6px] tracking-normal text-[#0F1724]">
+                            Two-Factor Authentication (2FA)
+                        </h3>
                         <div className="mt-4">
                             <p className="font-[500] text-[#1A1A1A] text-[14px]">Enable 2FA</p>
                             <p className="text-[13px] text-[#9CA3AF]">Add an extra layer of security to your account</p>
@@ -107,7 +111,9 @@ const SecuritySettings = () => {
             {/* Device Management */}
             <div className="bg-white rounded-[16px] border border-[#00000033] overflow-hidden shadow-sm">
                 <div className="p-4 sm:p-5 border-b border-[#E5E7EB] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <h3 className="text-[18px] font-[800] text-[#1A1A1A]">Device Management</h3>
+                    <h3 className="font-sans text-[18px] font-bold leading-[21.6px] tracking-normal text-[#0F1724]">
+                        Device Management
+                    </h3>
                     <button className="w-full sm:w-auto px-6 py-2.5 border border-[#E02424] text-[#EF4444] rounded-[8px] text-[13px] font-[500] hover:bg-[#FEF2F2] transition shadow-sm text-center active:scale-95">
                         Log Out From All Devices
                     </button>

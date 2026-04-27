@@ -11,8 +11,10 @@ const BusinessProfile = () => {
             </div>
 
             {/* Restaurant Identity */}
-            <div className="bg-white rounded-xl border border-[#E8E8E8] p-5">
-                <h3 className="text-[18px] font-semibold text-[#1A1A1A] mb-4">Restaurant Identity</h3>
+            <div className="bg-white rounded-xl border border-[#E8E8E8] p-5 pb-4">
+                <h3 className="mb-4 font-sans text-[18px] font-bold leading-[21.6px] tracking-normal text-[#0F1724]">
+                    Restaurant Identity
+                </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-4">
                         <div>
@@ -80,7 +82,7 @@ const BusinessProfile = () => {
                         </div>
                     </div>
                 </div>
-                <div className="mt-8 flex justify-end px-0">
+                <div className="mt-6 flex justify-end px-0">
                     <button className="flex items-center gap-2 bg-[#DD2F26] text-white text-[14px] px-6 py-2.5 rounded-[8px] font-[500] hover:bg-[#C52820] transition">
                         <Save className="w-4 h-4" />
                         Save Changes
@@ -89,8 +91,10 @@ const BusinessProfile = () => {
             </div>
 
             {/* Business Address */}
-            <div className="bg-white rounded-xl border border-[#E5E7EB] p-6">
-                <h3 className="text-[18px] font-[800] text-[#1A1A1A] mb-6">Business Address</h3>
+            <div className="bg-white rounded-xl border border-[#E5E7EB] px-6 pt-6 pb-4">
+                <h3 className="mb-6 font-sans text-[18px] font-bold leading-[21.6px] tracking-normal text-[#0F1724]">
+                    Business Address
+                </h3>
                 <div className="space-y-4">
                     <div>
                         <label className="block text-[14px] font-medium text-[#4B5563] mb-1">Street Address</label>
@@ -137,7 +141,7 @@ const BusinessProfile = () => {
                         </div>
                     </div>
                 </div>
-                <div className="mt-8 flex justify-end">
+                <div className="mt-6 flex justify-end">
                     <button className="flex items-center gap-2 bg-[#DD2F26] text-white text-[14px] px-6 py-2.5 rounded-[8px]  hover:bg-[#C52820] transition">
                         <Save className="w-4 h-4" />
                         Save Address

@@ -29,7 +29,9 @@ const NotificationsSettings = () => {
 
             {/* Notification Channels */}
             <div className="bg-white rounded-[12px] border border-[#E8E8E8] p-5">
-                <h3 className="text-[18px] font-[800] text-[#1A1A1A] mb-4">Notification Channels</h3>
+                <h3 className="mb-4 font-sans text-[18px] font-bold leading-[21.6px] tracking-normal text-[#0F1724]">
+                    Notification Channels
+                </h3>
                 <div className="space-y-4">
                     {channels.map((channel, index) => (
                         <div key={index} className="flex items-center justify-between p-4 border border-[#E5E7EB] rounded-xl">

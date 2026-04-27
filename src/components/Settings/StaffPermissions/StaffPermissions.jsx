@@ -40,7 +40,9 @@ const StaffPermissions = () => {
             {/* Staff Members List */}
             <div className="bg-white rounded-xl border border-[#E8E8E8] overflow-hidden">
                 <div className="p-4 sm:p-5 border-b border-[#E5E7EB] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
-                    <h3 className="text-[18px] font-semibold text-[#1A1A1A]">Staff Members</h3>
+                    <h3 className="font-sans text-[18px] font-bold leading-[21.6px] tracking-normal text-[#0F1724]">
+                        Staff Members
+                    </h3>
                     <button
                         onClick={handleAddStaff}
                         className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#DD2F26] text-white px-4 py-2.5 rounded-[8px] text-[14px] font-[500] hover:bg-[#C52820] transition shadow-lg shadow-[#DD2F26]/20 active:scale-95"

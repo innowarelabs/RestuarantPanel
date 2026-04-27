@@ -63,10 +63,10 @@ const Settings = () => {
     };
 
     return (
-        <div className="max-w-[1600px] mx-auto pb-20">
+        <div className="max-w-[1600px] mx-auto pb-6">
             {/* Tabs Navigation */}
             <div className="mb-8 overflow-x-auto no-scrollbar bg-[#FFFFFF] p-2 rounded-[12px]">
-                <div className="flex border-b border-[#E5E7EB] min-w-max">
+                <div className="flex min-w-max">
                     {tabs.map((tab) => (
                         <button
                             key={tab}

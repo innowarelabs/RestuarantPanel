@@ -14,7 +14,9 @@ const DeliverySettings = () => {
 
             {/* Delivery Configuration */}
             <div className="bg-white rounded-xl border border-[#E8E8E8] p-5">
-                <h3 className="text-[18px] font-semibold text-[#1A1A1A] mb-4">Delivery Configuration</h3>
+                <h3 className="mb-4 font-sans text-[18px] font-bold leading-[21.6px] tracking-normal text-[#0F1724]">
+                    Delivery Configuration
+                </h3>
 
                 <div className="space-y-8">
                     {/* Radius Slider */}
@@ -94,7 +96,9 @@ const DeliverySettings = () => {
 
             {/* Pickup Settings */}
             <div className="bg-white rounded-xl border border-[#E8E8E8] p-5">
-                <h3 className="text-[18px] font-[800] text-[#1A1A1A] mb-4">Pickup Settings</h3>
+                <h3 className="mb-4 font-sans text-[18px] font-bold leading-[21.6px] tracking-normal text-[#0F1724]">
+                    Pickup Settings
+                </h3>
                 <div className="flex items-center justify-between">
                     <div>
                         <p className="font-[500] text-[14px] text-[#1A1A1A]">Enable Pickup Orders</p>

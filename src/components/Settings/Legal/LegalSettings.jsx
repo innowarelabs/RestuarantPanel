@@ -36,7 +36,9 @@ const LegalSettings = () => {
 
             {/* Legal Documents */}
             <div className="bg-white rounded-[16px] border border-[#E8E8E8] p-5 space-y-4">
-                <h3 className="text-[18px] font-[800] text-[#1A1A1A]">Legal Documents</h3>
+                <h3 className="font-sans text-[18px] font-bold leading-[21.6px] tracking-normal text-[#0F1724]">
+                    Legal Documents
+                </h3>
                 <div className="space-y-3">
                     {documents.map((doc, index) => (
                         <div
@@ -60,7 +62,9 @@ const LegalSettings = () => {
 
             {/* Account Data */}
             <div className="bg-white rounded-[16px] border border-[#E8E8E8] p-5 space-y-4">
-                <h3 className="text-[18px] font-[800] text-[#1A1A1A]">Account Data</h3>
+                <h3 className="mb-1 font-sans text-[18px] font-bold leading-[21.6px] tracking-normal text-[#0F1724]">
+                    Account Data
+                </h3>
                 <p className="text-[14px] text-[#6B6B6B]">Request a copy of your data or permanently delete your account information</p>
                 <div className="flex flex-col sm:flex-row items-center gap-4 pt-2">
                     <button

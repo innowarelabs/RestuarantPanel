@@ -39,7 +39,9 @@ const LoyaltyPreferences = () => {
 
             {/* Loyalty Program Settings */}
             <div className="bg-white rounded-[16px] border border-[#00000033] p-5">
-                <h3 className="text-[18px] font-[800] text-[#1A1A1A] mb-4">Loyalty Program Settings</h3>
+                <h3 className="mb-4 font-sans text-[18px] font-bold leading-[21.6px] tracking-normal text-[#0F1724]">
+                    Loyalty Program Settings
+                </h3>
                 <div className="space-y-4">
                     {settings.map((item, index) => (
                         <div key={index} className="flex items-start sm:items-center justify-between py-3 border-b border-[#E5E7EB] last:border-0 gap-4">
@@ -71,7 +73,9 @@ const LoyaltyPreferences = () => {
             <div className="bg-white rounded-[16px] border border-[#00000033] p-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
                     <div>
-                        <h3 className="text-[18px] font-[800] text-[#1A1A1A]">Reward Rules</h3>
+                        <h3 className="mb-1 font-sans text-[18px] font-bold leading-[21.6px] tracking-normal text-[#0F1724]">
+                            Reward Rules
+                        </h3>
                         <p className="text-[14px] text-[#6B6B6B]">Create rules for customers to redeem points.</p>
                     </div>
                     <button
