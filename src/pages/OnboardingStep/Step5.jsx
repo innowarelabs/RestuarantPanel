@@ -9,6 +9,7 @@ export default function Step5({
     setFormData,
     setEditingReward,
     setShowAddRewardModal,
+    onDeleteRewardClick,
     rewards,
     loadingRewards,
     rewardsErrorLines,
@@ -261,11 +262,11 @@ export default function Step5({
                                         ) : null}
                                     </div>
                                     <div className="space-y-1 min-w-0">
-                                        <h4 className="text-[15px] font-[400] text-[#1A1A1A] truncate">{reward.reward_name}</h4>
+                                        <h4 className="truncate font-sans text-[15px] font-semibold leading-[18px] tracking-normal text-[#0F1724]">{reward.reward_name}</h4>
                                         <p className="text-[13px] text-[#6B7280] truncate">{reward.description || '—'}</p>
                                         <div className="flex items-center gap-2 pt-0.5">
-                                            <span className="text-[12px] font-[500] text-primary bg-[#FEF2F2] px-2 py-0.5 rounded-[4px]">{reward.points_required} points</span>
-                                            <span className={`text-[12px] font-[500] px-2 py-0.5 rounded-[4px] ${reward.is_active ? 'text-[#10B981] bg-[#ECFDF5]' : 'text-gray-400 bg-gray-100'}`}>
+                                            <span className="text-[12px] font-[500] text-primary bg-[#DD2F2626] px-2 py-0.5 rounded-[4px]">{reward.points_required} points</span>
+                                            <span className={`text-[12px] font-[500] px-2 py-0.5 rounded-[4px] ${reward.is_active ? 'text-[#059669] bg-[#DD2F2633]' : 'text-gray-400 bg-gray-100'}`}>
                                                 {reward.is_active ? 'Active' : 'Inactive'}
                                             </span>
                                         </div>
@@ -282,7 +283,14 @@ export default function Step5({
                                     >
                                         <Edit2 size={16} />
                                     </button>
-                                    <button type="button" className="p-2 hover:bg-red-50 rounded-lg text-red-400"><Trash2 size={16} /></button>
+                                    <button
+                                        type="button"
+                                        onClick={() => onDeleteRewardClick?.(reward)}
+                                        className="p-2 hover:bg-red-50 rounded-lg text-red-400"
+                                        aria-label={`Delete reward ${reward.reward_name || ''}`}
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
                                 </div>
                             </div>
                         ))

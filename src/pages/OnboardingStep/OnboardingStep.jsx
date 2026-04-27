@@ -18,6 +18,8 @@ import Step7 from './Step7';
 import Step8 from './Step8';
 import Step9 from './Step9';
 import Step10 from './Step10';
+import toast from 'react-hot-toast';
+
 import Toggle from './Toggle';
 import { setOnboardingStep } from '../../redux/store';
 
@@ -123,6 +125,8 @@ export default function OnboardingStep() {
     const [rewardImagePreviewUrl, setRewardImagePreviewUrl] = useState('');
     const [savingReward, setSavingReward] = useState(false);
     const [rewardErrorLines, setRewardErrorLines] = useState([]);
+    const [rewardPendingDelete, setRewardPendingDelete] = useState(null);
+    const [deletingReward, setDeletingReward] = useState(false);
     const [menuItems, setMenuItems] = useState([]);
     const [loadingMenuItems, setLoadingMenuItems] = useState(false);
     const [menuItemsErrorLines, setMenuItemsErrorLines] = useState([]);
@@ -487,6 +491,8 @@ export default function OnboardingStep() {
         // Step 9 integrations (saved with onboarding draft)
         doorDashConnected: false,
         posConnected: false,
+        doordash_info: '',
+        pos_key: '',
     };
 
     const mergeOpeningHours = (saved) => {
@@ -675,6 +681,7 @@ export default function OnboardingStep() {
         if (typeof data.code !== 'string') return false;
         const code = data.code.trim().toUpperCase();
         if (!code) return false;
+        if (code.startsWith('SUCCESS_')) return false;
         if (code.startsWith('ERROR_')) return true;
         if (code.endsWith('_400') || code.endsWith('_401') || code.endsWith('_403') || code.endsWith('_404') || code.endsWith('_422') || code.endsWith('_500')) return true;
         if (data.data === null && typeof data.message === 'string' && data.message.trim()) return true;
@@ -686,6 +693,7 @@ export default function OnboardingStep() {
         if (Array.isArray(data)) return data;
         if (typeof data !== 'object') return [];
         if (Array.isArray(data.data)) return data.data;
+        if (data.data && typeof data.data === 'object' && Array.isArray(data.data.catalog)) return data.data.catalog;
         if (data.data && typeof data.data === 'object' && data.data.data && typeof data.data.data === 'object' && Array.isArray(data.data.data.rewards)) {
             return data.data.data.rewards;
         }
@@ -741,9 +749,11 @@ export default function OnboardingStep() {
         const menuItemId =
             typeof raw.menu_item_id === 'string'
                 ? raw.menu_item_id
-                : typeof raw.menuItemId === 'string'
-                    ? raw.menuItemId
-                    : '';
+                : raw.menu_item && typeof raw.menu_item === 'object' && typeof raw.menu_item.id === 'string'
+                    ? raw.menu_item.id
+                    : typeof raw.menuItemId === 'string'
+                        ? raw.menuItemId
+                        : '';
         const description = typeof raw.description === 'string' ? raw.description : '';
         const rewardImage = typeof raw.reward_image === 'string' ? raw.reward_image.trim() : '';
         const isActive = typeof raw.is_active === 'boolean' ? raw.is_active : true;
@@ -960,6 +970,14 @@ export default function OnboardingStep() {
                 return;
             }
 
+            const successMsg =
+                data && typeof data === 'object' && typeof data.message === 'string' && data.message.trim()
+                    ? data.message.trim()
+                    : isUpdate
+                        ? 'Reward updated successfully'
+                        : 'Reward added to catalog';
+            toast.success(successMsg);
+
             await fetchRewards(restaurantId);
             closeAddRewardModal();
         } catch (e) {
@@ -967,6 +985,92 @@ export default function OnboardingStep() {
             setRewardErrorLines([message]);
         } finally {
             setSavingReward(false);
+        }
+    };
+
+    const closeDeleteRewardModal = () => {
+        if (deletingReward) return;
+        setRewardPendingDelete(null);
+    };
+
+    const handleConfirmDeleteReward = async () => {
+        const itemId = rewardPendingDelete?.reward_id?.trim();
+        const restaurantId = formData.restaurantId?.trim();
+        if (!itemId || !restaurantId) {
+            toast.error('Missing reward or restaurant');
+            return;
+        }
+        if (deletingReward) return;
+
+        setDeletingReward(true);
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/rewards/catalog/${itemId}`;
+            const res = await fetch(url, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
+                },
+            });
+
+            let data = null;
+            const contentType = res.headers.get('content-type');
+            if (contentType?.includes('application/json')) {
+                try {
+                    const text = await res.text();
+                    data = text ? JSON.parse(text) : null;
+                } catch {
+                    data = null;
+                }
+            } else {
+                try {
+                    const text = await res.text();
+                    data = text?.trim() ? text : null;
+                } catch {
+                    data = null;
+                }
+            }
+
+            console.log('Onboarding Step5 DELETE reward catalog response:', {
+                url,
+                status: res.status,
+                ok: res.ok,
+                data,
+            });
+
+            const payloadIsError = typeof data === 'object' && data !== null && isErrorPayload(data);
+            if (!res.ok || payloadIsError) {
+                const lines = typeof data === 'object' && data !== null ? toValidationErrorLines(data) : [];
+                const msg =
+                    lines[0] ||
+                    (typeof data === 'object' && data !== null && typeof data.message === 'string' && data.message.trim()
+                        ? data.message.trim()
+                        : null) ||
+                    (typeof data === 'string' && data.trim() ? data.trim() : null) ||
+                    'Failed to delete reward';
+                toast.error(msg);
+                return;
+            }
+
+            const successMsg =
+                typeof data === 'object' && data !== null && typeof data.message === 'string' && data.message.trim()
+                    ? data.message.trim()
+                    : 'Reward removed from catalog';
+            toast.success(successMsg);
+
+            await fetchRewards(restaurantId);
+            setRewardPendingDelete(null);
+            if (editingReward?.reward_id === itemId) {
+                closeAddRewardModal();
+            }
+        } catch (e) {
+            const message = typeof e?.message === 'string' ? e.message : 'Failed to delete reward';
+            toast.error(message);
+        } finally {
+            setDeletingReward(false);
         }
     };
 
@@ -1036,6 +1140,7 @@ export default function OnboardingStep() {
                     setFormData={setFormData}
                     setEditingReward={setEditingReward}
                     setShowAddRewardModal={setShowAddRewardModal}
+                    onDeleteRewardClick={setRewardPendingDelete}
                     rewards={rewards}
                     loadingRewards={loadingRewards}
                     rewardsErrorLines={rewardsErrorLines}
@@ -1258,10 +1363,35 @@ export default function OnboardingStep() {
 
                             <section>
                                 <h3 className="text-[17px] font-bold text-[#1A1A1A] mb-6 border-b border-gray-100 pb-2">I. Integrations</h3>
-                                <div className="bg-[#F8FAFC] p-4 rounded-[12px] border border-gray-100">
-                                    <p className="text-[13px] text-[#64748B]">
-                                        Door Dash and other partners can be connected from the Integrations step after setup.
-                                    </p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6 text-[14px]">
+                                    <div>
+                                        <p className="text-[#9CA3AF] font-[500] mb-1">Door Dash</p>
+                                        <p className="font-semibold text-[#111827]">
+                                            {formData.doorDashConnected ? 'Connected' : 'Not connected'}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[#9CA3AF] font-[500] mb-1">POS System</p>
+                                        <p className="font-semibold text-[#111827]">
+                                            {formData.posConnected ? 'Connected' : 'Not connected'}
+                                        </p>
+                                    </div>
+                                    <div className="col-span-1 sm:col-span-2">
+                                        <p className="text-[#9CA3AF] font-[500] mb-1">DoorDash merchant id / notes</p>
+                                        <p className="font-semibold text-[#111827] break-words">
+                                            {formData.doorDashConnected && String(formData.doordash_info ?? '').trim()
+                                                ? String(formData.doordash_info).trim()
+                                                : '—'}
+                                        </p>
+                                    </div>
+                                    <div className="col-span-1 sm:col-span-2">
+                                        <p className="text-[#9CA3AF] font-[500] mb-1">POS key</p>
+                                        <p className="font-semibold text-[#111827] break-words font-mono text-[13px]">
+                                            {formData.posConnected && String(formData.pos_key ?? '').trim()
+                                                ? String(formData.pos_key).trim()
+                                                : '—'}
+                                        </p>
+                                    </div>
                                 </div>
                             </section>
                         </div>
@@ -1386,15 +1516,6 @@ export default function OnboardingStep() {
                                         />
                                     </div>
                                 </div>
-                                {(rewardImagePreviewUrl || rewardForm.rewardImage?.trim()) && (
-                                    <div className="w-full h-[140px] rounded-[16px] overflow-hidden border border-[#E5E7EB] bg-white mt-3">
-                                        <img
-                                            src={rewardImagePreviewUrl || rewardForm.rewardImage.trim()}
-                                            alt="Reward Preview"
-                                            className="w-full h-full object-cover"
-                                        />
-                                    </div>
-                                )}
                             </div>
 
                             {/* Make Active Toggle */}
@@ -1462,6 +1583,61 @@ export default function OnboardingStep() {
                                 className={`h-[44px] font-[500] rounded-[10px] transition-colors text-[13px] ${(!canSaveReward || savingReward) ? 'bg-[#E5E7EB] text-[#6B6B6B]' : 'bg-primary text-white hover:bg-[#C52820]'}`}
                             >
                                 {savingReward ? 'Saving...' : editingReward ? 'Update Reward' : 'Save Reward'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {rewardPendingDelete && (
+                <div className="fixed inset-0 z-[115] flex items-center justify-center p-4">
+                    <div
+                        className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+                        onClick={closeDeleteRewardModal}
+                        aria-hidden
+                    />
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="delete-reward-title"
+                        className="bg-white w-full max-w-[420px] rounded-[24px] overflow-hidden shadow-2xl relative animate-in fade-in zoom-in-95 duration-200"
+                    >
+                        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+                            <h2 id="delete-reward-title" className="text-[18px] font-bold text-[#1A1A1A]">
+                                Delete reward?
+                            </h2>
+                            <button
+                                type="button"
+                                onClick={closeDeleteRewardModal}
+                                disabled={deletingReward}
+                                className="p-1 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
+                            >
+                                <X size={18} className="text-gray-400" />
+                            </button>
+                        </div>
+                        <div className="p-5 text-[14px] text-[#475569] leading-relaxed">
+                            This removes{' '}
+                            <span className="font-semibold text-[#0F1724]">
+                                {rewardPendingDelete.reward_name || 'this reward'}
+                            </span>{' '}
+                            from your catalog. Customers will no longer be able to redeem it.
+                        </div>
+                        <div className="p-5 pt-0 grid grid-cols-2 gap-3">
+                            <button
+                                type="button"
+                                disabled={deletingReward}
+                                onClick={closeDeleteRewardModal}
+                                className="h-[44px] border border-gray-200 text-[#1A1A1A] font-[500] rounded-[10px] hover:bg-gray-50 transition-colors text-[13px] disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                disabled={deletingReward}
+                                onClick={handleConfirmDeleteReward}
+                                className="h-[44px] font-[500] rounded-[10px] transition-colors text-[13px] bg-primary text-white hover:bg-[#C52820] disabled:opacity-50"
+                            >
+                                {deletingReward ? 'Deleting...' : 'Confirm'}
                             </button>
                         </div>
                     </div>

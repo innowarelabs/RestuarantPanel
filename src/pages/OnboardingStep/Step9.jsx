@@ -1,15 +1,32 @@
-import { ChevronLeft, ChevronRight, CreditCard } from 'lucide-react';
-
-/* Step9 API — uncomment and wire when PUT .../onboarding/step9 is ready.
-
-import { useSelector } from 'react-redux';
+import { AlertCircle, ChevronLeft, ChevronRight, CreditCard } from 'lucide-react';
 import { useState } from 'react';
-import { AlertCircle } from 'lucide-react';
+import { useSelector } from 'react-redux';
+import toast from 'react-hot-toast';
 
-// Paste inside Step9 component (before toggleIntegration):
+const INTEGRATIONS = [
+    {
+        key: 'doorDashConnected',
+        fieldKey: 'doordash_info',
+        title: 'Door Dash',
+        desc: 'Sync orders and menu with DoorDash so customers can order through the platform.',
+        kind: 'emoji',
+        emoji: '🚗',
+        inputLabel: 'DoorDash merchant id / notes here*',
+        inputPlaceholder: 'Enter merchant ID or notes',
+    },
+    {
+        key: 'posConnected',
+        fieldKey: 'pos_key',
+        title: 'POS System',
+        desc: 'Connect your point of sale system',
+        kind: 'pos',
+        inputLabel: 'Your POS key*',
+        inputPlaceholder: 'Enter your POS key',
+    },
+];
 
+export default function Step9({ formData, setFormData, handlePrev, handleNext }) {
     const accessToken = useSelector((state) => state.auth.accessToken);
-    const user = useSelector((state) => state.auth.user);
     const [submitting, setSubmitting] = useState(false);
     const [errorLines, setErrorLines] = useState([]);
 
@@ -30,37 +47,30 @@ import { AlertCircle } from 'lucide-react';
 
     const isErrorPayload = (data) => {
         if (!data || typeof data !== 'object') return false;
-        const code = typeof data.code === 'string' ? data.code.trim().toUpperCase() : '';
+        if (typeof data.code !== 'string') return false;
+        const code = data.code.trim().toUpperCase();
         if (!code) return false;
-        return code.includes('ERROR') || code.endsWith('_400') || code.endsWith('_401') || code.endsWith('_403') || code.endsWith('_404') || code.endsWith('_500');
+        if (code.startsWith('SUCCESS_')) return false;
+        if (code.startsWith('ERROR_')) return true;
+        if (code.endsWith('_400') || code.endsWith('_401') || code.endsWith('_403') || code.endsWith('_404') || code.endsWith('_422') || code.endsWith('_500')) return true;
+        if (data.data === null && typeof data.message === 'string' && data.message.trim()) return true;
+        return false;
     };
 
-    const getRestaurantId = (value) => {
-        if (!value || typeof value !== 'object') return '';
-        if (typeof value.restaurant_id === 'string') return value.restaurant_id;
-        if (typeof value.restaurantId === 'string') return value.restaurantId;
-        if (value.restaurant && typeof value.restaurant === 'object') {
-            if (typeof value.restaurant.id === 'string') return value.restaurant.id;
-            if (typeof value.restaurant.restaurant_id === 'string') return value.restaurant.restaurant_id;
-        }
-        if (typeof value.id === 'string') return value.id;
-        return '';
-    };
+    const restaurantId = formData.restaurantId?.trim();
 
-    const resolvedRestaurantId =
-        formData.restaurantId?.trim() ||
-        (() => {
-            try {
-                const v = localStorage.getItem('restaurant_id');
-                return typeof v === 'string' ? v.trim() : '';
-            } catch {
-                return '';
+    const toggleIntegration = (key, fieldKey) => {
+        setFormData((prev) => {
+            const nextConnected = !prev[key];
+            if (!nextConnected) {
+                return { ...prev, [key]: false, [fieldKey]: '' };
             }
-        })() ||
-        getRestaurantId(user);
+            return { ...prev, [key]: true };
+        });
+    };
 
-    const submitIntegrations = async (doorDash, pos) => {
-        if (!resolvedRestaurantId) {
+    const submitStep9 = async (doordash_info, pos_key) => {
+        if (!restaurantId) {
             setErrorLines(['Restaurant not found. Please complete Step 1 first.']);
             return false;
         }
@@ -80,10 +90,9 @@ import { AlertCircle } from 'lucide-react';
                     ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
                 },
                 body: JSON.stringify({
-                    restaurant_id: resolvedRestaurantId,
-                    door_dash_connected: !!doorDash,
-                    pos_connected: !!pos,
-                    goto: 'step10',
+                    restaurant_id: restaurantId,
+                    doordash_info: typeof doordash_info === 'string' ? doordash_info : '',
+                    pos_key: typeof pos_key === 'string' ? pos_key : '',
                 }),
             });
 
@@ -110,6 +119,9 @@ import { AlertCircle } from 'lucide-react';
                 return false;
             }
 
+            if (data && typeof data === 'object' && typeof data.message === 'string' && data.message.trim()) {
+                toast.success(data.message.trim());
+            }
             return true;
         } catch (e) {
             const message = typeof e?.message === 'string' ? e.message : 'Request failed';
@@ -121,47 +133,35 @@ import { AlertCircle } from 'lucide-react';
     };
 
     const handleNextClick = async () => {
-        const ok = await submitIntegrations(!!formData.doorDashConnected, !!formData.posConnected);
+        const clientErrors = [];
+        if (formData.doorDashConnected && !String(formData.doordash_info ?? '').trim()) {
+            clientErrors.push('DoorDash merchant id / notes is required when Door Dash is connected.');
+        }
+        if (formData.posConnected && !String(formData.pos_key ?? '').trim()) {
+            clientErrors.push('Your POS key is required when POS System is connected.');
+        }
+        if (clientErrors.length) {
+            setErrorLines(clientErrors);
+            return;
+        }
+
+        const doordash_info = formData.doorDashConnected ? String(formData.doordash_info ?? '').trim() : '';
+        const pos_key = formData.posConnected ? String(formData.pos_key ?? '').trim() : '';
+
+        const ok = await submitStep9(doordash_info, pos_key);
         if (ok) handleNext?.();
     };
 
     const handleSkip = async () => {
-        const ok = await submitIntegrations(false, false);
-        if (ok) {
-            setFormData((prev) => ({ ...prev, doorDashConnected: false, posConnected: false }));
-            handleNext?.();
-        }
-    };
-
-*/
-
-const INTEGRATIONS = [
-    {
-        key: 'doorDashConnected',
-        title: 'Door Dash',
-        desc: 'Sync orders and menu with DoorDash so customers can order through the platform.',
-        kind: 'emoji',
-        emoji: '🚗',
-    },
-    {
-        key: 'posConnected',
-        title: 'POS System',
-        desc: 'Connect your point of sale system',
-        kind: 'pos',
-    },
-];
-
-export default function Step9({ formData, setFormData, handlePrev, handleNext }) {
-    const toggleIntegration = (key) => {
-        setFormData((prev) => ({ ...prev, [key]: !prev[key] }));
-    };
-
-    const handleNextClick = () => {
-        handleNext?.();
-    };
-
-    const handleSkip = () => {
-        setFormData((prev) => ({ ...prev, doorDashConnected: false, posConnected: false }));
+        const ok = await submitStep9('', '');
+        if (!ok) return;
+        setFormData((prev) => ({
+            ...prev,
+            doorDashConnected: false,
+            posConnected: false,
+            doordash_info: '',
+            pos_key: '',
+        }));
         handleNext?.();
     };
 
@@ -170,6 +170,8 @@ export default function Step9({ formData, setFormData, handlePrev, handleNext })
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-3xl sm:max-w-none">
                 {INTEGRATIONS.map((item) => {
                     const connected = !!formData[item.key];
+                    const fieldValue = String(formData[item.fieldKey] ?? '');
+                    const inputId = `step9-${item.fieldKey}`;
                     return (
                         <div
                             key={item.key}
@@ -198,10 +200,25 @@ export default function Step9({ formData, setFormData, handlePrev, handleNext })
                                     </span>
                                 </div>
                                 <p className="text-[14px] text-[#64748B] leading-[1.5]">{item.desc}</p>
+                                {connected ? (
+                                    <div className="space-y-1 pt-1">
+                                        <label htmlFor={inputId} className="block text-[13px] font-[500] text-[#1A1A1A]">
+                                            {item.inputLabel}
+                                        </label>
+                                        <input
+                                            id={inputId}
+                                            type="text"
+                                            value={fieldValue}
+                                            onChange={(e) => setFormData((prev) => ({ ...prev, [item.fieldKey]: e.target.value }))}
+                                            placeholder={item.inputPlaceholder}
+                                            className="onboarding-input !h-[44px] !rounded-[8px] !text-[13px]"
+                                        />
+                                    </div>
+                                ) : null}
                             </div>
                             <button
                                 type="button"
-                                onClick={() => toggleIntegration(item.key)}
+                                onClick={() => toggleIntegration(item.key, item.fieldKey)}
                                 className={`w-full h-[45px] rounded-[8px] font-[500] text-[16px] transition-all ${
                                     connected
                                         ? 'border border-[#E5E7EB] bg-white text-[#64748B] hover:bg-[#F9FAFB]'
@@ -215,6 +232,21 @@ export default function Step9({ formData, setFormData, handlePrev, handleNext })
                 })}
             </div>
 
+            {!!errorLines.length && (
+                <div className="bg-[#F751511F] rounded-[12px] py-[10px] px-[12px] max-w-3xl">
+                    <div className="flex items-start gap-2">
+                        <AlertCircle size={18} className="text-[#EB5757] mt-[2px] shrink-0" />
+                        <div className="space-y-1">
+                            {errorLines.map((line, idx) => (
+                                <p key={idx} className="text-[12px] text-[#47464A] font-normal">
+                                    {line}
+                                </p>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="pt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <button type="button" onClick={handlePrev} className="prev-btn flex items-center gap-2 px-10 w-full sm:w-auto justify-center">
                     <ChevronLeft size={18} /> Previous
@@ -222,13 +254,19 @@ export default function Step9({ formData, setFormData, handlePrev, handleNext })
                 <div className="flex items-center justify-end gap-3 sm:gap-4 w-full sm:w-auto">
                     <button
                         type="button"
+                        disabled={submitting}
                         onClick={handleSkip}
-                        className="h-[45px] text-[14px] font-[500] text-[#6B7280] hover:underline"
+                        className="h-[45px] text-[14px] font-[500] text-[#6B7280] hover:underline disabled:opacity-50 disabled:no-underline"
                     >
                         Skip for now
                     </button>
-                    <button type="button" onClick={handleNextClick} className="next-btn bg-primary text-white px-10">
-                        Next <ChevronRight size={18} />
+                    <button
+                        type="button"
+                        disabled={submitting}
+                        onClick={handleNextClick}
+                        className={`next-btn px-10 ${submitting ? 'bg-[#E5E7EB] text-[#6B6B6B]' : 'bg-primary text-white'}`}
+                    >
+                        {submitting ? 'Saving...' : 'Next'} <ChevronRight size={18} />
                     </button>
                 </div>
             </div>
