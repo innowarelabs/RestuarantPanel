@@ -6,12 +6,16 @@ const LoyaltyPreferences = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedRule, setSelectedRule] = useState(null);
 
-    const settings = [
+    const [settings, setSettings] = useState([
         { name: 'Enable Loyalty Program', description: 'Allow customers to earn and redeem points', enabled: true },
         { name: 'Allow Reward Redemption at Checkout', description: 'Customers can redeem points during order placement', enabled: true },
         { name: 'Notify Customer When Points Earned', description: 'Send notification after points are credited', enabled: true },
         { name: 'Notify Customer When Reward Redeemed', description: 'Send confirmation when reward is used', enabled: true },
-    ];
+    ]);
+
+    const toggleSetting = (index) => {
+        setSettings((prev) => prev.map((item, i) => (i === index ? { ...item, enabled: !item.enabled } : item)));
+    };
 
     const rewardRules = [
         { name: 'Free Ice Cream', requirement: 'Requires 120 Points', status: 'Active', points: '120' },
@@ -50,12 +54,12 @@ const LoyaltyPreferences = () => {
                                 <p className="text-[13px] text-[#6B6B6B] mt-0.5">{item.description}</p>
                             </div>
                             <button
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none shrink-0 ${item.enabled ? 'bg-[#DD2F26]' : 'bg-gray-200'
-                                    }`}
+                                type="button"
+                                onClick={() => toggleSetting(index)}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none shrink-0 ${item.enabled ? 'bg-[#DD2F26]' : 'bg-gray-200'}`}
                             >
                                 <span
-                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${item.enabled ? 'translate-x-6' : 'translate-x-1'
-                                        }`}
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${item.enabled ? 'translate-x-6' : 'translate-x-1'}`}
                                 />
                             </button>
                         </div>

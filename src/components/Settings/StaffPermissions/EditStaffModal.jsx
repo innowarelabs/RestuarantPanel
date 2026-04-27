@@ -147,9 +147,9 @@ const EditStaffModalInner = ({ onClose, staff }) => {
                             <p className="text-[12px] text-[#115E59]">Manage system access</p>
                         </div>
                         <button
+                            type="button"
                             onClick={() => setFormData({ ...formData, status: !formData.status })}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${formData.status ? 'bg-[#DD2F26]' : 'bg-gray-200'
-                                }`}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${formData.status ? 'bg-[#DD2F26]' : 'bg-gray-200'}`}
                         >
                             <span
                                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.status ? 'translate-x-6' : 'translate-x-1'

@@ -56,6 +56,7 @@ const SecuritySettings = () => {
                         </div>
                     </div>
                     <button
+                        type="button"
                         onClick={() => setIs2FAEnabled(!is2FAEnabled)}
                         className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none shrink-0 ${is2FAEnabled ? 'bg-[#DD2F26]' : 'bg-gray-200'}`}
                     >

@@ -4,6 +4,8 @@ import ManageDriversModal from './ManageDriversModal';
 
 const DeliverySettings = () => {
     const [isManageDriversModalOpen, setIsManageDriversModalOpen] = useState(false);
+    const [distanceBasedFee, setDistanceBasedFee] = useState(false);
+    const [pickupEnabled, setPickupEnabled] = useState(true);
     return (
         <div className="space-y-6 rounded-[12px]">
             {/* Header */}
@@ -51,8 +53,14 @@ const DeliverySettings = () => {
                             <p className="font-semibold text-[#1A1A1A]">Distance-Based Fee</p>
                             <p className="text-[13px] text-[#9CA3AF]">Charge additional fee per kilometer</p>
                         </div>
-                        <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-200 focus:outline-none">
-                            <span className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-1" />
+                        <button
+                            type="button"
+                            onClick={() => setDistanceBasedFee((v) => !v)}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full focus:outline-none transition-colors ${distanceBasedFee ? 'bg-[#DD2F26]' : 'bg-gray-200'}`}
+                        >
+                            <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${distanceBasedFee ? 'translate-x-6' : 'translate-x-1'}`}
+                            />
                         </button>
                     </div>
 
@@ -104,8 +112,14 @@ const DeliverySettings = () => {
                         <p className="font-[500] text-[14px] text-[#1A1A1A]">Enable Pickup Orders</p>
                         <p className="text-[13px] text-[#9CA3AF]">Allow customers to collect orders from your restaurant</p>
                     </div>
-                    <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-[#DD2F26] focus:outline-none">
-                        <span className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-6" />
+                    <button
+                        type="button"
+                        onClick={() => setPickupEnabled((v) => !v)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full focus:outline-none transition-colors ${pickupEnabled ? 'bg-[#DD2F26]' : 'bg-gray-200'}`}
+                    >
+                        <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${pickupEnabled ? 'translate-x-6' : 'translate-x-1'}`}
+                        />
                     </button>
                 </div>
             </div>

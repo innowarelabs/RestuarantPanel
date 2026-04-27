@@ -5,7 +5,7 @@ import AddSpecialDayModal from './AddSpecialDayModal';
 const OperatingHours = () => {
     const [isAddSpecialDayModalOpen, setIsAddSpecialDayModalOpen] = useState(false);
 
-    const days = [
+    const [days, setDays] = useState([
         { name: 'Monday', isOpen: true, hours: ['09:00', '22:00'], hasBreak: false },
         { name: 'Tuesday', isOpen: true, hours: ['09:00', '22:00'], hasBreak: false },
         { name: 'Wednesday', isOpen: true, hours: ['09:00', '22:00'], hasBreak: false },
@@ -13,7 +13,15 @@ const OperatingHours = () => {
         { name: 'Friday', isOpen: true, hours: ['09:00', '22:00'], hasBreak: false },
         { name: 'Saturday', isOpen: true, hours: ['10:00', '23:00'], hasBreak: false },
         { name: 'Sunday', isOpen: true, hours: ['10:00', '21:00'], hasBreak: false },
-    ];
+    ]);
+
+    const toggleDayOpen = (index) => {
+        setDays((d) => d.map((row, i) => (i === index ? { ...row, isOpen: !row.isOpen } : row)));
+    };
+
+    const toggleDayBreak = (index) => {
+        setDays((d) => d.map((row, i) => (i === index ? { ...row, hasBreak: !row.hasBreak } : row)));
+    };
 
     const specialDays = [
         { date: '25 Dec 2025', status: 'Closed', color: 'text-red-500' },
@@ -35,19 +43,19 @@ const OperatingHours = () => {
                 </h3>
                 <div className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar">
                     <div className="min-w-[600px] space-y-0">
-                        {days.map((day) => (
+                        {days.map((day, dayIndex) => (
                             <div key={day.name} className="flex items-center py-4 border-b border-[#F3F4F6] last:border-0 gap-4">
                                 <div className="w-32 flex-shrink-0">
                                     <span className="font-[500] text-[14px] text-[#1A1A1A]">{day.name}</span>
                                 </div>
                                 <div className="flex items-center gap-4 flex-1">
                                     <button
-                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none flex-shrink-0 ${day.isOpen ? 'bg-[#DD2F26]' : 'bg-gray-200'
-                                            }`}
+                                        type="button"
+                                        onClick={() => toggleDayOpen(dayIndex)}
+                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none flex-shrink-0 ${day.isOpen ? 'bg-[#DD2F26]' : 'bg-gray-200'}`}
                                     >
                                         <span
-                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${day.isOpen ? 'translate-x-6' : 'translate-x-1'
-                                                }`}
+                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${day.isOpen ? 'translate-x-6' : 'translate-x-1'}`}
                                         />
                                     </button>
 
@@ -72,14 +80,20 @@ const OperatingHours = () => {
                                     <div className="flex items-center gap-4 ml-auto">
                                         <div className="flex items-center gap-2 flex-shrink-0">
                                             <button
-                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none bg-gray-200`}
+                                                type="button"
+                                                onClick={() => toggleDayBreak(dayIndex)}
+                                                disabled={!day.isOpen}
+                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed ${day.hasBreak ? 'bg-[#DD2F26]' : 'bg-gray-200'}`}
                                             >
-                                                <span className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-1" />
+                                                <span
+                                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${day.hasBreak ? 'translate-x-6' : 'translate-x-1'}`}
+                                                />
                                             </button>
-                                            <span className="text-[14px] text-[#9CA3AF] whitespace-nowrap">No break</span>
+                                            <span className="text-[14px] text-[#9CA3AF] whitespace-nowrap">{day.hasBreak ? 'Break' : 'No break'}</span>
                                         </div>
-                                        {/* Dummy inputs for break if active */}
-                                        <div className="flex items-center gap-2 pointer-events-none">
+                                        <div
+                                            className={`flex items-center gap-2 ${day.hasBreak && day.isOpen ? '' : 'pointer-events-none opacity-50'}`}
+                                        >
                                             <input type="text" className="w-20 sm:w-24 px-3 py-1.5 border border-[#E8E8E8] rounded-[8px] text-sm bg-gray-50" />
                                             <span className="text-[#9CA3AF]">-</span>
                                             <input type="text" className="w-20 sm:w-24 px-3 py-1.5 border border-[#E8E8E8] rounded-[8px] text-sm bg-gray-50" />

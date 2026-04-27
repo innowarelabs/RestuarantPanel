@@ -1,23 +1,34 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Mail, MessageCircle, Phone, Bell, Save } from 'lucide-react';
 
-const NotificationsSettings = () => {
-    const channels = [
-        { name: 'Email Notifications', description: 'Receive alerts via email', icon: Mail, enabled: true },
-        { name: 'SMS Notifications', description: 'Receive text message alerts', icon: MessageCircle, enabled: true },
-        { name: 'WhatsApp Notifications', description: 'Receive notifications on WhatsApp', icon: Phone, enabled: false },
-        { name: 'In-App Notifications', description: 'Show alerts within the dashboard', icon: Bell, enabled: true },
-    ];
+const initialChannels = () => [
+    { name: 'Email Notifications', description: 'Receive alerts via email', icon: Mail, enabled: true },
+    { name: 'SMS Notifications', description: 'Receive text message alerts', icon: MessageCircle, enabled: true },
+    { name: 'WhatsApp Notifications', description: 'Receive notifications on WhatsApp', icon: Phone, enabled: false },
+    { name: 'In-App Notifications', description: 'Show alerts within the dashboard', icon: Bell, enabled: true },
+];
 
-    const events = [
-        { name: 'New Order Received', email: true, sms: true, inApp: true },
-        { name: 'Order Cancelled', email: true, sms: false, inApp: true },
-        { name: 'Refund Requested', email: true, sms: true, inApp: true },
-        { name: 'Rider Assigned', email: false, sms: true, inApp: true },
-        { name: 'Support Ticket Received', email: true, sms: false, inApp: true },
-        { name: 'Payout Completed', email: true, sms: true, inApp: false },
-        { name: 'Integration Error', email: true, sms: false, inApp: true },
-    ];
+const initialEvents = () => [
+    { name: 'New Order Received', email: true, sms: true, inApp: true },
+    { name: 'Order Cancelled', email: true, sms: false, inApp: true },
+    { name: 'Refund Requested', email: true, sms: true, inApp: true },
+    { name: 'Rider Assigned', email: false, sms: true, inApp: true },
+    { name: 'Support Ticket Received', email: true, sms: false, inApp: true },
+    { name: 'Payout Completed', email: true, sms: true, inApp: false },
+    { name: 'Integration Error', email: true, sms: false, inApp: true },
+];
+
+const NotificationsSettings = () => {
+    const [channels, setChannels] = useState(initialChannels);
+    const [events, setEvents] = useState(initialEvents);
+
+    const toggleChannel = (index) => {
+        setChannels((c) => c.map((ch, i) => (i === index ? { ...ch, enabled: !ch.enabled } : ch)));
+    };
+
+    const toggleEventField = (rowIndex, field) => {
+        setEvents((ev) => ev.map((e, i) => (i === rowIndex ? { ...e, [field]: !e[field] } : e)));
+    };
 
     return (
         <div className="space-y-6">
@@ -45,12 +56,12 @@ const NotificationsSettings = () => {
                                 </div>
                             </div>
                             <button
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${channel.enabled ? 'bg-[#DD2F26]' : 'bg-gray-200'
-                                    }`}
+                                type="button"
+                                onClick={() => toggleChannel(index)}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${channel.enabled ? 'bg-[#DD2F26]' : 'bg-gray-200'}`}
                             >
                                 <span
-                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${channel.enabled ? 'translate-x-6' : 'translate-x-1'
-                                        }`}
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${channel.enabled ? 'translate-x-6' : 'translate-x-1'}`}
                                 />
                             </button>
                         </div>
@@ -70,18 +81,36 @@ const NotificationsSettings = () => {
                                 <tr key={index}>
                                     <td className="px-6 py-4 whitespace-nowrap text-[14px] font-[500] text-[#1A1A1A]">{event.name}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                                        <button className={`mx-auto relative inline-flex h-5 w-9 items-center rounded-full ${event.email ? 'bg-[#DD2F26]' : 'bg-gray-100'}`}>
-                                            <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${event.email ? 'translate-x-5' : 'translate-x-1'}`} />
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleEventField(index, 'email')}
+                                            className={`mx-auto relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${event.email ? 'bg-[#DD2F26]' : 'bg-gray-100'}`}
+                                        >
+                                            <span
+                                                className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${event.email ? 'translate-x-5' : 'translate-x-1'}`}
+                                            />
                                         </button>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                                        <button className={`mx-auto relative inline-flex h-5 w-9 items-center rounded-full ${event.sms ? 'bg-[#DD2F26]' : 'bg-gray-100'}`}>
-                                            <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${event.sms ? 'translate-x-5' : 'translate-x-1'}`} />
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleEventField(index, 'sms')}
+                                            className={`mx-auto relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${event.sms ? 'bg-[#DD2F26]' : 'bg-gray-100'}`}
+                                        >
+                                            <span
+                                                className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${event.sms ? 'translate-x-5' : 'translate-x-1'}`}
+                                            />
                                         </button>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                                        <button className={`mx-auto relative inline-flex h-5 w-9 items-center rounded-full ${event.inApp ? 'bg-[#DD2F26]' : 'bg-gray-100'}`}>
-                                            <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${event.inApp ? 'translate-x-5' : 'translate-x-1'}`} />
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleEventField(index, 'inApp')}
+                                            className={`mx-auto relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${event.inApp ? 'bg-[#DD2F26]' : 'bg-gray-100'}`}
+                                        >
+                                            <span
+                                                className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${event.inApp ? 'translate-x-5' : 'translate-x-1'}`}
+                                            />
                                         </button>
                                     </td>
                                 </tr>

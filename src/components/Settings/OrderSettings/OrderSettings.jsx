@@ -4,6 +4,14 @@ import AddKitchenDelayModal from './AddKitchenDelayModal';
 
 const OrderSettings = () => {
     const [isAddDelayModalOpen, setIsAddDelayModalOpen] = useState(false);
+    const [switches, setSwitches] = useState({
+        autoAccept: false,
+        manualAccept: true,
+        scheduledOrders: true,
+        itemCustomization: true,
+        showOutOfStock: true,
+    });
+    const toggle = (key) => setSwitches((s) => ({ ...s, [key]: !s[key] }));
 
     return (
         <div className="space-y-6">
@@ -25,8 +33,14 @@ const OrderSettings = () => {
                             <p className="font-[500] text-[14px] text-[#1A1A1A]">Auto-Accept Orders</p>
                             <p className="text-[13px] text-[#9CA3AF]">Automatically accept incoming orders</p>
                         </div>
-                        <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-200 focus:outline-none">
-                            <span className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-1" />
+                        <button
+                            type="button"
+                            onClick={() => toggle('autoAccept')}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full focus:outline-none transition-colors ${switches.autoAccept ? 'bg-[#DD2F26]' : 'bg-gray-200'}`}
+                        >
+                            <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${switches.autoAccept ? 'translate-x-6' : 'translate-x-1'}`}
+                            />
                         </button>
                     </div>
 
@@ -36,8 +50,14 @@ const OrderSettings = () => {
                             <p className="font-[500] text-[14px] text-[#1A1A1A]">Manual Accept Mode</p>
                             <p className="text-[13px] text-[#9CA3AF]">Review and manually accept each order</p>
                         </div>
-                        <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-[#DD2F26] focus:outline-none">
-                            <span className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-6" />
+                        <button
+                            type="button"
+                            onClick={() => toggle('manualAccept')}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full focus:outline-none transition-colors ${switches.manualAccept ? 'bg-[#DD2F26]' : 'bg-gray-200'}`}
+                        >
+                            <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${switches.manualAccept ? 'translate-x-6' : 'translate-x-1'}`}
+                            />
                         </button>
                     </div>
 
@@ -83,8 +103,14 @@ const OrderSettings = () => {
                             <p className="font-[500] text-[14px] text-[#1A1A1A]">Allow Scheduled Orders</p>
                             <p className="text-[13px] text-[#9CA3AF]">Let customers schedule orders in advance</p>
                         </div>
-                        <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-[#DD2F26] focus:outline-none">
-                            <span className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-6" />
+                        <button
+                            type="button"
+                            onClick={() => toggle('scheduledOrders')}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full focus:outline-none transition-colors ${switches.scheduledOrders ? 'bg-[#DD2F26]' : 'bg-gray-200'}`}
+                        >
+                            <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${switches.scheduledOrders ? 'translate-x-6' : 'translate-x-1'}`}
+                            />
                         </button>
                     </div>
 
@@ -104,8 +130,14 @@ const OrderSettings = () => {
                             <p className="font-[500] text-[14px] text-[#1A1A1A]">Allow Item Customization</p>
                             <p className="text-[13px] text-[#9CA3AF]">Enable special requests and modifications</p>
                         </div>
-                        <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-[#DD2F26] focus:outline-none">
-                            <span className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-6" />
+                        <button
+                            type="button"
+                            onClick={() => toggle('itemCustomization')}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full focus:outline-none transition-colors ${switches.itemCustomization ? 'bg-[#DD2F26]' : 'bg-gray-200'}`}
+                        >
+                            <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${switches.itemCustomization ? 'translate-x-6' : 'translate-x-1'}`}
+                            />
                         </button>
                     </div>
 
@@ -115,8 +147,14 @@ const OrderSettings = () => {
                             <p className="font-[500] text-[14px] text-[#1A1A1A]">Show Out-of-Stock Items</p>
                             <p className="text-[13px] text-[#9CA3AF]">Display unavailable items with grey overlay</p>
                         </div>
-                        <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-[#DD2F26] focus:outline-none">
-                            <span className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-6" />
+                        <button
+                            type="button"
+                            onClick={() => toggle('showOutOfStock')}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full focus:outline-none transition-colors ${switches.showOutOfStock ? 'bg-[#DD2F26]' : 'bg-gray-200'}`}
+                        >
+                            <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${switches.showOutOfStock ? 'translate-x-6' : 'translate-x-1'}`}
+                            />
                         </button>
                     </div>
                 </div>
