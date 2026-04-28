@@ -87,12 +87,9 @@ function Verify2FAOTP() {
     setError("");
     try {
       const code = otp.join("");
-      const baseUrl = import.meta.env.VITE_BACKEND_URL;
-      if (!baseUrl) throw new Error("VITE_BACKEND_URL is missing");
-
       if (!email || !password) throw new Error("Session expired. Please login again.");
 
-      const url = `${baseUrl.replace(/\/$/, "")}/api/v1/auth/login`;
+      const url = "https://api.baaie.com/api/v1/auth/restaurant/login";
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
