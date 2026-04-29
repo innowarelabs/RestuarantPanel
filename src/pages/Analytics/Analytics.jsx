@@ -1,5 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import { ShoppingBag, DollarSign, Target, Users, RefreshCcw, XCircle } from 'lucide-react';
+
+const API_BASE = 'https://api.baaie.com';
 
 import AnalyticsHeader from '../../components/Analytics/AnalyticsHeader';
 import AnalyticsStatCard from '../../components/Analytics/AnalyticsStatCard';
@@ -71,6 +74,33 @@ const statCards = [
 ];
 
 export default function Analytics() {
+    const accessToken = useSelector((state) => state.auth.accessToken);
+    const user = useSelector((state) => state.auth.user);
+
+    useEffect(() => {
+        const fetchGlobalOverview = async () => {
+            try {
+                const baseUrl = (import.meta.env.VITE_BACKEND_URL || API_BASE).replace(/\/$/, '');
+                const restaurantId = user?.restaurant_id || localStorage.getItem('restaurant_id') || '';
+                const url = `${baseUrl}/api/v1/analytics/restaurants/global-overview`;
+                const res = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                        ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
+                    },
+                });
+                const contentType = res.headers.get('content-type');
+                const body = contentType?.includes('application/json') ? await res.json() : await res.text();
+                console.log('global-overview API response:', { ok: res.ok, status: res.status, body });
+            } catch (err) {
+                console.error('global-overview API error:', err);
+            }
+        };
+        fetchGlobalOverview();
+    }, [accessToken, user?.restaurant_id]);
+
     return (
         <div className="max-w-[1600px] mx-auto animate-in fade-in duration-500">
             {/* Header Section */}

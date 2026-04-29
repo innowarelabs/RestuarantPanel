@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { X, ChevronDown, ChevronUp, CircleCheckBig } from 'lucide-react';
+import { mapApiTimelineToDisplayEvents } from './orderTimelineUtils';
+import OrderApiTimelineList from './OrderApiTimelineList';
 
 function formatMoney(n) {
     const x = Number(n);
@@ -46,11 +48,13 @@ export default function CancelledOrderDrawer({ isOpen, onClose, order }) {
         setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
     };
 
-    const { subtotal, tax, total, items, placedTime, cancelledTime, cancelledByLine, reasonLine, paymentIssuedTo } = useMemo(() => {
+    const { subtotal, tax, platformFee, total, items, placedTime, cancelledTime, cancelledByLine, reasonLine, paymentIssuedTo, apiTimelineEvents, useApiTimeline } =
+        useMemo(() => {
         if (!order) {
             return {
                 subtotal: 0,
                 tax: 0,
+                platformFee: 0,
                 total: 0,
                 items: [],
                 placedTime: '',
@@ -58,6 +62,8 @@ export default function CancelledOrderDrawer({ isOpen, onClose, order }) {
                 cancelledByLine: DEFAULT_CANCELLED_BY,
                 reasonLine: DEFAULT_CANCEL_REASON,
                 paymentIssuedTo: 'Card',
+                apiTimelineEvents: [],
+                useApiTimeline: false,
             };
         }
 
@@ -75,26 +81,26 @@ export default function CancelledOrderDrawer({ isOpen, onClose, order }) {
                 ? order.subtotal
                 : lineSubtotal;
         const t = typeof order.taxAmount === 'number' ? order.taxAmount : 0;
+        const pf = typeof order.platformFee === 'number' ? order.platformFee : 0;
         const totN =
             typeof order.totalAmount === 'number' && !Number.isNaN(order.totalAmount)
                 ? order.totalAmount
-                : s + t;
+                : s + t + pf;
 
         const typeL = order.type || 'Delivery';
         const methodLabel = labelPaymentMethod(order.paymentMethod, typeL);
 
         const byRaw = String(order.cancelledBy || '').trim();
-        const cancelledByLine =
-            byRaw.length > 0
-                ? byRaw
-                : DEFAULT_CANCELLED_BY;
+        const cancelledByLine = byRaw.length > 0 ? byRaw : DEFAULT_CANCELLED_BY;
 
         const reasonRaw = String(order.cancelReason || '').trim();
         const reasonLine = reasonRaw.length > 0 ? reasonRaw : DEFAULT_CANCEL_REASON;
 
+        const apiEvs = mapApiTimelineToDisplayEvents(order.timeline);
         return {
             subtotal: s,
             tax: t,
+            platformFee: pf,
             total: totN,
             items: list,
             placedTime: formatShortTime(order.createdAt),
@@ -102,6 +108,8 @@ export default function CancelledOrderDrawer({ isOpen, onClose, order }) {
             cancelledByLine,
             reasonLine,
             paymentIssuedTo: methodLabel,
+            apiTimelineEvents: apiEvs,
+            useApiTimeline: apiEvs.length > 0,
         };
     }, [order]);
 
@@ -109,13 +117,13 @@ export default function CancelledOrderDrawer({ isOpen, onClose, order }) {
 
     const typeLabel = order.type || 'Delivery';
 
+    const totalStr =
+        order.total && String(order.total).includes('$') ? order.total : formatMoney(total);
+
     const timelineSteps = [
         { key: 'placed', status: 'Order Placed', time: placedTime },
         { key: 'cancelled', status: 'Cancelled', time: cancelledTime },
     ];
-
-    const totalStr =
-        order.total && String(order.total).includes('$') ? order.total : formatMoney(total);
 
     return (
         <div className="fixed inset-0 z-50 flex justify-end">
@@ -156,6 +164,9 @@ export default function CancelledOrderDrawer({ isOpen, onClose, order }) {
                         </button>
                         {openSections.timeline && (
                             <div className="bg-white px-4 py-3">
+                                {useApiTimeline ? (
+                                    <OrderApiTimelineList events={apiTimelineEvents} />
+                                ) : (
                                 <ol className="m-0 list-none p-0">
                                     {timelineSteps.map((event, index) => {
                                         const isLast = index === timelineSteps.length - 1;
@@ -186,7 +197,11 @@ export default function CancelledOrderDrawer({ isOpen, onClose, order }) {
                                                         isLast ? 'pb-0' : 'pb-7'
                                                     }`}
                                                 >
-                                                    <p className="font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
+                                                    <p
+                                                        className={`font-sans text-[15px] font-medium leading-[22.5px] tracking-normal ${
+                                                            isLast ? 'text-red-600' : 'text-[#0F1724]'
+                                                        }`}
+                                                    >
                                                         {event.status}
                                                     </p>
                                                     {!!event.time && (
@@ -199,6 +214,7 @@ export default function CancelledOrderDrawer({ isOpen, onClose, order }) {
                                         );
                                     })}
                                 </ol>
+                                )}
                             </div>
                         )}
                     </div>
@@ -286,10 +302,20 @@ export default function CancelledOrderDrawer({ isOpen, onClose, order }) {
                                 {tax > 0 && (
                                     <div className="flex items-start justify-between gap-3">
                                         <span className="font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
-                                            VAT
+                                            Tax
                                         </span>
                                         <span className="shrink-0 text-right font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
                                             {formatMoney(tax)}
+                                        </span>
+                                    </div>
+                                )}
+                                {platformFee > 0 && (
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
+                                            Platform fee
+                                        </span>
+                                        <span className="shrink-0 text-right font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
+                                            {formatMoney(platformFee)}
                                         </span>
                                     </div>
                                 )}

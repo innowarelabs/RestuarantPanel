@@ -66,6 +66,8 @@ export default function OrderManagement() {
     const [tabCounts, setTabCounts] = useState({
         pending: 0,
         in_progress: 0,
+        mark_as_ready: 0,
+        on_the_way: 0,
         completed: 0,
         cancelled: 0,
         refunded: 0,
@@ -89,7 +91,7 @@ export default function OrderManagement() {
 
     const handleCardClick = (order) => {
         setSelectedOrder(order);
-        if (activeTab === 'In Progress') {
+        if (activeTab === 'In Progress' || activeTab === 'Ready for Pickup' || activeTab === 'On the Way') {
             setIsModalOpen(false);
             setCompletedDrawerOpen(false);
             setCancelledDrawerOpen(false);
@@ -125,20 +127,21 @@ export default function OrderManagement() {
     };
 
     // Map tabs to backend list status values (query param)
-    // Backend spec:
-    // - New Orders → status=pending
-    // - In Progress / Ready for Pickup / On the Way → status=in-progress
-    // - Completed → status=completed
-    // - Cancelled → status=cancelled
-    // - Refunds → status=refunded
+    // - New Orders → pending
+    // - In Progress → in-progress
+    // - Ready for Pickup → mark_as_ready
+    // - On the Way → on_the_way
+    // - Completed → completed
     const getStatusFromTab = (tab) => {
         switch (tab) {
             case 'New Orders':
                 return 'pending';
             case 'In Progress':
-            case 'Ready for Pickup':
-            case 'On the Way':
                 return 'in-progress';
+            case 'Ready for Pickup':
+                return 'mark_as_ready';
+            case 'On the Way':
+                return 'on_the_way';
             case 'Completed':
                 return 'completed';
             case 'Cancelled':
@@ -181,6 +184,7 @@ export default function OrderManagement() {
                     timeAgo: formatTimeAgoFromCreated(order.created_at) || order.time_ago || '',
                     customerName: order.customer_name || '',
                     customerPhone: order.customer_phone || '',
+                    customerEmail: order.customer_email != null ? order.customer_email : null,
                     type: mapOrderTypeForCard(order.order_type),
                     itemsCount:
                         order.items_count ??
@@ -188,20 +192,25 @@ export default function OrderManagement() {
                         0,
                     total: typeof order.total_amount === 'number' ? `$${order.total_amount.toFixed(2)}` : order.total || '',
                     paymentStatus: order.payment_status || 'Paid',
-                    estTime: order.estimated_time || '',
+                    estTime: order.estimated_time || order.estimated_delivery_time || '',
+                    estimatedDeliveryTime: order.estimated_delivery_time || order.estimated_time || '',
                     riderStatus: order.rider_status || '',
                     eta: order.eta || '',
                     cancelledBy: order.cancelled_by || order.cancelled_by_type || '',
                     cancelReason: order.cancel_reason || order.cancellation_reason || '',
                     deliveryAddress: order.delivery_address || '',
+                    specialInstructions: (order.special_instructions && String(order.special_instructions).trim()) || '',
                     orderItems: Array.isArray(order.order_items) ? order.order_items : [],
                     subtotal: typeof order.subtotal === 'number' ? order.subtotal : 0,
                     taxAmount: typeof order.tax_amount === 'number' ? order.tax_amount : 0,
+                    platformFee: typeof order.platform_fee === 'number' ? order.platform_fee : 0,
                     totalAmount: typeof order.total_amount === 'number' ? order.total_amount : 0,
                     paymentMethod: order.payment_method || '',
                     createdAt: order.created_at,
                     updatedAt: order.updated_at,
+                    orderTime: order.order_time || order.created_at,
                     deliveredAt: order.delivered_at || null,
+                    timeline: Array.isArray(order.timeline) ? order.timeline : [],
                 }));
                 setOrders(mappedOrders);
             } else if (Array.isArray(payload)) {
@@ -213,6 +222,7 @@ export default function OrderManagement() {
                     timeAgo: formatTimeAgoFromCreated(order.created_at) || order.time_ago || '',
                     customerName: order.customer_name || '',
                     customerPhone: order.customer_phone || '',
+                    customerEmail: order.customer_email != null ? order.customer_email : null,
                     type: mapOrderTypeForCard(order.order_type),
                     itemsCount:
                         order.items_count ??
@@ -220,20 +230,25 @@ export default function OrderManagement() {
                         0,
                     total: typeof order.total_amount === 'number' ? `$${order.total_amount.toFixed(2)}` : order.total || '',
                     paymentStatus: order.payment_status || 'Paid',
-                    estTime: order.estimated_time || '',
+                    estTime: order.estimated_time || order.estimated_delivery_time || '',
+                    estimatedDeliveryTime: order.estimated_delivery_time || order.estimated_time || '',
                     riderStatus: order.rider_status || '',
                     eta: order.eta || '',
                     cancelledBy: order.cancelled_by || order.cancelled_by_type || '',
                     cancelReason: order.cancel_reason || order.cancellation_reason || '',
                     deliveryAddress: order.delivery_address || '',
+                    specialInstructions: (order.special_instructions && String(order.special_instructions).trim()) || '',
                     orderItems: Array.isArray(order.order_items) ? order.order_items : [],
                     subtotal: typeof order.subtotal === 'number' ? order.subtotal : 0,
                     taxAmount: typeof order.tax_amount === 'number' ? order.tax_amount : 0,
+                    platformFee: typeof order.platform_fee === 'number' ? order.platform_fee : 0,
                     totalAmount: typeof order.total_amount === 'number' ? order.total_amount : 0,
                     paymentMethod: order.payment_method || '',
                     createdAt: order.created_at,
                     updatedAt: order.updated_at,
+                    orderTime: order.order_time || order.created_at,
                     deliveredAt: order.delivered_at || null,
+                    timeline: Array.isArray(order.timeline) ? order.timeline : [],
                 }));
                 setOrders(mappedOrders);
             } else {
@@ -273,6 +288,16 @@ export default function OrderManagement() {
                     ...prev,
                     pending: counts.pending ?? counts.new_orders ?? prev.pending,
                     in_progress: counts.in_progress ?? counts.inProgress ?? prev.in_progress,
+                    mark_as_ready:
+                        counts.mark_as_ready ??
+                        counts.markAsReady ??
+                        counts.ready_for_pickup ??
+                        prev.mark_as_ready,
+                    on_the_way:
+                        counts.on_the_way ??
+                        counts.onTheWay ??
+                        counts['on-the-way'] ??
+                        prev.on_the_way,
                     completed: counts.completed ?? prev.completed,
                     cancelled: counts.cancelled ?? prev.cancelled,
                     refunded: counts.refunded ?? prev.refunded,
@@ -309,22 +334,22 @@ export default function OrderManagement() {
                     ? orders.length
                     : 0,
         },
-        // {
-        //     name: 'Ready for Pickup',
-        //     count: typeof tabCounts.in_progress === 'number'
-        //         ? tabCounts.in_progress
-        //         : activeTab === 'Ready for Pickup'
-        //             ? orders.length
-        //             : 0,
-        // },
-        // {
-        //     name: 'On the Way',
-        //     count: typeof tabCounts.in_progress === 'number'
-        //         ? tabCounts.in_progress
-        //         : activeTab === 'On the Way'
-        //             ? orders.length
-        //             : 0,
-        // },
+        {
+            name: 'Ready for Pickup',
+            count: typeof tabCounts.mark_as_ready === 'number'
+                ? tabCounts.mark_as_ready
+                : activeTab === 'Ready for Pickup'
+                    ? orders.length
+                    : 0,
+        },
+        {
+            name: 'On the Way',
+            count: typeof tabCounts.on_the_way === 'number'
+                ? tabCounts.on_the_way
+                : activeTab === 'On the Way'
+                    ? orders.length
+                    : 0,
+        },
         {
             name: 'Completed',
             count: typeof tabCounts.completed === 'number'
@@ -366,10 +391,13 @@ export default function OrderManagement() {
             case 'READY':
             case 'Ready':
             case 'ready':
+            case 'mark_as_ready':
+            case 'MARK_AS_READY':
                 return 'bg-[#E0E7FF] text-[#4F46E5] border-[#C7D2FE]';
             case 'ON_THE_WAY':
             case 'On the Way':
             case 'on-the-way':
+            case 'on_the_way':
                 return 'bg-[#F3E8FF] text-[#9333EA] border-[#E9D5FF]';
             case 'COMPLETED':
             case 'Completed':
@@ -425,6 +453,57 @@ export default function OrderManagement() {
             console.error('Error updating order:', error);
             toast.error('Error updating order');
             return false;
+        }
+    };
+
+    const markReadyErrorMessage = (data) => {
+        if (!data || typeof data !== 'object') return 'Failed to mark order ready';
+        const m = data.message != null && String(data.message).trim() ? String(data.message).trim() : '';
+        if (m) return m;
+        const d = data.errors?.detail;
+        if (typeof d === 'string' && d.trim()) {
+            return d.length > 280 ? `${d.slice(0, 280)}…` : d;
+        }
+        if (d && typeof d === 'object' && d.message) return String(d.message);
+        return 'Failed to mark order ready';
+    };
+
+    /** True when HTTP OK and body `code` (if present) is a success code (e.g. not ERROR_500 on 200). */
+    const isMarkReadyApiBodySuccess = (data, resOk) => {
+        if (!resOk) return false;
+        const code = data && data.code;
+        if (code == null || code === '') return true;
+        return String(code).toUpperCase().startsWith('SUCCESS');
+    };
+
+    /** PATCH /orders/:id/mark-ready only (In Progress → Mark as Ready). */
+    const patchOrderMarkReady = async (orderId) => {
+        if (!orderId) {
+            return { ok: false, message: 'Missing order' };
+        }
+        try {
+            const url = `https://api.baaie.com/api/v1/orders/${encodeURIComponent(orderId)}/mark-ready`;
+            const res = await fetch(url, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
+                },
+                body: JSON.stringify({}),
+            });
+            const data = await res.json().catch(() => ({}));
+            console.log('Mark ready response:', res.status, data);
+            if (isMarkReadyApiBodySuccess(data, res.ok)) {
+                return { ok: true };
+            }
+            return {
+                ok: false,
+                message: markReadyErrorMessage(data),
+            };
+        } catch (error) {
+            console.error('Error calling mark-ready:', error);
+            return { ok: false, message: 'Error marking order ready' };
         }
     };
 
@@ -486,13 +565,21 @@ export default function OrderManagement() {
                                             .replace(/_/g, ' ')
                                             .toLowerCase()}
                                     </span>
-                                    <div className="flex items-center gap-1.5 text-gray-500 text-[13px]">
+                                    <div className="flex min-w-0 flex-1 items-center gap-1.5 text-gray-500 text-[13px]">
                                         <Clock size={16} className="mt-[1px] shrink-0" />
-                                        <span className="mt-[2px]">
-                                            {activeTab === 'Completed' && order.deliveredAt
-                                                ? formatDeliveredAgoLine(order.deliveredAt, order.timeAgo)
-                                                : order.timeAgo}
-                                        </span>
+                                        {activeTab === 'Cancelled' &&
+                                        order.cancelReason &&
+                                        String(order.cancelReason).trim() !== '' ? (
+                                            <span className="mt-[2px] min-w-0 break-words text-[13px] text-[#6B7280]">
+                                                {String(order.cancelReason).trim()}
+                                            </span>
+                                        ) : (
+                                            <span className="mt-[2px]">
+                                                {activeTab === 'Completed' && order.deliveredAt
+                                                    ? formatDeliveredAgoLine(order.deliveredAt, order.timeAgo)
+                                                    : order.timeAgo}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
 
@@ -557,7 +644,7 @@ export default function OrderManagement() {
                                 <div className="flex items-center gap-2 text-gray-500">
                                     <Box size={18} />
                                     <span className="text-[14px]">{order.itemsCount} items</span>
-                                    {order.estTime && (
+                                    {order.estTime && !order.cancelledBy && (
                                         <span className="text-[14px] text-[#DD2F26] font-medium ml-4">{order.estTime}</span>
                                     )}
                                     {order.riderStatus && (
@@ -567,7 +654,7 @@ export default function OrderManagement() {
                                         <span className="text-[14px] text-gray-500 ml-4">{order.eta}</span>
                                     )}
                                     {order.cancelledBy && (
-                                        <span className="text-[14px] text-[#EF4444] ml-4">{order.cancelledBy}</span>
+                                        <span className="text-[14px] text-[#EF4444] ml-4">Cancelled by <span className='capitalize'>{order.cancelledBy}</span></span>
                                     )}
                                 </div>
 
@@ -617,13 +704,26 @@ export default function OrderManagement() {
                 isOpen={inProgressDrawerOpen}
                 onClose={() => setInProgressDrawerOpen(false)}
                 order={selectedOrder}
+                showMarkAsReady={activeTab === 'In Progress'}
+                showOrderPickedUp={activeTab === 'Ready for Pickup'}
                 onMarkReady={async (ord) => {
                     if (!ord?.rawId) return;
-                    const ok = await updateOrderStatus(ord.rawId, 'ready', {}, 'Order marked as ready');
-                    if (ok) setInProgressDrawerOpen(false);
+                    const markReady = await patchOrderMarkReady(ord.rawId);
+                    if (!markReady.ok) {
+                        toast.error(markReady.message || 'Failed to mark order ready');
+                        fetchOrders();
+                        fetchTabCounts();
+                        return;
+                    }
+                    toast.success('Order marked as ready');
+                    fetchOrders();
+                    fetchTabCounts();
+                    setInProgressDrawerOpen(false);
                 }}
-                onAssignDriver={() => {
-                    toast('Assign driver will be available soon');
+                onOrderPickedUp={async (ord) => {
+                    if (!ord?.rawId) return;
+                    const ok = await updateOrderStatus(ord.rawId, 'on_the_way', {}, 'Order picked up');
+                    if (ok) setInProgressDrawerOpen(false);
                 }}
             />
 

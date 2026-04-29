@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { X, ChevronDown, ChevronUp, CircleCheckBig } from 'lucide-react';
+import { mapApiTimelineToDisplayEvents } from './orderTimelineUtils';
+import OrderApiTimelineList from './OrderApiTimelineList';
 
 function formatMoney(n) {
     const x = Number(n);
@@ -29,14 +31,18 @@ function labelPaymentMethod(paymentMethod, orderType) {
 }
 
 /**
- * In-progress order detail drawer: timeline (placed & accepted done, preparing current, ready next), items, pricing, Mark as Ready / Assign Driver.
+ * In-progress / ready-for-pickup / on-the-way order drawer. Footer actions depend on tab flags.
  */
 export default function InProgressOrderDrawer({
     isOpen,
     onClose,
     order,
     onMarkReady,
-    onAssignDriver,
+    showMarkAsReady = false,
+    showOrderPickedUp = false,
+    onOrderPickedUp,
+    showOrderDelivered = false,
+    onOrderDelivered,
 }) {
     const [openSections, setOpenSections] = useState({
         timeline: true,
@@ -48,48 +54,74 @@ export default function InProgressOrderDrawer({
         setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
     };
 
-    const { timelineSteps, subtotal, tax, total, items } = useMemo(() => {
-        if (!order) {
-            return { timelineSteps: [], subtotal: 0, tax: 0, total: 0, items: [] };
-        }
+    const { apiTimelineEvents, useApiTimeline, timelineSteps, subtotal, tax, platformFee, total, items } =
+        useMemo(() => {
+            if (!order) {
+                return {
+                    apiTimelineEvents: [],
+                    useApiTimeline: false,
+                    timelineSteps: [],
+                    subtotal: 0,
+                    tax: 0,
+                    platformFee: 0,
+                    total: 0,
+                    items: [],
+                };
+            }
 
-        const list = Array.isArray(order.orderItems) ? order.orderItems : [];
-        const lineSubtotal = list.reduce((s, it) => {
-            const st = it?.subtotal;
-            if (typeof st === 'number' && !Number.isNaN(st)) return s + st;
-            const q = Number(it?.quantity) || 0;
-            const up = Number(it?.unit_price) || 0;
-            return s + q * up;
-        }, 0);
+            const list = Array.isArray(order.orderItems) ? order.orderItems : [];
+            const lineSubtotal = list.reduce((s, it) => {
+                const st = it?.subtotal;
+                if (typeof st === 'number' && !Number.isNaN(st)) return s + st;
+                const q = Number(it?.quantity) || 0;
+                const up = Number(it?.unit_price) || 0;
+                return s + q * up;
+            }, 0);
 
-        const s =
-            typeof order.subtotal === 'number' && order.subtotal > 0
-                ? order.subtotal
-                : lineSubtotal;
-        const t =
-            typeof order.taxAmount === 'number' ? order.taxAmount : 0;
-        const totN =
-            typeof order.totalAmount === 'number' && !Number.isNaN(order.totalAmount)
-                ? order.totalAmount
-                : s + t;
-        const totalForDisplay = totN;
+            const s =
+                typeof order.subtotal === 'number' && order.subtotal > 0
+                    ? order.subtotal
+                    : lineSubtotal;
+            const t = typeof order.taxAmount === 'number' ? order.taxAmount : 0;
+            const pf = typeof order.platformFee === 'number' ? order.platformFee : 0;
+            const totN =
+                typeof order.totalAmount === 'number' && !Number.isNaN(order.totalAmount)
+                    ? order.totalAmount
+                    : s + t + pf;
+            const totalForDisplay = totN;
 
-        const tPlaced = formatShortTime(order.createdAt);
-        const tAccepted = formatShortTime(order.updatedAt);
+            const tPlaced = formatShortTime(order.createdAt);
+            const tAccepted = formatShortTime(order.updatedAt);
 
-        const steps = [
-            { key: 'placed', status: 'Order Placed', time: tPlaced, kind: 'done' },
-            { key: 'accepted', status: 'Accepted', time: tAccepted || tPlaced, kind: 'done' },
-            { key: 'preparing', status: 'Preparing', time: null, kind: 'current' },
-            { key: 'ready', status: 'Ready', time: null, kind: 'upcoming' },
-        ];
+            const steps = [
+                { key: 'placed', status: 'Order Placed', time: tPlaced, kind: 'done' },
+                { key: 'accepted', status: 'Accepted', time: tAccepted || tPlaced, kind: 'done' },
+                { key: 'preparing', status: 'Preparing', time: null, kind: 'current' },
+                { key: 'ready', status: 'Ready', time: null, kind: 'upcoming' },
+            ];
 
-        return { timelineSteps: steps, subtotal: s, tax: t, total: totalForDisplay, items: list };
-    }, [order]);
+            const apiEvs = mapApiTimelineToDisplayEvents(order.timeline);
+            return {
+                apiTimelineEvents: apiEvs,
+                useApiTimeline: apiEvs.length > 0,
+                timelineSteps: steps,
+                subtotal: s,
+                tax: t,
+                platformFee: pf,
+                total: totalForDisplay,
+                items: list,
+            };
+        }, [order]);
 
     if (!isOpen || !order) return null;
 
     const typeLabel = order.type || 'Delivery';
+    const isMarkAsReadyStatus = (() => {
+        const s = String(order.status || '')
+            .toLowerCase()
+            .replace(/-/g, '_');
+        return s === 'mark_as_ready' || s === 'markasready';
+    })();
 
     return (
         <div className="fixed inset-0 z-50 flex justify-end">
@@ -130,6 +162,10 @@ export default function InProgressOrderDrawer({
                         </button>
                         {openSections.timeline && (
                             <div className="bg-white px-4 py-3">
+                                {useApiTimeline ? (
+                                    <OrderApiTimelineList events={apiTimelineEvents} />
+                                ) : null}
+                                {!useApiTimeline ? (
                                 <ol className="m-0 list-none p-0">
                                     {timelineSteps.map((event, index) => {
                                         const isLast = index === timelineSteps.length - 1;
@@ -192,6 +228,7 @@ export default function InProgressOrderDrawer({
                                         );
                                     })}
                                 </ol>
+                                ) : null}
                             </div>
                         )}
                     </div>
@@ -276,14 +313,26 @@ export default function InProgressOrderDrawer({
                                         {formatMoney(subtotal)}
                                     </span>
                                 </div>
-                                <div className="flex items-start justify-between gap-3">
-                                    <span className="font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
-                                        VAT
-                                    </span>
-                                    <span className="shrink-0 text-right font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
-                                        {formatMoney(tax)}
-                                    </span>
-                                </div>
+                                {tax > 0 && (
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
+                                            Tax
+                                        </span>
+                                        <span className="shrink-0 text-right font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
+                                            {formatMoney(tax)}
+                                        </span>
+                                    </div>
+                                )}
+                                {platformFee > 0 && (
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
+                                            Platform fee
+                                        </span>
+                                        <span className="shrink-0 text-right font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
+                                            {formatMoney(platformFee)}
+                                        </span>
+                                    </div>
+                                )}
                                 <div className="mt-1 flex items-start justify-between gap-3 border-t border-gray-100 pt-2">
                                     <span className="font-sans text-[15px] font-bold leading-[22.5px] tracking-normal text-[#0F1724]">
                                         Total
@@ -322,22 +371,39 @@ export default function InProgressOrderDrawer({
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-3 border-t border-gray-100 bg-white p-4">
-                    <button
-                        type="button"
-                        onClick={() => onMarkReady && onMarkReady(order)}
-                        className="w-full cursor-pointer rounded-[8px] bg-[#DD2F26] py-2.5 text-[14px] font-medium text-white shadow-sm transition-colors hover:bg-[#C52820]"
-                    >
-                        Mark as Ready
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => onAssignDriver && onAssignDriver(order)}
-                        className="w-full cursor-pointer rounded-[8px] border-2 border-[#DD2F26] py-2.5 text-[14px] font-medium text-[#DD2F26] transition-colors hover:bg-red-50"
-                    >
-                        Assign Driver
-                    </button>
-                </div>
+                {((showOrderPickedUp && onOrderPickedUp) ||
+                    (showMarkAsReady && !isMarkAsReadyStatus && onMarkReady) ||
+                    (showOrderDelivered && onOrderDelivered)) && (
+                    <div className="flex flex-col gap-3 border-t border-gray-100 bg-white p-4">
+                        {showOrderPickedUp && onOrderPickedUp && (
+                            <button
+                                type="button"
+                                onClick={() => onOrderPickedUp(order)}
+                                className="w-full cursor-pointer rounded-[8px] bg-[#DD2F26] py-2.5 text-[14px] font-medium text-white shadow-sm transition-colors hover:bg-[#C52820]"
+                            >
+                                Order Picked up
+                            </button>
+                        )}
+                        {showMarkAsReady && !isMarkAsReadyStatus && onMarkReady && (
+                            <button
+                                type="button"
+                                onClick={() => onMarkReady(order)}
+                                className="w-full cursor-pointer rounded-[8px] bg-[#DD2F26] py-2.5 text-[14px] font-medium text-white shadow-sm transition-colors hover:bg-[#C52820]"
+                            >
+                                Mark as Ready
+                            </button>
+                        )}
+                        {showOrderDelivered && onOrderDelivered && (
+                            <button
+                                type="button"
+                                onClick={() => onOrderDelivered(order)}
+                                className="w-full cursor-pointer rounded-[8px] bg-[#DD2F26] py-2.5 text-[14px] font-medium text-white shadow-sm transition-colors hover:bg-[#C52820]"
+                            >
+                                Order Delivered
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );

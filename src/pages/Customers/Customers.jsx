@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Search, User, Calendar } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Search, User } from 'lucide-react';
 import Pagination from '../../components/Customers/Pagination';
 import CustomerDetailsModal from '../../components/Customers/CustomerDetailsModal';
 import { useSelector } from 'react-redux';
@@ -36,18 +36,11 @@ export default function Customers() {
 
     const restaurantId = getRestaurantId();
 
-    const fetchCustomersData = async (page = 1, search = '', sort = '', date = '') => {
-        setLoading(true);
+    const fetchCustomerCards = useCallback(async () => {
         try {
             const baseUrl = import.meta.env.VITE_BACKEND_URL;
             if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
-            
-            const skip = (page - 1) * 20;
-            let url = `${baseUrl}/api/v1/orders/customers?skip=${skip}&limit=20`;
-            if (search) url += `&search=${encodeURIComponent(search)}`;
-            if (sort) url += `&sort=${sort}`;
-            if (date) url += `&date=${encodeURIComponent(date)}`;
-            
+            const url = `${baseUrl}/api/v1/orders/customers/cards`;
             const res = await fetch(url, {
                 method: 'GET',
                 headers: {
@@ -57,15 +50,51 @@ export default function Customers() {
                 },
             });
             const data = await res.json();
-            
             if (data.code === 'SUCCESS_200' && data.data) {
-                const customersList = data.data.customers.map(customer => ({
+                setCustomerCards(data.data);
+            }
+        } catch (error) {
+            console.error('Error fetching customer cards:', error);
+        }
+    }, [accessToken, restaurantId]);
+
+    const fetchCustomersData = useCallback(async (page = 1, search = '', sort = '', date = '') => {
+        setLoading(true);
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+
+            const skip = (page - 1) * 20;
+            let url = `${baseUrl}/api/v1/orders/customers?skip=${skip}&limit=20`;
+            if (search) url += `&search=${encodeURIComponent(search)}`;
+            if (sort) url += `&sort=${sort}`;
+            if (date) {
+                const d = String(date).trim();
+                if (d) {
+                    url += `&start_date=${encodeURIComponent(d)}&end_date=${encodeURIComponent(d)}`;
+                }
+            }
+
+            const res = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
+                },
+            });
+            const data = await res.json();
+
+            if (data.code === 'SUCCESS_200' && data.data) {
+                const customersList = data.data.customers.map((customer) => ({
                     customer_id: customer.customer_id,
                     name: customer.name,
                     phone_number: customer.phone_number,
                     email: customer.email,
+                    is_locked: !!customer.is_locked,
                     total_orders: customer.total_orders,
                     total_spending: customer.total_spending,
+                    loyalty_points: customer.loyalty_points,
                     last_order: customer.last_order,
                 }));
                 setCustomers(customersList);
@@ -77,7 +106,12 @@ export default function Customers() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [accessToken, restaurantId]);
+
+    const refreshCustomersListAndCards = useCallback(() => {
+        fetchCustomersData(currentPage, debouncedSearchTerm, sortBy, filterDate);
+        fetchCustomerCards();
+    }, [currentPage, debouncedSearchTerm, sortBy, filterDate, fetchCustomerCards, fetchCustomersData]);
 
     // Debounce search term
     useEffect(() => {
@@ -91,37 +125,25 @@ export default function Customers() {
 
     useEffect(() => {
         fetchCustomersData(currentPage, debouncedSearchTerm, sortBy, filterDate);
-        
-        const fetchCustomerCards = async () => {
-            try {
-                const baseUrl = import.meta.env.VITE_BACKEND_URL;
-                if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
-                const url = `${baseUrl}/api/v1/orders/customers/cards`;
-                const res = await fetch(url, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-                        ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
-                    },
-                });
-                const data = await res.json();
-                if (data.code === 'SUCCESS_200' && data.data) {
-                    setCustomerCards(data.data);
-                }
-            } catch (error) {
-                console.error('Error fetching customer cards:', error);
-            }
-        };
-
         fetchCustomerCards();
-    }, [accessToken, currentPage, debouncedSearchTerm, sortBy, filterDate]);
+    }, [accessToken, currentPage, debouncedSearchTerm, sortBy, filterDate, fetchCustomerCards, fetchCustomersData]);
 
     const formatDateTime = (dateString) => {
         if (!dateString) return '-';
         const date = new Date(dateString);
         return date.toLocaleDateString();
     };
+
+    const customerStatusBadge = (isLocked) =>
+        isLocked ? (
+            <span className="inline-flex items-center rounded-[8px] bg-gray-200 px-3 py-1.5 text-[12px] font-medium text-gray-800">
+                Blocked
+            </span>
+        ) : (
+            <span className="inline-flex items-center rounded-[8px] bg-primary-bg px-3 py-1.5 text-[12px] font-medium text-primary">
+                Active
+            </span>
+        );
 
     const formatCurrency = (amount) => {
         return `$${amount.toFixed(2)}`;
@@ -132,13 +154,15 @@ export default function Customers() {
         { label: 'Loyalty Members', value: customerCards?.loyalty_members.toString() || '0', textColor: 'text-[#DD2F26]' },
         { label: 'High Value ($100+)', value: customerCards?.high_value_customers.toString() || '0' },
         {
-            label: 'Blocked',
+            label: 'Blocked users',
             value:
-                customerCards?.blocked != null
-                    ? String(customerCards.blocked)
-                    : customerCards?.blocked_customers != null
-                      ? String(customerCards.blocked_customers)
-                      : '0',
+                customerCards?.blocked_users != null
+                    ? String(customerCards.blocked_users)
+                    : customerCards?.blocked != null
+                      ? String(customerCards.blocked)
+                      : customerCards?.blocked_customers != null
+                        ? String(customerCards.blocked_customers)
+                        : '0',
             textColor: 'text-primary',
         },
     ];
@@ -190,7 +214,9 @@ export default function Customers() {
 
     return (
         <div className="max-w-[1600px] mx-auto animate-in fade-in duration-500">
-            <h1 className="text-[24px] font-[800] text-[#111827] mb-6">Customers</h1>
+            <h1 className="mb-6 font-sans text-[24px] font-[700] leading-[28.8px] tracking-normal text-[#0F1724]">
+                Customers
+            </h1>
 
             {/* Filters Bar */}
             <div className="bg-white p-4 rounded-[16px]  mb-6 border border-[#E5E7EB] flex flex-wrap items-center gap-4">
@@ -290,11 +316,7 @@ export default function Customers() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-[14px] font-[400] text-[#374151]">{customer.total_orders}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-[14px] font-[500] text-[#0F1724]">{formatCurrency(customer.total_spending)}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="inline-flex items-center rounded-[8px] bg-primary-bg px-3 py-1.5 text-[12px] font-medium text-primary">
-                                                Active
-                                            </span>
-                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">{customerStatusBadge(customer.is_locked)}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right">
                                             <button
                                                 className="px-3 py-1.5 border border-gray-200 rounded-[6px] text-[12px] font-[500] text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
@@ -330,6 +352,7 @@ export default function Customers() {
                 customer={selectedCustomer}
                 customerDetails={customerDetails}
                 loadingDetails={loadingDetails}
+                onLockStatusChanged={refreshCustomersListAndCards}
             />
         </div>
     );

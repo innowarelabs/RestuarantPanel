@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useSelector } from 'react-redux';
 import {
     X,
     Phone,
     Mail,
     MapPin,
-    ChevronRight,
     ShoppingBag,
     DollarSign,
     Award,
@@ -17,19 +17,97 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-export default function CustomerDetailsModal({ isOpen, onClose, customer, customerDetails, loadingDetails }) {
+export default function CustomerDetailsModal({
+    isOpen,
+    onClose,
+    customer,
+    customerDetails,
+    loadingDetails,
+    onLockStatusChanged,
+}) {
+    const accessToken = useSelector((state) => state.auth.accessToken);
+    const user = useSelector((state) => state.auth.user);
+
+    const getRestaurantId = () => {
+        const fromUser = user && typeof user === 'object' && typeof user.restaurant_id === 'string' ? user.restaurant_id : '';
+        let fromStorage = '';
+        try {
+            fromStorage = localStorage.getItem('restaurant_id') || '';
+        } catch {
+            fromStorage = '';
+        }
+        return (fromUser || fromStorage).trim();
+    };
+
+    const restaurantId = getRestaurantId();
+
     const [addNoteOpen, setAddNoteOpen] = useState(false);
     const [blockConfirmOpen, setBlockConfirmOpen] = useState(false);
     const [unblockConfirmOpen, setUnblockConfirmOpen] = useState(false);
     const [noteTitle, setNoteTitle] = useState('');
     const [noteDescription, setNoteDescription] = useState('');
     const [isCustomerBlocked, setIsCustomerBlocked] = useState(false);
+    const [isBlocking, setIsBlocking] = useState(false);
+    const [isUnblocking, setIsUnblocking] = useState(false);
+    const [isSavingNote, setIsSavingNote] = useState(false);
+    const [customerNotes, setCustomerNotes] = useState([]);
+
+    const canSaveCustomerNote = Boolean(noteTitle.trim()) && Boolean(noteDescription.trim());
+
+    const customerIdForNotes =
+        customer?.customer_id != null || customerDetails?.customer_id != null
+            ? String(customerDetails?.customer_id ?? customer?.customer_id ?? '').trim() || null
+            : null;
+
+    const fetchCustomerNotes = useCallback(async () => {
+        if (!customerIdForNotes) return;
+        const baseUrl = import.meta.env.VITE_BACKEND_URL;
+        if (!baseUrl) {
+            console.warn('[Customer notes] GET skipped: VITE_BACKEND_URL missing');
+            return;
+        }
+        try {
+            const url = `${String(baseUrl).replace(/\/$/, '')}/api/v1/orders/customers/${encodeURIComponent(customerIdForNotes)}/notes`;
+            const res = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
+                },
+            });
+            let body;
+            try {
+                body = await res.json();
+            } catch {
+                body = await res.text();
+            }
+            if (typeof body === 'object' && body !== null && body.code === 'SUCCESS_200' && body.data && Array.isArray(body.data.notes)) {
+                const sorted = [...body.data.notes].sort(
+                    (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime(),
+                );
+                setCustomerNotes(sorted);
+            } else {
+                setCustomerNotes([]);
+            }
+        } catch (e) {
+            console.error('[Customer notes] GET error', e);
+            setCustomerNotes([]);
+        }
+    }, [customerIdForNotes, accessToken, restaurantId]);
+
+    useEffect(() => {
+        if (!isOpen || !customerIdForNotes) return;
+        fetchCustomerNotes();
+    }, [isOpen, customerIdForNotes, fetchCustomerNotes]);
 
     useEffect(() => {
         if (customerDetails) {
-            setIsCustomerBlocked(!!customerDetails.is_blocked);
+            setIsCustomerBlocked(!!(customerDetails.is_locked ?? customerDetails.is_blocked));
+        } else if (customer) {
+            setIsCustomerBlocked(!!(customer.is_locked ?? customer.is_blocked));
         }
-    }, [customerDetails]);
+    }, [customerDetails, customer]);
 
     useEffect(() => {
         if (!isOpen) {
@@ -38,6 +116,10 @@ export default function CustomerDetailsModal({ isOpen, onClose, customer, custom
             setUnblockConfirmOpen(false);
             setNoteTitle('');
             setNoteDescription('');
+            setIsBlocking(false);
+            setIsUnblocking(false);
+            setIsSavingNote(false);
+            setCustomerNotes([]);
         }
     }, [isOpen]);
 
@@ -75,6 +157,18 @@ export default function CustomerDetailsModal({ isOpen, onClose, customer, custom
         return String(amount);
     };
 
+    const formatOrderDateTime = (iso) => {
+        if (!iso) return '—';
+        try {
+            return new Date(iso).toLocaleString(undefined, {
+                dateStyle: 'medium',
+                timeStyle: 'short',
+            });
+        } catch {
+            return String(iso);
+        }
+    };
+
     const averageOrderValue = customerDetails?.average_order_value;
     const avgLabel =
         averageOrderValue != null && !Number.isNaN(Number(averageOrderValue))
@@ -93,27 +187,334 @@ export default function CustomerDetailsModal({ isOpen, onClose, customer, custom
         ? customerDetails.order_history
         : [];
 
-    const handleSaveNote = () => {
-        if (!noteTitle.trim() && !noteDescription.trim()) {
-            toast.error('Add a title or description');
+    const handleSaveNote = async () => {
+        if (!noteTitle.trim() || !noteDescription.trim()) {
+            toast.error('Enter both title and description');
             return;
         }
-        toast.success('Note saved');
-        setAddNoteOpen(false);
-        setNoteTitle('');
-        setNoteDescription('');
+        if (!customerIdForNotes) {
+            toast.error('Customer is not loaded yet. Try again in a moment.');
+            return;
+        }
+        const baseUrl = import.meta.env.VITE_BACKEND_URL;
+        if (!baseUrl) {
+            toast.error('VITE_BACKEND_URL is missing');
+            return;
+        }
+        setIsSavingNote(true);
+        try {
+            const url = `${String(baseUrl).replace(/\/$/, '')}/api/v1/orders/customers/${encodeURIComponent(customerIdForNotes)}/notes`;
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
+                },
+                body: JSON.stringify({
+                    note_title: noteTitle.trim(),
+                    note_description: noteDescription.trim(),
+                }),
+            });
+            let data = {};
+            try {
+                const text = await res.text();
+                data = text ? JSON.parse(text) : {};
+            } catch {
+                data = {};
+            }
+            const businessOk =
+                !data.code ||
+                data.code === 'SUCCESS_200' ||
+                data.code === 'SUCCESS_201' ||
+                data.code === 'SUCCESS' ||
+                data.success === true;
+            if (res.ok && businessOk) {
+                toast.success(typeof data.message === 'string' && data.message ? data.message : 'Note saved');
+                setAddNoteOpen(false);
+                setNoteTitle('');
+                setNoteDescription('');
+                await fetchCustomerNotes();
+            } else {
+                const msg =
+                    (typeof data.message === 'string' && data.message) ||
+                    data?.errors?.detail ||
+                    'Could not save note';
+                toast.error(typeof msg === 'string' ? msg : 'Could not save note');
+            }
+        } catch (e) {
+            console.error('[Customer notes] POST error', e);
+            toast.error('Could not save note');
+        } finally {
+            setIsSavingNote(false);
+        }
     };
 
-    const handleConfirmBlock = () => {
-        setIsCustomerBlocked(true);
-        setBlockConfirmOpen(false);
-        toast.success('Customer has been blocked');
+    const resolveUserIdForBlock = () =>
+        customerDetails?.user_id ??
+        customerDetails?.customer_id ??
+        customer?.user_id ??
+        customer?.customer_id ??
+        null;
+
+    const handleConfirmBlock = async () => {
+        const userId = resolveUserIdForBlock();
+        if (!userId) {
+            toast.error('Customer is not loaded yet. Try again in a moment.');
+            return;
+        }
+        const baseUrl = import.meta.env.VITE_BACKEND_URL;
+        if (!baseUrl) {
+            toast.error('VITE_BACKEND_URL is missing');
+            return;
+        }
+        setIsBlocking(true);
+        try {
+            const url = `${String(baseUrl).replace(/\/$/, '')}/api/v1/users/${encodeURIComponent(userId)}/block`;
+            const res = await fetch(url, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
+                },
+                body: JSON.stringify({ blocked: true }),
+            });
+            let data = {};
+            try {
+                const text = await res.text();
+                data = text ? JSON.parse(text) : {};
+            } catch {
+                data = {};
+            }
+            const businessOk =
+                !data.code ||
+                data.code === 'SUCCESS_200' ||
+                data.code === 'SUCCESS' ||
+                data.success === true;
+            if (res.ok && businessOk) {
+                setIsCustomerBlocked(true);
+                setBlockConfirmOpen(false);
+                toast.success(data.message || 'Customer has been blocked');
+                onLockStatusChanged?.();
+            } else {
+                const msg =
+                    (typeof data.message === 'string' && data.message) ||
+                    data?.errors?.detail ||
+                    (res.status === 401 ? 'Please sign in again' : 'Could not block customer');
+                toast.error(typeof msg === 'string' ? msg : 'Could not block customer');
+            }
+        } catch (e) {
+            console.error('Block customer:', e);
+            toast.error('Could not block customer');
+        } finally {
+            setIsBlocking(false);
+        }
     };
 
-    const handleConfirmUnblock = () => {
-        setIsCustomerBlocked(false);
-        setUnblockConfirmOpen(false);
-        toast.success('Customer has been unblocked');
+    const handleConfirmUnblock = async () => {
+        const userId = resolveUserIdForBlock();
+        if (!userId) {
+            toast.error('Customer is not loaded yet. Try again in a moment.');
+            return;
+        }
+        const baseUrl = import.meta.env.VITE_BACKEND_URL;
+        if (!baseUrl) {
+            toast.error('VITE_BACKEND_URL is missing');
+            return;
+        }
+        setIsUnblocking(true);
+        try {
+            const url = `${String(baseUrl).replace(/\/$/, '')}/api/v1/users/${encodeURIComponent(userId)}/block`;
+            const res = await fetch(url, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
+                },
+                body: JSON.stringify({ blocked: false }),
+            });
+            let data = {};
+            try {
+                const text = await res.text();
+                data = text ? JSON.parse(text) : {};
+            } catch {
+                data = {};
+            }
+            const businessOk =
+                !data.code ||
+                data.code === 'SUCCESS_200' ||
+                data.code === 'SUCCESS' ||
+                data.success === true;
+            if (res.ok && businessOk) {
+                setIsCustomerBlocked(false);
+                setUnblockConfirmOpen(false);
+                toast.success(data.message || 'Customer has been unblocked');
+                onLockStatusChanged?.();
+            } else {
+                const msg =
+                    (typeof data.message === 'string' && data.message) ||
+                    data?.errors?.detail ||
+                    (res.status === 401 ? 'Please sign in again' : 'Could not unblock customer');
+                toast.error(typeof msg === 'string' ? msg : 'Could not unblock customer');
+            }
+        } catch (e) {
+            console.error('Unblock customer:', e);
+            toast.error('Could not unblock customer');
+        } finally {
+            setIsUnblocking(false);
+        }
+    };
+
+    const escapeCsvCell = (val) => {
+        const s = val == null ? '' : String(val);
+        if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+        return s;
+    };
+
+    const csvRow = (cells) => cells.map(escapeCsvCell).join(',');
+
+    const handleExportCustomerCsv = () => {
+        if (loadingDetails) {
+            toast.error('Wait for customer details to finish loading.');
+            return;
+        }
+        const idRaw = customerDetails?.customer_id ?? customer?.customer_id ?? 'customer';
+        const safeFileId = String(idRaw).replace(/[^a-zA-Z0-9-_]/g, '_').slice(0, 80) || 'customer';
+        const lines = [];
+
+        lines.push(csvRow(['Section', 'Customer overview']));
+        lines.push(csvRow(['Field', 'Value']));
+        lines.push(csvRow(['customer_id', customerDetails?.customer_id ?? customer?.customer_id ?? '']));
+        lines.push(csvRow(['name', displayData.name ?? '']));
+        lines.push(csvRow(['email', displayData.email ?? '']));
+        lines.push(csvRow(['phone', displayData.phone_number ?? displayData.phone ?? '']));
+        lines.push(csvRow(['account_status', isCustomerBlocked ? 'Blocked' : 'Active']));
+        lines.push(
+            csvRow([
+                'is_locked',
+                String(!!(customerDetails?.is_locked ?? customerDetails?.is_blocked ?? customer?.is_locked)),
+            ]),
+        );
+        lines.push('');
+
+        lines.push(csvRow(['Section', 'Profile summary']));
+        lines.push(csvRow(['Field', 'Value']));
+        lines.push(csvRow(['total_orders', displayData.total_orders ?? '']));
+        lines.push(csvRow(['total_spending', formatCurrency(displayData.total_spending ?? 0)]));
+        lines.push(csvRow(['average_order_value', avgLabel]));
+        lines.push(csvRow(['loyalty_points', displayData.loyalty_points ?? '']));
+        lines.push(
+            csvRow(['lifetime_loyalty_points_earned', customerDetails?.lifetime_loyalty_points_earned ?? '']),
+        );
+        if (rewards.length > 0) {
+            lines.push(
+                csvRow([
+                    'rewards_available',
+                    rewards
+                        .map((r) => r.title || r.reward_type || 'Reward')
+                        .filter(Boolean)
+                        .join('; '),
+                ]),
+            );
+        }
+        lines.push('');
+
+        lines.push(csvRow(['Section', 'Delivery addresses']));
+        if (addresses.length === 0) {
+            lines.push(csvRow(['(none)', '']));
+        } else {
+            lines.push(
+                csvRow([
+                    'id',
+                    'label',
+                    'street',
+                    'apt_suite',
+                    'city',
+                    'state',
+                    'zip_code',
+                    'is_default',
+                    'delivery_instructions',
+                ]),
+            );
+            addresses.forEach((addr) => {
+                lines.push(
+                    csvRow([
+                        addr.id ?? '',
+                        addr.label ?? '',
+                        addr.street ?? '',
+                        addr.apt_suite ?? '',
+                        addr.city ?? '',
+                        addr.state ?? '',
+                        addr.zip_code ?? '',
+                        addr.is_default != null ? String(addr.is_default) : '',
+                        addr.delivery_instructions ?? '',
+                    ]),
+                );
+            });
+        }
+        lines.push('');
+
+        lines.push(csvRow(['Section', 'Order history']));
+        if (orderHistory.length === 0) {
+            lines.push(csvRow(['(none)', '']));
+        } else {
+            lines.push(
+                csvRow([
+                    'order_id',
+                    'order_number',
+                    'status',
+                    'created_at',
+                    'total_amount',
+                ]),
+            );
+            orderHistory.forEach((o) => {
+                const amt =
+                    o.total_amount != null
+                        ? o.total_amount
+                        : o.total != null
+                          ? o.total
+                          : '';
+                lines.push(
+                    csvRow([
+                        o.order_id ?? o.id ?? '',
+                        o.order_number ?? '',
+                        o.status ?? '',
+                        o.created_at ?? o.date ?? '',
+                        amt !== '' && amt != null ? String(amt) : '',
+                    ]),
+                );
+            });
+        }
+        lines.push('');
+
+        lines.push(csvRow(['Section', 'Internal notes']));
+        if (customerNotes.length === 0) {
+            lines.push(csvRow(['(none)', '']));
+        } else {
+            lines.push(csvRow(['id', 'note_title', 'note_description', 'created_at']));
+            customerNotes.forEach((n) => {
+                lines.push(
+                    csvRow([n.id ?? '', n.note_title ?? '', n.note_description ?? '', n.created_at ?? '']),
+                );
+            });
+        }
+
+        const body = lines.join('\r\n');
+        const bom = '\uFEFF';
+        const blob = new Blob([bom + body], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+        a.href = url;
+        a.download = `customer-${safeFileId}-export-${stamp}.csv`;
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast.success('Customer data CSV downloaded');
     };
 
     return (
@@ -279,40 +680,52 @@ export default function CustomerDetailsModal({ isOpen, onClose, customer, custom
                                     </p>
                                 ) : (
                                     <div className="space-y-2">
-                                        {orderHistory.map((o) => (
-                                            <button
-                                                key={o.id || o.order_number}
-                                                type="button"
-                                                className="flex w-full items-center justify-between gap-3 rounded-[12px] border border-gray-100 bg-white p-3 text-left transition-colors hover:bg-gray-50"
-                                                onClick={() => toast('Order details coming soon')}
+                                        {orderHistory.map((o) => {
+                                            const orderKey = o.order_id || o.order_number || o.id;
+                                            const amount =
+                                                o.total_amount != null
+                                                    ? o.total_amount
+                                                    : o.total != null
+                                                      ? o.total
+                                                      : null;
+                                            const placedAt = o.created_at || o.date;
+                                            return (
+                                            <div
+                                                key={orderKey}
+                                                className="rounded-[12px] border border-gray-100 bg-white p-3"
                                             >
                                                 <div className="min-w-0">
                                                     <div className="flex flex-wrap items-center gap-2">
                                                         <span className="font-sans text-[15px] font-semibold text-[#0F1724]">
-                                                            {o.order_number || o.id}
+                                                            {o.order_number || o.order_id || '—'}
                                                         </span>
                                                         {o.status && (
-                                                            <span className="rounded-md bg-primary-bg px-2 py-0.5 font-sans text-[11px] font-medium text-primary">
+                                                            <span className="rounded-md bg-primary-bg px-2 py-0.5 font-sans text-[11px] font-medium capitalize text-primary">
                                                                 {String(o.status).replace(/_/g, ' ')}
                                                             </span>
                                                         )}
                                                     </div>
-                                                    {o.date && (
-                                                        <p className="mt-0.5 font-sans text-[13px] text-[#6B7280]">
-                                                            {o.date}
+                                                    {placedAt && (
+                                                        <p className="mt-0.5 font-sans text-[13px]">
+                                                            <span className="text-[#6B7280]">
+                                                                {formatOrderDateTime(placedAt)}
+                                                            </span>
+                                                            {amount != null && amount !== '' && (
+                                                                <>
+                                                                    <span className="text-[#6B7280]"> · </span>
+                                                                    <span className="font-medium text-[#0F1724]">
+                                                                        {typeof amount === 'number'
+                                                                            ? formatCurrency(amount)
+                                                                            : formatCurrency(Number(amount))}
+                                                                    </span>
+                                                                </>
+                                                            )}
                                                         </p>
                                                     )}
                                                 </div>
-                                                <div className="flex shrink-0 items-center gap-2">
-                                                    {o.total != null && (
-                                                        <span className="font-sans text-[20px] font-semibold leading-[30px] text-[#0F1724]">
-                                                            {typeof o.total === 'number' ? formatCurrency(o.total) : o.total}
-                                                        </span>
-                                                    )}
-                                                    <ChevronRight size={18} className="text-gray-300" />
-                                                </div>
-                                            </button>
-                                        ))}
+                                            </div>
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </section>
@@ -331,21 +744,38 @@ export default function CustomerDetailsModal({ isOpen, onClose, customer, custom
                                         Add Note
                                     </button>
                                 </div>
-                                <div className="rounded-lg border border-amber-200/80 bg-[#FEF9C3] p-3">
-                                    <div className="flex gap-2">
-                                        <FileText size={18} className="shrink-0 text-amber-800/80" />
-                                        <div>
-                                            <p className="font-sans text-[14px] font-semibold text-amber-900">
-                                                Prefers extra spicy
-                                            </p>
-                                            <p className="mt-0.5 font-sans text-[13px] text-amber-900/90">
-                                                Customer always requests extra chili sauce
-                                            </p>
-                                            <p className="mt-2 font-sans text-[11px] text-amber-800/70">
-                                                Sarah M. • 29 Nov 2025
-                                            </p>
-                                        </div>
-                                    </div>
+                                <div className="space-y-2">
+                                    {customerNotes.length === 0 ? (
+                                        <p className="rounded-lg border border-dashed border-gray-200 bg-[#F9FAFB] px-4 py-6 text-center font-sans text-[14px] text-[#6B7280]">
+                                            No internal notes yet. Add one to help your team.
+                                        </p>
+                                    ) : (
+                                        customerNotes.map((note) => (
+                                            <div
+                                                key={note.id}
+                                                className="rounded-lg border border-amber-200/80 bg-[#FEF9C3] p-3"
+                                            >
+                                                <div className="flex gap-2">
+                                                    <FileText size={18} className="mt-0.5 shrink-0 text-amber-800/80" />
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="font-sans text-[14px] font-semibold text-amber-900">
+                                                            {note.note_title || 'Note'}
+                                                        </p>
+                                                        {note.note_description ? (
+                                                            <p className="mt-0.5 font-sans text-[13px] text-amber-900/90">
+                                                                {note.note_description}
+                                                            </p>
+                                                        ) : null}
+                                                        <p className="mt-2 font-sans text-[11px] text-amber-800/70">
+                                                            {note.created_at
+                                                                ? formatOrderDateTime(note.created_at)
+                                                                : '—'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
                                 </div>
                             </section>
 
@@ -356,7 +786,7 @@ export default function CustomerDetailsModal({ isOpen, onClose, customer, custom
                                         <button
                                             type="button"
                                             onClick={() => setUnblockConfirmOpen(true)}
-                                            className="flex w-full items-center justify-center gap-2 rounded-[10px] bg-[#D1FAE5] py-3 font-sans text-[14px] font-medium text-[#047857] transition-colors hover:bg-emerald-200/80"
+                                            className="flex w-full items-center justify-center gap-2 rounded-[10px] bg-primary-bg py-3 font-sans text-[14px] font-medium text-[#047857] transition-opacity hover:opacity-90"
                                         >
                                             <CheckCircle2 size={18} />
                                             Unblock Customer
@@ -373,8 +803,9 @@ export default function CustomerDetailsModal({ isOpen, onClose, customer, custom
                                     )}
                                     <button
                                         type="button"
-                                        onClick={() => toast('Export will be available soon')}
-                                        className="flex w-full items-center justify-center gap-2 rounded-[10px] border border-gray-200 bg-white py-3 font-sans text-[14px] font-medium text-[#374151] transition-colors hover:bg-gray-50"
+                                        disabled={loadingDetails}
+                                        onClick={handleExportCustomerCsv}
+                                        className="flex w-full items-center justify-center gap-2 rounded-[10px] border border-gray-200 bg-white py-3 font-sans text-[14px] font-medium text-[#374151] transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         <Download size={18} />
                                         Export Customer Data (CSV)
@@ -446,10 +877,15 @@ export default function CustomerDetailsModal({ isOpen, onClose, customer, custom
                             </button>
                             <button
                                 type="button"
+                                disabled={!canSaveCustomerNote || isSavingNote}
                                 onClick={handleSaveNote}
-                                className="flex-1 rounded-lg bg-[#F2998F] py-2.5 font-sans text-[14px] font-medium text-white transition-colors hover:opacity-95"
+                                className={`flex-1 rounded-lg py-2.5 font-sans text-[14px] font-medium transition-colors ${
+                                    canSaveCustomerNote
+                                        ? 'bg-primary text-white hover:opacity-95 disabled:cursor-wait disabled:opacity-60'
+                                        : 'cursor-not-allowed bg-gray-200 text-gray-500'
+                                }`}
                             >
-                                Save Note
+                                {isSavingNote ? 'Saving…' : 'Save Note'}
                             </button>
                         </div>
                     </div>
@@ -479,10 +915,11 @@ export default function CustomerDetailsModal({ isOpen, onClose, customer, custom
                             </button>
                             <button
                                 type="button"
+                                disabled={isBlocking}
                                 onClick={handleConfirmBlock}
-                                className="flex-1 rounded-lg bg-[#DC2626] py-2.5 font-sans text-[14px] font-medium text-white transition-colors hover:bg-red-700"
+                                className="flex-1 rounded-lg bg-[#DC2626] py-2.5 font-sans text-[14px] font-medium text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                                Block
+                                {isBlocking ? 'Blocking…' : 'Block'}
                             </button>
                         </div>
                     </div>
@@ -512,10 +949,11 @@ export default function CustomerDetailsModal({ isOpen, onClose, customer, custom
                             </button>
                             <button
                                 type="button"
+                                disabled={isUnblocking}
                                 onClick={handleConfirmUnblock}
-                                className="flex-1 rounded-lg bg-[#10B981] py-2.5 font-sans text-[14px] font-medium text-white transition-colors hover:bg-emerald-600"
+                                className="flex-1 rounded-lg bg-[#059669] py-2.5 font-sans text-[14px] font-medium text-white transition-colors hover:bg-[#047857] disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                                Unblock
+                                {isUnblocking ? 'Unblocking…' : 'Unblock'}
                             </button>
                         </div>
                     </div>

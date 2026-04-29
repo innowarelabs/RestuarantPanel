@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { X, ChevronDown, ChevronUp, CircleCheckBig, Printer, RefreshCcw } from 'lucide-react';
+import { mapApiTimelineToDisplayEvents } from './orderTimelineUtils';
+import OrderApiTimelineList from './OrderApiTimelineList';
 
 function formatMoney(n) {
     const x = Number(n);
@@ -42,46 +44,54 @@ export default function CompletedOrderDrawer({ isOpen, onClose, order, onPrintRe
         setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
     };
 
-    const { subtotal, tax, total, items, placedTime, deliveredTime } = useMemo(() => {
-        if (!order) {
+    const { subtotal, tax, platformFee, total, items, placedTime, deliveredTime, apiTimelineEvents, useApiTimeline } =
+        useMemo(() => {
+            if (!order) {
+                return {
+                    subtotal: 0,
+                    tax: 0,
+                    platformFee: 0,
+                    total: 0,
+                    items: [],
+                    placedTime: '',
+                    deliveredTime: '',
+                    apiTimelineEvents: [],
+                    useApiTimeline: false,
+                };
+            }
+
+            const list = Array.isArray(order.orderItems) ? order.orderItems : [];
+            const lineSubtotal = list.reduce((s, it) => {
+                const st = it?.subtotal;
+                if (typeof st === 'number' && !Number.isNaN(st)) return s + st;
+                const q = Number(it?.quantity) || 0;
+                const up = Number(it?.unit_price) || 0;
+                return s + q * up;
+            }, 0);
+
+            const s =
+                typeof order.subtotal === 'number' && order.subtotal > 0
+                    ? order.subtotal
+                    : lineSubtotal;
+            const t = typeof order.taxAmount === 'number' ? order.taxAmount : 0;
+            const pf = typeof order.platformFee === 'number' ? order.platformFee : 0;
+            const totN =
+                typeof order.totalAmount === 'number' && !Number.isNaN(order.totalAmount)
+                    ? order.totalAmount
+                    : s + t + pf;
+            const apiEvs = mapApiTimelineToDisplayEvents(order.timeline);
             return {
-                subtotal: 0,
-                tax: 0,
-                total: 0,
-                items: [],
-                placedTime: '',
-                deliveredTime: '',
+                subtotal: s,
+                tax: t,
+                platformFee: pf,
+                total: totN,
+                items: list,
+                placedTime: formatShortTime(order.createdAt),
+                deliveredTime: formatShortTime(order.deliveredAt),
+                apiTimelineEvents: apiEvs,
+                useApiTimeline: apiEvs.length > 0,
             };
-        }
-
-        const list = Array.isArray(order.orderItems) ? order.orderItems : [];
-        const lineSubtotal = list.reduce((s, it) => {
-            const st = it?.subtotal;
-            if (typeof st === 'number' && !Number.isNaN(st)) return s + st;
-            const q = Number(it?.quantity) || 0;
-            const up = Number(it?.unit_price) || 0;
-            return s + q * up;
-        }, 0);
-
-        const s =
-            typeof order.subtotal === 'number' && order.subtotal > 0
-                ? order.subtotal
-                : lineSubtotal;
-        const t = typeof order.taxAmount === 'number' ? order.taxAmount : 0;
-        const totN =
-            typeof order.totalAmount === 'number' && !Number.isNaN(order.totalAmount)
-                ? order.totalAmount
-                : s + t;
-
-        return {
-            subtotal: s,
-            tax: t,
-            total: totN,
-            items: list,
-            placedTime: formatShortTime(order.createdAt),
-            deliveredTime: formatShortTime(order.deliveredAt),
-        };
-    }, [order]);
+        }, [order]);
 
     if (!isOpen || !order) return null;
 
@@ -131,6 +141,9 @@ export default function CompletedOrderDrawer({ isOpen, onClose, order, onPrintRe
                         </button>
                         {openSections.timeline && (
                             <div className="bg-white px-4 py-3">
+                                {useApiTimeline ? (
+                                    <OrderApiTimelineList events={apiTimelineEvents} />
+                                ) : (
                                 <ol className="m-0 list-none p-0">
                                     {timelineSteps.map((event, index) => {
                                         const isLast = index === timelineSteps.length - 1;
@@ -174,6 +187,7 @@ export default function CompletedOrderDrawer({ isOpen, onClose, order, onPrintRe
                                         );
                                     })}
                                 </ol>
+                                )}
                             </div>
                         )}
                     </div>
@@ -261,10 +275,20 @@ export default function CompletedOrderDrawer({ isOpen, onClose, order, onPrintRe
                                 {tax > 0 && (
                                     <div className="flex items-start justify-between gap-3">
                                         <span className="font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
-                                            VAT
+                                            Tax
                                         </span>
                                         <span className="shrink-0 text-right font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
                                             {formatMoney(tax)}
+                                        </span>
+                                    </div>
+                                )}
+                                {platformFee > 0 && (
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
+                                            Platform fee
+                                        </span>
+                                        <span className="shrink-0 text-right font-sans text-[15px] font-medium leading-[22.5px] tracking-normal text-[#0F1724]">
+                                            {formatMoney(platformFee)}
                                         </span>
                                     </div>
                                 )}
