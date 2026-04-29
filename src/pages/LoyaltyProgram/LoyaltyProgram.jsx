@@ -49,6 +49,9 @@ const LoyaltyProgram = () => {
     const [loadingRewardTypes, setLoadingRewardTypes] = useState(false);
     const [rewardTypesError, setRewardTypesError] = useState(null);
 
+    const [loyaltyInsights, setLoyaltyInsights] = useState(null);
+    const [loyaltyInsightsLoading, setLoyaltyInsightsLoading] = useState(false);
+
     const fetchLoyaltyData = useCallback(async () => {
         try {
             const baseUrl = import.meta.env.VITE_BACKEND_URL;
@@ -370,12 +373,51 @@ const LoyaltyProgram = () => {
         }
     }, [accessToken, restaurantId]);
 
+    const fetchLoyaltyInsights = useCallback(async () => {
+        if (!restaurantId) {
+            setLoyaltyInsights(null);
+            setLoyaltyInsightsLoading(false);
+            return;
+        }
+        setLoyaltyInsightsLoading(true);
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/analytics/restaurant/loyalty-insights`;
+            const res = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
+                },
+            });
+            let body = {};
+            try {
+                body = await res.json();
+            } catch {
+                body = {};
+            }
+            if (res.ok && body?.code === 'SUCCESS_200' && body.data) {
+                setLoyaltyInsights(body.data);
+            } else {
+                setLoyaltyInsights(null);
+            }
+        } catch (e) {
+            console.error('[loyalty-insights] GET error', e);
+            setLoyaltyInsights(null);
+        } finally {
+            setLoyaltyInsightsLoading(false);
+        }
+    }, [accessToken, restaurantId]);
+
     useEffect(() => {
         fetchLoyaltyData();
         fetchRewards();
         fetchMenuItems();
         fetchRewardTypes();
-    }, [fetchLoyaltyData, fetchRewards, fetchMenuItems, fetchRewardTypes]);
+        fetchLoyaltyInsights();
+    }, [fetchLoyaltyData, fetchRewards, fetchMenuItems, fetchRewardTypes, fetchLoyaltyInsights]);
 
     return (
         <div className="max-w-[1600px]  mx-auto pb-12 ">
@@ -400,7 +442,10 @@ const LoyaltyProgram = () => {
                     onDeleteReward={deleteReward}
                     onRefreshRewards={fetchRewards}
                 />
-                <LoyaltyInsights />
+                <LoyaltyInsights
+                    insights={loyaltyInsights}
+                    loading={loyaltyInsightsLoading}
+                />
             </div>
         </div>
     );

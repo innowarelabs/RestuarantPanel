@@ -181,6 +181,16 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
+/* /global-analytics — card section headings */
+.analytics-section-title {
+    font-family: 'Sofia Pro', ui-sans-serif, system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 21.6px;
+    letter-spacing: 0;
+    color: #0f1724;
+}
+
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,

@@ -1,48 +1,92 @@
-import React from 'react';
-import { Award, Target, Star, MoreHorizontal } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { Award, Users, Gift } from 'lucide-react';
+import { ANALYTICS_NO_DATA, ANALYTICS_CARD_NA } from './analyticsCopy';
 
-export default function CustomerInsights() {
+const labelCls = 'text-[13px] font-medium leading-snug text-[#6B7280]';
+const valueCls = 'text-[24px] font-bold leading-tight text-[#0F1724]';
+const cardRed = 'rounded-[12px] bg-[#DD2F2626] p-4';
+const cardGrey = 'rounded-[12px] bg-[#F6F8F9] p-4';
+
+export default function CustomerInsights({ data = null, loading = false }) {
+    const subscriptions = data?.subscriptions;
+    const subStats = subscriptions?.stats;
+    const planDist = subscriptions?.plan_distribution;
+
+    const loyaltyMembers = useMemo(() => {
+        const n = subStats?.active_subscriptions;
+        return n != null && !Number.isNaN(Number(n)) ? String(Number(n)) : ANALYTICS_CARD_NA;
+    }, [subStats]);
+
+    const nonLoyaltyCount = useMemo(() => {
+        if (!planDist) {
+            return subscriptions != null ? '0' : ANALYTICS_CARD_NA;
+        }
+        const b = Number(planDist.basic_plan) || 0;
+        const s = Number(planDist.standard_plan) || 0;
+        return String(b + s);
+    }, [planDist, subscriptions]);
+
+    const newCustomers24h = data?.new_customers_last_24h;
+    const newCustomersLine =
+        newCustomers24h != null && !Number.isNaN(Number(newCustomers24h))
+            ? `New customers (last 24h): ${Number(newCustomers24h)}`
+            : null;
+
+    const rewardName = null;
+    const rewardRedemptions = null;
+
+    const hasPayload = data != null;
+
     return (
         <div className="bg-white p-6 rounded-[16px] border border-[#00000033] shadow-sm h-full flex flex-col">
-            <h3 className="text-[18px] font-bold text-[#111827] mb-6">Customer Insights</h3>
+            <h3 className="analytics-section-title mb-6">Customer Insights</h3>
 
-            <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-[#FEF2F2] p-4 rounded-[8px] ">
-                        <div className="flex items-center gap-2 text-[#DD2F26] mb-1">
-                            <Award size={14} />
-                            <span className="text-[12px]  uppercase">Loyalty Members</span>
+            {loading && <div className="py-8 text-center text-[13px] text-gray-500">Loading…</div>}
+
+            {!loading && !hasPayload && (
+                <div className="py-10 text-center text-[13px] text-gray-600">{ANALYTICS_NO_DATA}</div>
+            )}
+
+            {!loading && hasPayload && (
+                <div className="flex flex-col gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className={cardRed}>
+                            <div className="flex items-center gap-3">
+                                <Award size={20} className="shrink-0 text-[#DD2F26]" strokeWidth={2} />
+                                <span className={labelCls}>Loyalty Members</span>
+                            </div>
+                            <p className={`${valueCls} mt-2`}>{loyaltyMembers}</p>
                         </div>
-                        <p className="text-[24px] font-bold text-[#111827]">320</p>
+
+                        <div className={cardGrey}>
+                            <div className="flex items-center gap-3">
+                                <Users size={20} className="shrink-0 text-[#6B7280]" strokeWidth={2} />
+                                <span className={labelCls}>Non-Loyalty</span>
+                            </div>
+                            <p className={`${valueCls} mt-2`}>{nonLoyaltyCount}</p>
+                            {/* {newCustomersLine && <p className={`${labelCls} mt-2 text-[12px]`}>{newCustomersLine}</p>} */}
+                        </div>
                     </div>
-                    <div className="bg-[#F9FAFB] p-4 rounded-[8px] ">
-                        <div className="flex items-center gap-2 text-gray-400 mb-1">
-                            <Target size={14} />
-                            <span className="text-[12px]  uppercase">New Loyalty</span>
+
+                    <div className={cardRed}>
+                        <div className="flex items-center gap-3">
+                            <Gift size={20} className="shrink-0 text-[#DD2F26]" strokeWidth={2} />
+                            <span className={labelCls}>Most Redeemed Reward</span>
                         </div>
-                        <p className="text-[24px] font-bold text-[#111827]">140</p>
+                        <p className="mt-2 text-[18px] sm:text-[20px] font-bold leading-snug text-[#DD2F26]">
+                            {rewardName || ANALYTICS_CARD_NA}
+                        </p>
+                        <p className={`${labelCls} mt-1`}>
+                            {rewardRedemptions != null ? `Redeemed ${rewardRedemptions} times` : ANALYTICS_CARD_NA}
+                        </p>
+                    </div>
+
+                    <div className={cardGrey}>
+                        <p className={labelCls}>Avg Points Redeemed per Order</p>
+                        <p className={`${valueCls} mt-2`}>{ANALYTICS_CARD_NA}</p>
                     </div>
                 </div>
-
-                <div className="bg-[#FEF2F2] p-4 rounded-[8px]  relative overflow-hidden group">
-                    <div className="flex items-center justify-between mb-2">
-                        <p className="text-[12px] text-[#DD2F26]  uppercase">Most redeemed reward</p>
-                        <Star size={16} className="text-orange-400 fill-orange-400" />
-                    </div>
-                    <p className="text-[16px] font-bold text-[#111827]">Free Ice Cream</p>
-                    <p className="text-[12px] text-gray-500 mt-1">Redeemed 87 times</p>
-                </div>
-
-                <div className="bg-[#FEF2F2] rounded-[8px] p-4  mt-auto">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-[12px] text-gray-400 font-medium">Avg Points Redeemed per Order</p>
-                            <p className="text-[24px] font-bold text-[#111827]">42 points</p>
-                        </div>
-                        <MoreHorizontal className="text-gray-300" />
-                    </div>
-                </div>
-            </div>
+            )}
         </div>
     );
 }

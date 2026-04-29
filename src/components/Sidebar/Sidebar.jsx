@@ -1,6 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
+import toast from 'react-hot-toast';
+
+const API_BASE = 'https://api.baaie.com';
 import {
     LayoutDashboard,
     ShoppingBag,
@@ -35,6 +38,8 @@ export default function Sidebar({ isCollapsed, onToggleCollapse }) {
     const navigate = useNavigate();
     const pathname = location.pathname;
     const restaurantName = useSelector((state) => state.auth?.restaurantName);
+    const accessToken = useSelector((state) => state.auth?.accessToken);
+    const user = useSelector((state) => state.auth?.user);
     const displayName = restaurantName?.trim() || 'Restaurant';
     const initial = displayName.charAt(0).toUpperCase() || 'R';
 
@@ -55,9 +60,80 @@ export default function Sidebar({ isCollapsed, onToggleCollapse }) {
         }
     }, [isRestaurantOpen]);
 
-    const toggleRestaurantOpen = useCallback(() => {
-        setIsRestaurantOpen((v) => !v);
-    }, []);
+    const [toggleOpenPending, setToggleOpenPending] = useState(false);
+    const toggleOpenInFlight = useRef(false);
+
+    const toggleRestaurantOpen = useCallback(async () => {
+        if (toggleOpenInFlight.current) return;
+        const baseUrl = (import.meta.env.VITE_BACKEND_URL || API_BASE).replace(/\/$/, '');
+        const restaurantId = user?.restaurant_id || localStorage.getItem('restaurant_id') || '';
+        if (!accessToken || !restaurantId) {
+            console.warn('[dashboard/toggle-open] skipped: missing accessToken or restaurant id');
+            return;
+        }
+        toggleOpenInFlight.current = true;
+        setToggleOpenPending(true);
+        try {
+            const url = `${baseUrl}/api/v1/restaurants/dashboard/toggle-open`;
+            const res = await fetch(url, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
+                },
+                body: JSON.stringify({}),
+            });
+            const contentType = res.headers.get('content-type') || '';
+            let body;
+            try {
+                body = contentType.includes('application/json') ? await res.json() : await res.text();
+            } catch {
+                body = null;
+            }
+            console.log('[dashboard/toggle-open] API response', { status: res.status, ok: res.ok, body });
+
+            const apiMessage = body && typeof body === 'object' && typeof body.message === 'string' ? body.message : null;
+            const apiCode = body && typeof body === 'object' ? body.code : null;
+            const apiIndicatesError =
+                apiCode != null && (String(apiCode).includes('ERROR') || String(apiCode).includes('FAIL'));
+
+            if (res.ok) {
+                if (body && typeof body === 'object') {
+                    const d = body.data ?? body;
+                    const open =
+                        typeof d?.is_open === 'boolean'
+                            ? d.is_open
+                            : typeof d?.isOpen === 'boolean'
+                              ? d.isOpen
+                              : typeof d?.open === 'boolean'
+                                ? d.open
+                                : typeof d?.accepting_orders === 'boolean'
+                                  ? d.accepting_orders
+                                  : null;
+                    if (open != null) setIsRestaurantOpen(open);
+                    else setIsRestaurantOpen((v) => !v);
+                } else {
+                    setIsRestaurantOpen((v) => !v);
+                }
+                if (apiIndicatesError && apiMessage) {
+                    toast.error(apiMessage);
+                } else if (apiMessage) {
+                    toast.success(apiMessage);
+                } else {
+                    toast.success('Restaurant status updated');
+                }
+            } else {
+                toast.error(apiMessage || `Could not update status (${res.status})`);
+            }
+        } catch (err) {
+            console.error('[dashboard/toggle-open] request failed', err);
+            toast.error('Network error. Please try again.');
+        } finally {
+            toggleOpenInFlight.current = false;
+            setToggleOpenPending(false);
+        }
+    }, [accessToken, user?.restaurant_id]);
 
     const handleClick = (item) => {
         localStorage.setItem('sidebarSelected', item.key.toString());
@@ -83,6 +159,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse }) {
                         type="button"
                         role="switch"
                         aria-checked={isRestaurantOpen}
+                        disabled={toggleOpenPending}
                         onClick={toggleRestaurantOpen}
                         data-tooltip-id={openStatusTooltipId}
                         data-tooltip-content={
@@ -156,6 +233,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse }) {
                                     type="button"
                                     role="switch"
                                     aria-checked={isRestaurantOpen}
+                                    disabled={toggleOpenPending}
                                     onClick={toggleRestaurantOpen}
                                     className={`relative box-border flex h-[14px] w-8 shrink-0 items-center rounded-full p-[2px] transition-colors ${
                                         isRestaurantOpen ? 'bg-primary' : 'bg-[#D1D5DB]'
