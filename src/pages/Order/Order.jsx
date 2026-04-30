@@ -132,6 +132,8 @@ export default function OrderManagement() {
     // - Ready for Pickup → mark_as_ready
     // - On the Way → on_the_way
     // - Completed → completed
+    // - Cancelled → cancelled
+    // - Refunds → refunded (tab commented out in UI)
     const getStatusFromTab = (tab) => {
         switch (tab) {
             case 'New Orders':
@@ -146,8 +148,8 @@ export default function OrderManagement() {
                 return 'completed';
             case 'Cancelled':
                 return 'cancelled';
-            case 'Refunds':
-                return 'refunded';
+            // case 'Refunds':
+            //     return 'refunded';
             default:
                 return 'pending';
         }
@@ -366,14 +368,14 @@ export default function OrderManagement() {
                     ? orders.length
                     : 0,
         },
-        {
-            name: 'Refunds',
-            count: typeof tabCounts.refunded === 'number'
-                ? tabCounts.refunded
-                : activeTab === 'Refunds'
-                    ? orders.length
-                    : 0,
-        },
+        // {
+        //     name: 'Refunds',
+        //     count: typeof tabCounts.refunded === 'number'
+        //         ? tabCounts.refunded
+        //         : activeTab === 'Refunds'
+        //             ? orders.length
+        //             : 0,
+        // },
     ];
 
     const getStatusColor = (status) => {
@@ -554,12 +556,7 @@ export default function OrderManagement() {
                                         {order.id}
                                     </span>
                                     <span
-                                        className={`px-3 py-1 rounded-[8px] text-[12px] font-medium border capitalize ${
-                                            activeTab === 'Refunds' &&
-                                            String(order.status || '').toLowerCase() === 'refunded'
-                                                ? 'bg-[#FED7AA] text-[#9A3412] border-0'
-                                                : getStatusColor(order.status)
-                                        }`}
+                                        className={`px-3 py-1 rounded-[8px] text-[12px] font-medium border capitalize ${getStatusColor(order.status)}`}
                                     >
                                         {String(order.status || '')
                                             .replace(/_/g, ' ')
@@ -706,6 +703,7 @@ export default function OrderManagement() {
                 order={selectedOrder}
                 showMarkAsReady={activeTab === 'In Progress'}
                 showOrderPickedUp={activeTab === 'Ready for Pickup'}
+                showOrderDelivered={activeTab === 'On the Way'}
                 onMarkReady={async (ord) => {
                     if (!ord?.rawId) return;
                     const markReady = await patchOrderMarkReady(ord.rawId);
@@ -723,6 +721,11 @@ export default function OrderManagement() {
                 onOrderPickedUp={async (ord) => {
                     if (!ord?.rawId) return;
                     const ok = await updateOrderStatus(ord.rawId, 'on_the_way', {}, 'Order picked up');
+                    if (ok) setInProgressDrawerOpen(false);
+                }}
+                onOrderDelivered={async (ord) => {
+                    if (!ord?.rawId) return;
+                    const ok = await updateOrderStatus(ord.rawId, 'completed', {}, 'Order delivered');
                     if (ok) setInProgressDrawerOpen(false);
                 }}
             />
