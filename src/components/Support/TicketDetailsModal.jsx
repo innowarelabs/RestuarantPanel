@@ -154,7 +154,7 @@ const DetailField = ({ label, children, className = '', valueClassName = '' }) =
     </div>
 );
 
-const TicketDetailsModal = ({ isOpen, onClose, ticket }) => {
+const TicketDetailsModal = ({ isOpen, onClose, ticket, onTicketUpdated }) => {
     const accessToken = useSelector((state) => state.auth.accessToken);
     const user = useSelector((state) => state.auth.user);
 
@@ -538,6 +538,9 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket }) => {
             }
             toast.success('Ticket updated');
             await refetchTicketDetails();
+            if (typeof onTicketUpdated === 'function') {
+                onTicketUpdated();
+            }
         } catch (e) {
             toast.error(e.message || 'Failed to update ticket');
         } finally {

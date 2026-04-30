@@ -186,15 +186,27 @@ export default function OnboardingStep() {
     };
 
     const setCategoryImageFile = (file) => {
-        if (categoryImagePreviewUrl) URL.revokeObjectURL(categoryImagePreviewUrl);
+        if (categoryImagePreviewUrl && categoryImagePreviewUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(categoryImagePreviewUrl);
+        }
         setCategoryImage(file);
         setCategoryImagePreviewUrl(file ? URL.createObjectURL(file) : '');
     };
 
     const setItemImageFile = (file) => {
-        if (itemImagePreviewUrl) URL.revokeObjectURL(itemImagePreviewUrl);
+        if (itemImagePreviewUrl && itemImagePreviewUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(itemImagePreviewUrl);
+        }
         setItemImage(file);
         setItemImagePreviewUrl(file ? URL.createObjectURL(file) : '');
+    };
+
+    const setItemImageFromRemoteUrl = (remoteUrl) => {
+        if (itemImagePreviewUrl && itemImagePreviewUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(itemImagePreviewUrl);
+        }
+        setItemImage(null);
+        setItemImagePreviewUrl(typeof remoteUrl === 'string' ? remoteUrl.trim() : '');
     };
 
     const setRewardImageUploadFile = (file) => {
@@ -259,7 +271,9 @@ export default function OnboardingStep() {
     };
 
     const resetCategoryForm = () => {
-        if (categoryImagePreviewUrl) URL.revokeObjectURL(categoryImagePreviewUrl);
+        if (categoryImagePreviewUrl && categoryImagePreviewUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(categoryImagePreviewUrl);
+        }
         setEditingCategoryId(null);
         setCategoryImage(null);
         setCategoryImagePreviewUrl('');
@@ -271,46 +285,15 @@ export default function OnboardingStep() {
         }));
     };
 
-    const saveCategory = () => {
-        const trimmedName = formData.categoryName.trim();
-        if (!trimmedName) return;
-
-        if (!editingCategoryId && !categoryImage) return;
-
-        setCategories((prev) => {
-            const existingIndex = prev.findIndex((c) => c.id === editingCategoryId);
-            const nextId = editingCategoryId || createCategoryId();
-            const previous = existingIndex >= 0 ? prev[existingIndex] : null;
-            const nextCategory = {
-                id: nextId,
-                name: trimmedName,
-                description: formData.categoryDesc.trim(),
-                visible: !!formData.categoryVisible,
-                imageName: categoryImage?.name || previous?.imageName || '',
-            };
-
-            if (existingIndex >= 0) {
-                const copy = [...prev];
-                copy[existingIndex] = nextCategory;
-                return copy;
-            }
-
-            return [nextCategory, ...prev];
-        });
-
-        setFormData((prev) => ({
-            ...prev,
-            categoriesCount: (editingCategoryId ? prev.categoriesCount : prev.categoriesCount + 1),
-        }));
-
-        resetCategoryForm();
-    };
-
     const startEditCategory = (category) => {
-        if (categoryImagePreviewUrl) URL.revokeObjectURL(categoryImagePreviewUrl);
+        if (categoryImagePreviewUrl && categoryImagePreviewUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(categoryImagePreviewUrl);
+        }
         setEditingCategoryId(category.id);
         setCategoryImage(null);
-        setCategoryImagePreviewUrl('');
+        const remote =
+            typeof category.imageUrl === 'string' && category.imageUrl.trim() ? category.imageUrl.trim() : '';
+        setCategoryImagePreviewUrl(remote);
         setFormData((prev) => ({
             ...prev,
             categoryName: category.name,
@@ -320,10 +303,11 @@ export default function OnboardingStep() {
     };
 
     const deleteCategory = (categoryId) => {
-        setCategories((prev) => prev.filter((c) => c.id !== categoryId));
+        const idStr = String(categoryId);
+        setCategories((prev) => prev.filter((c) => String(c.id) !== idStr));
         setItems((prev) => {
-            const removedCount = prev.filter((i) => i.categoryId === categoryId).length;
-            const next = prev.filter((i) => i.categoryId !== categoryId);
+            const removedCount = prev.filter((i) => String(i.categoryId) === idStr).length;
+            const next = prev.filter((i) => String(i.categoryId) !== idStr);
             if (removedCount) {
                 setFormData((fd) => ({ ...fd, itemsCount: Math.max(0, fd.itemsCount - removedCount) }));
             }
@@ -331,11 +315,13 @@ export default function OnboardingStep() {
         });
         setFormData((prev) => ({ ...prev, categoriesCount: Math.max(0, prev.categoriesCount - 1) }));
 
-        if (editingCategoryId === categoryId) resetCategoryForm();
+        if (String(editingCategoryId) === idStr) resetCategoryForm();
     };
 
     const resetItemModal = () => {
-        if (itemImagePreviewUrl) URL.revokeObjectURL(itemImagePreviewUrl);
+        if (itemImagePreviewUrl && itemImagePreviewUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(itemImagePreviewUrl);
+        }
         setItemImage(null);
         setItemImagePreviewUrl('');
         setItemForm({
@@ -1116,7 +1102,6 @@ export default function OnboardingStep() {
                     categoryImagePreviewUrl={categoryImagePreviewUrl}
                     setCategoryImageFile={setCategoryImageFile}
                     CATEGORY_IMAGE_REQUIRED_PX={CATEGORY_IMAGE_REQUIRED_PX}
-                    saveCategory={saveCategory}
                     resetCategoryForm={resetCategoryForm}
                     startEditCategory={startEditCategory}
                     deleteCategory={deleteCategory}
@@ -1130,6 +1115,7 @@ export default function OnboardingStep() {
                     itemImage={itemImage}
                     itemImagePreviewUrl={itemImagePreviewUrl}
                     setItemImageFile={setItemImageFile}
+                    setItemImageFromRemoteUrl={setItemImageFromRemoteUrl}
                     saveItem={saveItem}
                 />
             );

@@ -68,6 +68,22 @@ const extractCategoriesList = (data) => {
     return [];
 };
 
+const asCategoryIdString = (value) => {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+    if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+    return '';
+};
+
+/** POST /step3/category success — id may be at root or under `data`. */
+const extractCreatedCategoryIdFromResponse = (payload) => {
+    if (!payload || typeof payload !== 'object') return '';
+    const tryNode = (node) => {
+        if (!node || typeof node !== 'object') return '';
+        return asCategoryIdString(node.id) || asCategoryIdString(node.category_id);
+    };
+    return tryNode(payload) || tryNode(payload.data) || tryNode(payload.data?.data);
+};
+
 const extractMenuDishes = (data) => {
     if (!data || typeof data !== 'object') return [];
     const categories =
@@ -82,11 +98,13 @@ const extractMenuDishes = (data) => {
     return categories.flatMap((category) => {
         if (!category || typeof category !== 'object') return [];
         const categoryName = typeof category.name === 'string' ? category.name : '';
+        const categoryId =
+            asCategoryIdString(category.id) || asCategoryIdString(category.category_id) || '';
         const dishes = Array.isArray(category.dishes) ? category.dishes : [];
         return dishes
             .map((dish) => {
                 if (!dish || typeof dish !== 'object') return null;
-                return { ...dish, __categoryName: categoryName };
+                return { ...dish, __categoryName: categoryName, __categoryId: categoryId };
             })
             .filter(Boolean);
     });
@@ -94,7 +112,7 @@ const extractMenuDishes = (data) => {
 
 const mapMenuDish = (raw) => {
     if (!raw || typeof raw !== 'object') return null;
-    const id = typeof raw.id === 'string' ? raw.id : '';
+    const id = asCategoryIdString(raw.id);
     const name = typeof raw.name === 'string' ? raw.name : '';
     if (!id || !name) return null;
     const description = typeof raw.description === 'string' ? raw.description : '';
@@ -102,6 +120,7 @@ const mapMenuDish = (raw) => {
     const images = Array.isArray(raw.images) ? raw.images.map((img) => normalizeUrl(String(img))) : [];
     const imageUrl = images.find(Boolean) || '';
     const categoryName = typeof raw.__categoryName === 'string' ? raw.__categoryName : '';
+    const categoryId = typeof raw.__categoryId === 'string' && raw.__categoryId ? raw.__categoryId : '';
     /** GET menu items expose `item_available`; POST body unchanged (`is_available`). */
     let isAvailable = true;
     if (typeof raw.item_available === 'boolean') {
@@ -122,7 +141,9 @@ const mapMenuDish = (raw) => {
         price: Number.isFinite(price) ? price : 0,
         imageUrl,
         categoryName,
+        categoryId,
         isAvailable,
+        rawDish: raw,
     };
 };
 
@@ -145,11 +166,9 @@ const mapCategoryVisibility = (raw) => {
 const mapCategory = (raw) => {
     if (!raw || typeof raw !== 'object') return null;
     const id =
-        typeof raw.id === 'string'
-            ? raw.id
-            : typeof raw.category_id === 'string'
-                ? raw.category_id
-                : '';
+        asCategoryIdString(raw.id) ||
+        asCategoryIdString(raw.category_id) ||
+        '';
     const name = typeof raw.name === 'string' ? raw.name : '';
     if (!id || !name) return null;
     const description = typeof raw.description === 'string' ? raw.description : '';
@@ -162,6 +181,67 @@ const mapCategory = (raw) => {
     const visible = mapCategoryVisibility(raw);
     const imageName = imageUrl ? imageUrl.split('/').pop() || '' : '';
     return { id, name, description, imageUrl, imageName, visible };
+};
+
+const isLikelyServerEntityId = (id) =>
+    typeof id === 'string' && id.trim().length > 0 && !/^variant-\d+$/i.test(id) && !/^addon-\d+$/i.test(id);
+
+const buildItemFormFromDish = (dish, fallbackCategoryId) => {
+    if (!dish || typeof dish !== 'object') return null;
+    const categoryId =
+        (typeof dish.category_id === 'string' && dish.category_id.trim()) ||
+        (typeof dish.categoryId === 'string' && dish.categoryId.trim()) ||
+        (typeof fallbackCategoryId === 'string' ? fallbackCategoryId.trim() : '') ||
+        '';
+    const rawVariants = Array.isArray(dish.variants) ? dish.variants : [];
+    const variants =
+        rawVariants.length > 0
+            ? rawVariants.map((v, idx) => ({
+                id:
+                    v?.id != null && isLikelyServerEntityId(String(v.id))
+                        ? String(v.id)
+                        : `variant-${idx + 1}`,
+                name: typeof v?.name === 'string' ? v.name : '',
+                price: v?.price === 0 || v?.price != null ? String(v.price) : '',
+                sku: typeof v?.sku === 'string' ? v.sku : '',
+            }))
+            : [{ id: 'variant-1', name: '', price: '', sku: '' }];
+    const rawAddons = Array.isArray(dish.addons) ? dish.addons : [];
+    const addOns =
+        rawAddons.length > 0
+            ? rawAddons.map((a, idx) => ({
+                id: a?.id != null && isLikelyServerEntityId(String(a.id)) ? String(a.id) : `addon-${idx + 1}`,
+                name: typeof a?.name === 'string' ? a.name : '',
+                price: a?.price === 0 || a?.price != null ? String(a.price) : '',
+            }))
+            : [{ id: 'addon-1', name: '', price: '' }];
+    const rawTags = Array.isArray(dish.tags) ? dish.tags : [];
+    const tags = rawTags.filter((t) => typeof t === 'string' && t.trim()).map((t) => t.trim());
+
+    return {
+        categoryId,
+        name: typeof dish.name === 'string' ? dish.name : '',
+        price: dish.has_variants ? '' : dish.price === 0 || dish.price != null ? String(dish.price) : '',
+        description: typeof dish.description === 'string' ? dish.description : '',
+        prepTimeMinutes:
+            dish.prep_time_minutes === 0 || dish.prep_time_minutes != null ? String(dish.prep_time_minutes) : '15',
+        hasVariants: !!dish.has_variants,
+        variants,
+        trackInventory: !!dish.track_inventory,
+        stockQuantity:
+            dish.stock_quantity === 0 || dish.stock_quantity != null ? String(dish.stock_quantity) : '',
+        lowStockAlert:
+            dish.low_stock_alert === 0 || dish.low_stock_alert != null ? String(dish.low_stock_alert) : '10',
+        addOns,
+        tags,
+        tagInput: '',
+        isAvailable: dish.is_available !== false,
+        catering: !!dish.catering,
+        cateringMinimumOrder:
+            dish.catering_minimum_order === 0 || dish.catering_minimum_order != null
+                ? String(dish.catering_minimum_order)
+                : '0',
+    };
 };
 
 /** Sofia Pro 500 / 14px / 21px line-height / #374151 */
@@ -178,10 +258,10 @@ export default function Step3({
     categoryImagePreviewUrl,
     setCategoryImageFile,
     CATEGORY_IMAGE_REQUIRED_PX,
-    saveCategory,
     resetCategoryForm,
-    startEditCategory: _startEditCategory,
-    deleteCategory: _deleteCategory,
+    startEditCategory,
+    deleteCategory,
+    setItemImageFromRemoteUrl,
     handlePrev,
     handleNext,
     showAddItemModal,
@@ -202,6 +282,10 @@ export default function Step3({
     const [errorLines, setErrorLines] = useState([]);
     const [menuItemsErrorLines, setMenuItemsErrorLines] = useState([]);
     const [menuItems, setMenuItems] = useState([]);
+    const [editingItemId, setEditingItemId] = useState('');
+    const [editingItemExistingImages, setEditingItemExistingImages] = useState([]);
+    const [deletingCategoryId, setDeletingCategoryId] = useState('');
+    const [deletingItemIds, setDeletingItemIds] = useState([]);
 
     const categoryImageInputRef = useRef(null);
 
@@ -224,9 +308,12 @@ export default function Step3({
     const canSaveItem = !!itemForm.categoryId && !!itemForm.name.trim() && priceOk && prepOk && variantsValid;
 
     const canProceed = categories.length > 0;
-    void _startEditCategory;
-    void _deleteCategory;
 
+    const closeItemModal = () => {
+        setEditingItemId('');
+        setEditingItemExistingImages([]);
+        closeAddItemModal();
+    };
     const uploadImage = async (file, baseUrl) => {
         if (!file) throw new Error('Image file is missing');
         const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/upload/image`;
@@ -347,14 +434,127 @@ export default function Step3({
         void fetchMenuItems();
     }, [fetchMenuItems]);
 
+    const handleDeleteCategory = async (category) => {
+        if (!category?.id || !restaurantId) return;
+        if (!window.confirm(`Delete category "${category.name}"? This cannot be undone.`)) return;
+        setDeletingCategoryId(String(category.id));
+        setErrorLines([]);
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/categories/${encodeURIComponent(category.id)}`;
+            const res = await fetch(url, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                },
+            });
+            const contentType = res.headers.get('content-type');
+            const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+            if (!res.ok || isErrorPayload(data)) {
+                const lines = toValidationErrorLines(data);
+                if (lines.length) {
+                    setErrorLines(lines);
+                } else if (data && typeof data === 'object') {
+                    const message =
+                        typeof data.message === 'string'
+                            ? data.message
+                            : typeof data.error === 'string'
+                                ? data.error
+                                : 'Failed to delete category';
+                    setErrorLines([message]);
+                } else if (typeof data === 'string' && data.trim()) {
+                    setErrorLines([data.trim()]);
+                } else {
+                    setErrorLines(['Failed to delete category']);
+                }
+                return;
+            }
+            deleteCategory(category.id);
+            await fetchCategories();
+        } catch (e) {
+            const message = typeof e?.message === 'string' ? e.message : 'Failed to delete category';
+            setErrorLines([message]);
+        } finally {
+            setDeletingCategoryId('');
+        }
+    };
+
+    const handleDeleteItem = async (item) => {
+        const id = item?.id ? String(item.id) : '';
+        if (!id || !restaurantId) return;
+        if (!window.confirm(`Delete item "${item.name}"? This cannot be undone.`)) return;
+        setDeletingItemIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+        setMenuItemsErrorLines([]);
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/dishes/${encodeURIComponent(id)}`;
+            const res = await fetch(url, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                },
+            });
+            const contentType = res.headers.get('content-type');
+            const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+            if (!res.ok || isErrorPayload(data)) {
+                const lines = toValidationErrorLines(data);
+                if (lines.length) {
+                    setMenuItemsErrorLines(lines);
+                } else if (data && typeof data === 'object') {
+                    const message =
+                        typeof data.message === 'string'
+                            ? data.message
+                            : typeof data.error === 'string'
+                                ? data.error
+                                : 'Failed to delete item';
+                    setMenuItemsErrorLines([message]);
+                } else if (typeof data === 'string' && data.trim()) {
+                    setMenuItemsErrorLines([data.trim()]);
+                } else {
+                    setMenuItemsErrorLines(['Failed to delete item']);
+                }
+                return;
+            }
+            await fetchMenuItems();
+        } catch (e) {
+            const message = typeof e?.message === 'string' ? e.message : 'Failed to delete item';
+            setMenuItemsErrorLines([message]);
+        } finally {
+            setDeletingItemIds((prev) => prev.filter((x) => x !== id));
+        }
+    };
+
+    const openEditItem = (row) => {
+        const dish = row?.rawDish;
+        if (!dish || !row?.id) return;
+        const nextForm = buildItemFormFromDish(dish, row.categoryId);
+        if (!nextForm) return;
+        setItemForm(nextForm);
+        setEditingItemId(String(row.id));
+        const imgs = Array.isArray(dish.images) ? dish.images.map((u) => normalizeUrl(String(u))).filter(Boolean) : [];
+        setEditingItemExistingImages(imgs);
+        setItemImageFile(null);
+        const primary = typeof row.imageUrl === 'string' && row.imageUrl.trim() ? row.imageUrl.trim() : imgs[0] || '';
+        if (typeof setItemImageFromRemoteUrl === 'function') {
+            setItemImageFromRemoteUrl(primary);
+        }
+        setShowAddItemModal(true);
+    };
+
+    const openNewItemModal = () => {
+        setEditingItemId('');
+        setEditingItemExistingImages([]);
+        closeAddItemModal();
+        setShowAddItemModal(true);
+    };
+
     const handleCreateCategory = async () => {
         if (!restaurantId) {
             setErrorLines(['Restaurant not found. Please complete Step 1 first.']);
-            return;
-        }
-
-        if (editingCategoryId) {
-            saveCategory();
             return;
         }
 
@@ -364,6 +564,90 @@ export default function Step3({
         try {
             const baseUrl = import.meta.env.VITE_BACKEND_URL;
             if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+
+            if (editingCategoryId) {
+                let imageUrl = (editingCategory?.imageUrl || '').trim();
+                if (categoryImage) {
+                    imageUrl = await uploadImage(categoryImage, baseUrl);
+                }
+                if (!imageUrl) {
+                    setErrorLines(['Please keep or upload a category image.']);
+                    return;
+                }
+
+                const putUrl = `${baseUrl.replace(/\/$/, '')}/api/v1/categories/${encodeURIComponent(editingCategoryId)}`;
+                const res = await fetch(putUrl, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    },
+                    body: JSON.stringify({
+                        restaurant_id: restaurantId,
+                        name: formData.categoryName.trim(),
+                        description: formData.categoryDesc?.trim() || '',
+                        image_url: imageUrl,
+                    }),
+                });
+
+                const contentType = res.headers.get('content-type');
+                const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+
+                if (!res.ok || isErrorPayload(data)) {
+                    const lines = toValidationErrorLines(data);
+                    if (lines.length) {
+                        setErrorLines(lines);
+                    } else if (data && typeof data === 'object') {
+                        const message =
+                            typeof data.message === 'string'
+                                ? data.message
+                                : typeof data.error === 'string'
+                                    ? data.error
+                                    : 'Failed to update category';
+                        setErrorLines([message]);
+                    } else if (typeof data === 'string' && data.trim()) {
+                        setErrorLines([data.trim()]);
+                    } else {
+                        setErrorLines(['Failed to update category']);
+                    }
+                    return;
+                }
+
+                const desiredActive = formData.categoryVisible !== false;
+                const toggleUrl = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step3/category/${encodeURIComponent(editingCategoryId)}/toggle?is_active=${desiredActive ? 'true' : 'false'}`;
+                const toggleRes = await fetch(toggleUrl, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    },
+                });
+                const toggleContentType = toggleRes.headers.get('content-type');
+                const toggleData =
+                    toggleContentType?.includes('application/json') ? await toggleRes.json() : await toggleRes.text();
+                if (!toggleRes.ok || isErrorPayload(toggleData)) {
+                    const lines = toValidationErrorLines(toggleData);
+                    if (lines.length) {
+                        setErrorLines(['Category was updated, but visibility could not be saved.', ...lines]);
+                    } else if (toggleData && typeof toggleData === 'object') {
+                        const message =
+                            typeof toggleData.message === 'string'
+                                ? toggleData.message
+                                : typeof toggleData.error === 'string'
+                                    ? toggleData.error
+                                    : 'Visibility update failed';
+                        setErrorLines(['Category was updated, but visibility could not be saved.', message]);
+                    } else if (typeof toggleData === 'string' && toggleData.trim()) {
+                        setErrorLines(['Category was updated, but visibility could not be saved.', toggleData.trim()]);
+                    } else {
+                        setErrorLines(['Category was updated, but visibility could not be saved.']);
+                    }
+                }
+
+                resetCategoryForm();
+                await fetchCategories();
+                return;
+            }
 
             const imageUrl = await uploadImage(categoryImage, baseUrl);
             const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step3/category`;
@@ -379,7 +663,6 @@ export default function Step3({
                     name: formData.categoryName.trim(),
                     image_url: imageUrl,
                     description: formData.categoryDesc?.trim() || '',
-                    is_active: formData.categoryVisible !== false,
                 }),
             });
 
@@ -406,10 +689,48 @@ export default function Step3({
                 return;
             }
 
+            const desiredActive = formData.categoryVisible !== false;
+            const categoryId = extractCreatedCategoryIdFromResponse(data);
+            if (categoryId) {
+                const toggleUrl = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step3/category/${encodeURIComponent(categoryId)}/toggle?is_active=${desiredActive ? 'true' : 'false'}`;
+                const toggleRes = await fetch(toggleUrl, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    },
+                });
+                const toggleContentType = toggleRes.headers.get('content-type');
+                const toggleData =
+                    toggleContentType?.includes('application/json') ? await toggleRes.json() : await toggleRes.text();
+                if (!toggleRes.ok || isErrorPayload(toggleData)) {
+                    const lines = toValidationErrorLines(toggleData);
+                    if (lines.length) {
+                        setErrorLines(['Category was created, but visibility could not be saved.', ...lines]);
+                    } else if (toggleData && typeof toggleData === 'object') {
+                        const message =
+                            typeof toggleData.message === 'string'
+                                ? toggleData.message
+                                : typeof toggleData.error === 'string'
+                                    ? toggleData.error
+                                    : 'Visibility update failed';
+                        setErrorLines(['Category was created, but visibility could not be saved.', message]);
+                    } else if (typeof toggleData === 'string' && toggleData.trim()) {
+                        setErrorLines(['Category was created, but visibility could not be saved.', toggleData.trim()]);
+                    } else {
+                        setErrorLines(['Category was created, but visibility could not be saved.']);
+                    }
+                }
+            } else {
+                setErrorLines([
+                    'Category was created, but the response did not include an id — visibility was not updated. Please refresh.',
+                ]);
+            }
+
             resetCategoryForm();
             await fetchCategories();
         } catch (e) {
-            const message = typeof e?.message === 'string' ? e.message : 'Failed to create category';
+            const message = typeof e?.message === 'string' ? e.message : 'Failed to save category';
             setErrorLines([message]);
         } finally {
             setSavingCategory(false);
@@ -456,11 +777,16 @@ export default function Step3({
             }
             const cleanedVariants = hasVariants
                 ? variantsList
-                    .map((variant) => ({
-                        name: variant.name?.trim() || '',
-                        price: Number(variant.price),
-                        sku: variant.sku?.trim() || '',
-                    }))
+                    .map((variant) => {
+                        const sid = variant.id;
+                        const includeId = typeof sid === 'string' && isLikelyServerEntityId(sid);
+                        return {
+                            ...(includeId ? { id: sid } : {}),
+                            name: variant.name?.trim() || '',
+                            price: Number(variant.price),
+                            sku: variant.sku?.trim() || '',
+                        };
+                    })
                     .filter((variant) => variant.name && Number.isFinite(variant.price))
                 : [];
             if (hasVariants && cleanedVariants.length === 0) {
@@ -468,50 +794,63 @@ export default function Step3({
                 return;
             }
             const cleanedAddons = (Array.isArray(itemForm.addOns) ? itemForm.addOns : [])
-                .map((addon) => ({
-                    name: addon.name?.trim() || '',
-                    price: Number(addon.price),
-                }))
+                .map((addon) => {
+                    const sid = addon.id;
+                    const includeId = typeof sid === 'string' && isLikelyServerEntityId(sid);
+                    return {
+                        ...(includeId ? { id: sid } : {}),
+                        name: addon.name?.trim() || '',
+                        price: Number(addon.price),
+                    };
+                })
                 .filter((addon) => addon.name && Number.isFinite(addon.price));
 
             const images = [];
             if (itemImage) {
                 const uploadedUrl = await uploadImage(itemImage, baseUrl);
                 if (uploadedUrl) images.push(uploadedUrl);
+            } else if (editingItemId && Array.isArray(editingItemExistingImages) && editingItemExistingImages.length) {
+                images.push(...editingItemExistingImages);
             }
 
-            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step3/item`;
+            const body = {
+                restaurant_id: restaurantId,
+                category_id: itemForm.categoryId,
+                name: itemForm.name.trim(),
+                images,
+                description: itemForm.description?.trim() || '',
+                price: priceValue,
+                tags: Array.isArray(itemForm.tags) ? itemForm.tags : [],
+                prep_time_minutes: Math.trunc(prepMinutesValue),
+                discounted_price: 0,
+                has_variants: hasVariants,
+                track_inventory: !!itemForm.trackInventory,
+                stock_quantity: itemForm.trackInventory && Number.isFinite(stockValue) ? Math.trunc(stockValue) : 0,
+                low_stock_alert: itemForm.trackInventory && Number.isFinite(lowStockValue) ? Math.trunc(lowStockValue) : 10,
+                number_of_orders: 0,
+                is_available: itemForm.isAvailable !== false,
+                catering: !!itemForm.catering,
+                catering_minimum_order: itemForm.catering && Number.isFinite(cateringMinValue) ? Math.trunc(cateringMinValue) : 0,
+                is_best_seller: false,
+                is_todays_deal: false,
+                deal_starts_at: null,
+                deal_ends_at: null,
+                variants: cleanedVariants,
+                addons: cleanedAddons,
+            };
+
+            const isEdit = !!editingItemId;
+            const url = isEdit
+                ? `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step3/item/${encodeURIComponent(editingItemId)}`
+                : `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step3/item`;
+
             const res = await fetch(url, {
-                method: 'POST',
+                method: isEdit ? 'PUT' : 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
                 },
-                body: JSON.stringify({
-                    restaurant_id: restaurantId,
-                    category_id: itemForm.categoryId,
-                    name: itemForm.name.trim(),
-                    images,
-                    description: itemForm.description?.trim() || '',
-                    price: priceValue,
-                    tags: Array.isArray(itemForm.tags) ? itemForm.tags : [],
-                    prep_time_minutes: Math.trunc(prepMinutesValue),
-                    discounted_price: 0,
-                    has_variants: hasVariants,
-                    track_inventory: !!itemForm.trackInventory,
-                    stock_quantity: itemForm.trackInventory && Number.isFinite(stockValue) ? Math.trunc(stockValue) : 0,
-                    low_stock_alert: itemForm.trackInventory && Number.isFinite(lowStockValue) ? Math.trunc(lowStockValue) : 10,
-                    number_of_orders: 0,
-                    is_available: itemForm.isAvailable !== false,
-                    catering: !!itemForm.catering,
-                    catering_minimum_order: itemForm.catering && Number.isFinite(cateringMinValue) ? Math.trunc(cateringMinValue) : 0,
-                    is_best_seller: false,
-                    is_todays_deal: false,
-                    deal_starts_at: null,
-                    deal_ends_at: null,
-                    variants: cleanedVariants,
-                    addons: cleanedAddons,
-                }),
+                body: JSON.stringify(body),
             });
 
             const contentType = res.headers.get('content-type');
@@ -527,20 +866,26 @@ export default function Step3({
                             ? data.message
                             : typeof data.error === 'string'
                                 ? data.error
-                                : 'Failed to create item';
+                                : isEdit
+                                    ? 'Failed to update item'
+                                    : 'Failed to create item';
                     setErrorLines([message]);
                 } else if (typeof data === 'string' && data.trim()) {
                     setErrorLines([data.trim()]);
                 } else {
-                    setErrorLines(['Failed to create item']);
+                    setErrorLines([isEdit ? 'Failed to update item' : 'Failed to create item']);
                 }
                 return;
             }
 
-            saveItem();
+            if (isEdit) {
+                closeItemModal();
+            } else {
+                saveItem();
+            }
             void fetchMenuItems();
         } catch (e) {
-            const message = typeof e?.message === 'string' ? e.message : 'Failed to create item';
+            const message = typeof e?.message === 'string' ? e.message : 'Failed to save item';
             setErrorLines([message]);
         } finally {
             setSavingItem(false);
@@ -762,12 +1107,24 @@ export default function Step3({
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
-                                    {/* <button type="button" onClick={() => startEditCategory(category)} className="p-2 hover:bg-gray-100 rounded-lg">
-                                        <Edit2 size={16} className="text-gray-400" />
-                                    </button> */}
-                                    {/* <button type="button" onClick={() => deleteCategory(category.id)} className="p-2 hover:bg-red-50 rounded-lg">
-                                        <Trash2 size={16} className="text-[#EF4444]" />
-                                    </button> */}
+                                    <button
+                                        type="button"
+                                        onClick={() => startEditCategory(category)}
+                                        disabled={!!deletingCategoryId || savingCategory}
+                                        className="p-2 rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 disabled:opacity-50"
+                                        aria-label="Edit category"
+                                    >
+                                        <Edit2 size={16} />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => void handleDeleteCategory(category)}
+                                        disabled={!!deletingCategoryId || savingCategory || deletingCategoryId === String(category.id)}
+                                        className="p-2 rounded-lg text-[#EF4444] transition-colors hover:bg-red-50 disabled:opacity-50"
+                                        aria-label="Delete category"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
                                 </div>
                             </div>
                         ))}
@@ -782,7 +1139,7 @@ export default function Step3({
                     <button
                         type="button"
                         disabled={!canOpenAddItem}
-                        onClick={() => setShowAddItemModal(true)}
+                        onClick={openNewItemModal}
                         className={`h-11 px-4 rounded-[10px] text-[14px] font-[500] flex items-center gap-2 ${canOpenAddItem ? 'bg-primary text-white' : 'bg-[#E5E7EB] text-[#6B6B6B]'}`}
                     >
                         <Plus size={18} /> Add Item
@@ -812,8 +1169,8 @@ export default function Step3({
                     <div className="space-y-3">
                         {menuItems.map((item) => {
                             return (
-                                <div key={item.id} className="p-4 bg-[#F6F8F9]/50 rounded-[12px] border border-[#E5E7EB]">
-                                    <div className="flex items-start gap-4">
+                                <div key={item.id} className="flex items-start justify-between gap-3 p-4 bg-[#F6F8F9]/50 rounded-[12px] border border-[#E5E7EB]">
+                                    <div className="flex min-w-0 flex-1 items-start gap-4">
                                         <div className="w-[54px] h-[54px] rounded-[12px] bg-white border border-[#E5E7EB] overflow-hidden shrink-0 flex items-center justify-center text-gray-300">
                                             {item.imageUrl ? (
                                                 <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
@@ -822,7 +1179,7 @@ export default function Step3({
                                             )}
                                         </div>
                                         <div className="min-w-0">
-                                            <div className="flex items-center gap-2 flex-wrap">
+                                            <div className="flex flex-wrap items-center gap-2">
                                                 <p className="text-[14px] font-[600] text-[#1A1A1A] truncate">{item.name}</p>
                                                 <span
                                                     className={`text-[10px] px-2 py-0.5 rounded-[999px] shrink-0 ${item.isAvailable ? 'bg-primary-bg text-primary' : 'bg-[#FEF2F2] text-[#EF4444]'}`}
@@ -832,6 +1189,26 @@ export default function Step3({
                                             </div>
                                             <p className="text-[12px] text-[#6B7280] mt-1">{item.categoryName || '—'} • ${item.price}</p>
                                         </div>
+                                    </div>
+                                    <div className="flex shrink-0 items-center gap-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => openEditItem(item)}
+                                            disabled={savingItem || deletingItemIds.includes(String(item.id))}
+                                            className="p-2 rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 disabled:opacity-50"
+                                            aria-label="Edit item"
+                                        >
+                                            <Edit2 size={16} />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => void handleDeleteItem(item)}
+                                            disabled={savingItem || deletingItemIds.includes(String(item.id))}
+                                            className="p-2 rounded-lg text-[#EF4444] transition-colors hover:bg-red-50 disabled:opacity-50"
+                                            aria-label="Delete item"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
                                     </div>
                                 </div>
                             );
@@ -887,14 +1264,18 @@ export default function Step3({
 
             {showAddItemModal && (
                 <div className="fixed inset-0 z-[120]">
-                    <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px]" onClick={closeAddItemModal} />
+                    <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px]" onClick={closeItemModal} />
                     <div className="fixed inset-0 flex items-center justify-center p-4">
                         <div className="bg-white w-full max-w-[900px] rounded-[24px] overflow-hidden shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
                             <div className="p-6 border-b border-gray-100 flex items-center justify-between">
                                 <h2 className="text-[22px] font-bold text-[#1A1A1A]">
-                                    {itemForm.categoryId ? `Add Item to ${categories.find((c) => c.id === itemForm.categoryId)?.name || 'Category'}` : 'Add Item'}
+                                    {editingItemId
+                                        ? 'Edit item'
+                                        : itemForm.categoryId
+                                            ? `Add Item to ${categories.find((c) => c.id === itemForm.categoryId)?.name || 'Category'}`
+                                            : 'Add Item'}
                                 </h2>
-                                <button onClick={closeAddItemModal} className="p-1 hover:bg-gray-100 rounded-full transition-colors">
+                                <button onClick={closeItemModal} className="p-1 hover:bg-gray-100 rounded-full transition-colors">
                                     <X size={20} className="text-gray-400" />
                                 </button>
                             </div>
@@ -1182,7 +1563,7 @@ export default function Step3({
                             <div className="p-6 border-t border-gray-100 flex items-center justify-end gap-4">
                                 <button
                                     type="button"
-                                    onClick={closeAddItemModal}
+                                    onClick={closeItemModal}
                                     className="h-[52px] px-8 border border-gray-200 text-[#1A1A1A] font-[600] rounded-[12px] hover:bg-gray-50 transition-colors"
                                 >
                                     Cancel
@@ -1193,7 +1574,7 @@ export default function Step3({
                                     onClick={handleCreateItem}
                                     className={`h-[52px] px-8 font-[600] rounded-[12px] transition-colors ${savingItem ? 'bg-[#E5E7EB] text-[#9CA3AF]' : canSaveItem ? 'bg-primary text-white hover:bg-primary/90' : 'bg-[#E5E7EB] text-[#9CA3AF]'}`}
                                 >
-                                    {savingItem ? 'Saving...' : 'Save Item'}
+                                    {savingItem ? 'Saving...' : editingItemId ? 'Update Item' : 'Save Item'}
                                 </button>
                             </div>
                         </div>

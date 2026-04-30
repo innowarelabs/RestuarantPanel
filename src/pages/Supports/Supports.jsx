@@ -22,7 +22,7 @@ const Supports = () => {
         setIsDetailsModalOpen(true);
     };
 
-    const handleTicketCreated = () => {
+    const refreshTicketsList = () => {
         setRefreshKey((prev) => prev + 1);
     };
 
@@ -48,7 +48,7 @@ const Supports = () => {
             <CreateTicketModal
                 isOpen={isCreateModalOpen}
                 onClose={() => setIsCreateModalOpen(false)}
-                onSuccess={handleTicketCreated}
+                onSuccess={refreshTicketsList}
             />
             <FilterTicketsModal
                 isOpen={isFilterModalOpen}
@@ -58,6 +58,7 @@ const Supports = () => {
                 isOpen={isDetailsModalOpen}
                 onClose={() => setIsDetailsModalOpen(false)}
                 ticket={selectedTicket}
+                onTicketUpdated={refreshTicketsList}
             />
         </div>
     );
