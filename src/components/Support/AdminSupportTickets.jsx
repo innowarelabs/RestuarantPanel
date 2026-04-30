@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import { ChevronDown, Eye } from 'lucide-react';
@@ -61,6 +61,7 @@ const AdminSupportTickets = ({ onViewTicket, refreshKey }) => {
     const [menu, setMenu] = useState(null);
     /** `apiId` while PATCH in flight — blocks duplicate submits. */
     const [patchingId, setPatchingId] = useState(null);
+    const menuDropdownRef = useRef(null);
 
     /** Category tag colors (design spec). */
     const getCategoryColor = (type) => {
@@ -261,6 +262,18 @@ const AdminSupportTickets = ({ onViewTicket, refreshKey }) => {
         };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
+    }, [menu]);
+
+    useEffect(() => {
+        if (!menu) return;
+        const onPointerDown = (e) => {
+            const t = e.target;
+            if (menuDropdownRef.current?.contains(t)) return;
+            if (t.closest?.('[data-ticket-inline-dropdown-trigger]')) return;
+            setMenu(null);
+        };
+        document.addEventListener('mousedown', onPointerDown);
+        return () => document.removeEventListener('mousedown', onPointerDown);
     }, [menu]);
 
     useEffect(() => {
@@ -481,6 +494,7 @@ const AdminSupportTickets = ({ onViewTicket, refreshKey }) => {
                                     <td className="px-6 py-5">
                                         <button
                                             type="button"
+                                            data-ticket-inline-dropdown-trigger
                                             disabled={!ticket.apiId || patchingId === ticket.apiId}
                                             onClick={(e) => openMenu('priority', ticket, e)}
                                             className={`${tagPillInteractiveClass} ${getPriorityColor(ticket.priorityRaw)} max-w-full cursor-pointer border-0 disabled:cursor-not-allowed disabled:opacity-60`}
@@ -493,6 +507,7 @@ const AdminSupportTickets = ({ onViewTicket, refreshKey }) => {
                                     <td className="px-6 py-5">
                                         <button
                                             type="button"
+                                            data-ticket-inline-dropdown-trigger
                                             disabled={!ticket.apiId || patchingId === ticket.apiId}
                                             onClick={(e) => openMenu('status', ticket, e)}
                                             className={`${tagPillInteractiveClass} text-nowrap ${getStatusColor(ticket.statusApi)} max-w-full cursor-pointer border-0 disabled:cursor-not-allowed disabled:opacity-60`}
@@ -544,22 +559,16 @@ const AdminSupportTickets = ({ onViewTicket, refreshKey }) => {
             )}
         </div>
         {menu && menu.apiId && (
-            <>
-                <div
-                    className="fixed inset-0 z-[90]"
-                    aria-hidden
-                    onMouseDown={() => setMenu(null)}
-                />
-                <ul
-                    className="fixed z-[100] max-h-64 min-w-[168px] overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-xl"
-                    style={{
-                        top: menu.top,
-                        left: menu.left,
-                        minWidth: Math.max(menu.minWidth || 0, 168),
-                    }}
-                    role="listbox"
-                    onMouseDown={(e) => e.stopPropagation()}
-                >
+            <ul
+                ref={menuDropdownRef}
+                className="fixed z-[100] max-h-64 min-w-[168px] overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-xl"
+                style={{
+                    top: menu.top,
+                    left: menu.left,
+                    minWidth: Math.max(menu.minWidth || 0, 168),
+                }}
+                role="listbox"
+            >
                     {menu.field === 'priority'
                         ? PRIORITY_OPTIONS.map((opt) => {
                               const row = tickets.find((t) => t.apiId === menu.apiId);
@@ -599,8 +608,7 @@ const AdminSupportTickets = ({ onViewTicket, refreshKey }) => {
                                   </li>
                               );
                           })}
-                </ul>
-            </>
+            </ul>
         )}
         </>
     );

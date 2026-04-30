@@ -1,5 +1,6 @@
 import { AlertCircle, ChevronDown, ChevronLeft, ChevronRight, Edit2, Image, Plus, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useSelector } from 'react-redux';
 import Toggle from './Toggle';
 
@@ -28,6 +29,7 @@ const isErrorPayload = (data) => {
     if (typeof data.code !== 'string') return false;
     const code = data.code.trim().toUpperCase();
     if (!code) return false;
+    if (code.startsWith('SUCCESS_')) return false;
     if (code.startsWith('ERROR_')) return true;
     if (code.endsWith('_400') || code.endsWith('_401') || code.endsWith('_403') || code.endsWith('_404') || code.endsWith('_422') || code.endsWith('_500')) return true;
     if (data.data === null && typeof data.message === 'string' && data.message.trim()) return true;
@@ -284,8 +286,12 @@ export default function Step3({
     const [menuItems, setMenuItems] = useState([]);
     const [editingItemId, setEditingItemId] = useState('');
     const [editingItemExistingImages, setEditingItemExistingImages] = useState([]);
-    const [deletingCategoryId, setDeletingCategoryId] = useState('');
-    const [deletingItemIds, setDeletingItemIds] = useState([]);
+    const [deleteCategoryTarget, setDeleteCategoryTarget] = useState(null);
+    const [deleteCategoryErrorLines, setDeleteCategoryErrorLines] = useState([]);
+    const [deletingCategory, setDeletingCategory] = useState(false);
+    const [deleteItemTarget, setDeleteItemTarget] = useState(null);
+    const [deleteItemErrorLines, setDeleteItemErrorLines] = useState([]);
+    const [deletingItem, setDeletingItem] = useState(false);
 
     const categoryImageInputRef = useRef(null);
 
@@ -434,15 +440,26 @@ export default function Step3({
         void fetchMenuItems();
     }, [fetchMenuItems]);
 
-    const handleDeleteCategory = async (category) => {
-        if (!category?.id || !restaurantId) return;
-        if (!window.confirm(`Delete category "${category.name}"? This cannot be undone.`)) return;
-        setDeletingCategoryId(String(category.id));
-        setErrorLines([]);
+    const closeDeleteCategory = useCallback(() => {
+        if (deletingCategory) return;
+        setDeleteCategoryTarget(null);
+        setDeleteCategoryErrorLines([]);
+    }, [deletingCategory]);
+
+    const openDeleteCategory = (category) => {
+        if (!category?.id) return;
+        setDeleteCategoryErrorLines([]);
+        setDeleteCategoryTarget(category);
+    };
+
+    const confirmDeleteCategory = async () => {
+        if (!deleteCategoryTarget?.id || !restaurantId || deletingCategory) return;
+        setDeletingCategory(true);
+        setDeleteCategoryErrorLines([]);
         try {
             const baseUrl = import.meta.env.VITE_BACKEND_URL;
             if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
-            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/categories/${encodeURIComponent(category.id)}`;
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/categories/${encodeURIComponent(deleteCategoryTarget.id)}`;
             const res = await fetch(url, {
                 method: 'DELETE',
                 headers: {
@@ -455,7 +472,7 @@ export default function Step3({
             if (!res.ok || isErrorPayload(data)) {
                 const lines = toValidationErrorLines(data);
                 if (lines.length) {
-                    setErrorLines(lines);
+                    setDeleteCategoryErrorLines(lines);
                 } else if (data && typeof data === 'object') {
                     const message =
                         typeof data.message === 'string'
@@ -463,30 +480,43 @@ export default function Step3({
                             : typeof data.error === 'string'
                                 ? data.error
                                 : 'Failed to delete category';
-                    setErrorLines([message]);
+                    setDeleteCategoryErrorLines([message]);
                 } else if (typeof data === 'string' && data.trim()) {
-                    setErrorLines([data.trim()]);
+                    setDeleteCategoryErrorLines([data.trim()]);
                 } else {
-                    setErrorLines(['Failed to delete category']);
+                    setDeleteCategoryErrorLines(['Failed to delete category']);
                 }
                 return;
             }
-            deleteCategory(category.id);
+            deleteCategory(deleteCategoryTarget.id);
+            setDeleteCategoryTarget(null);
             await fetchCategories();
         } catch (e) {
             const message = typeof e?.message === 'string' ? e.message : 'Failed to delete category';
-            setErrorLines([message]);
+            setDeleteCategoryErrorLines([message]);
         } finally {
-            setDeletingCategoryId('');
+            setDeletingCategory(false);
         }
     };
 
-    const handleDeleteItem = async (item) => {
+    const closeDeleteItem = useCallback(() => {
+        if (deletingItem) return;
+        setDeleteItemTarget(null);
+        setDeleteItemErrorLines([]);
+    }, [deletingItem]);
+
+    const openDeleteItem = (item) => {
         const id = item?.id ? String(item.id) : '';
-        if (!id || !restaurantId) return;
-        if (!window.confirm(`Delete item "${item.name}"? This cannot be undone.`)) return;
-        setDeletingItemIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
-        setMenuItemsErrorLines([]);
+        if (!id) return;
+        setDeleteItemErrorLines([]);
+        setDeleteItemTarget(item);
+    };
+
+    const confirmDeleteItem = async () => {
+        const id = deleteItemTarget?.id ? String(deleteItemTarget.id) : '';
+        if (!id || !restaurantId || deletingItem) return;
+        setDeletingItem(true);
+        setDeleteItemErrorLines([]);
         try {
             const baseUrl = import.meta.env.VITE_BACKEND_URL;
             if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
@@ -503,7 +533,7 @@ export default function Step3({
             if (!res.ok || isErrorPayload(data)) {
                 const lines = toValidationErrorLines(data);
                 if (lines.length) {
-                    setMenuItemsErrorLines(lines);
+                    setDeleteItemErrorLines(lines);
                 } else if (data && typeof data === 'object') {
                     const message =
                         typeof data.message === 'string'
@@ -511,22 +541,41 @@ export default function Step3({
                             : typeof data.error === 'string'
                                 ? data.error
                                 : 'Failed to delete item';
-                    setMenuItemsErrorLines([message]);
+                    setDeleteItemErrorLines([message]);
                 } else if (typeof data === 'string' && data.trim()) {
-                    setMenuItemsErrorLines([data.trim()]);
+                    setDeleteItemErrorLines([data.trim()]);
                 } else {
-                    setMenuItemsErrorLines(['Failed to delete item']);
+                    setDeleteItemErrorLines(['Failed to delete item']);
                 }
                 return;
             }
+            setDeleteItemTarget(null);
             await fetchMenuItems();
         } catch (e) {
             const message = typeof e?.message === 'string' ? e.message : 'Failed to delete item';
-            setMenuItemsErrorLines([message]);
+            setDeleteItemErrorLines([message]);
         } finally {
-            setDeletingItemIds((prev) => prev.filter((x) => x !== id));
+            setDeletingItem(false);
         }
     };
+
+    useEffect(() => {
+        if (!deleteCategoryTarget) return;
+        const onKeyDown = (e) => {
+            if (e.key === 'Escape') closeDeleteCategory();
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [closeDeleteCategory, deleteCategoryTarget]);
+
+    useEffect(() => {
+        if (!deleteItemTarget) return;
+        const onKeyDown = (e) => {
+            if (e.key === 'Escape') closeDeleteItem();
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [closeDeleteItem, deleteItemTarget]);
 
     const openEditItem = (row) => {
         const dish = row?.rawDish;
@@ -1110,7 +1159,7 @@ export default function Step3({
                                     <button
                                         type="button"
                                         onClick={() => startEditCategory(category)}
-                                        disabled={!!deletingCategoryId || savingCategory}
+                                        disabled={deletingCategory || savingCategory}
                                         className="p-2 rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 disabled:opacity-50"
                                         aria-label="Edit category"
                                     >
@@ -1118,8 +1167,8 @@ export default function Step3({
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={() => void handleDeleteCategory(category)}
-                                        disabled={!!deletingCategoryId || savingCategory || deletingCategoryId === String(category.id)}
+                                        onClick={() => openDeleteCategory(category)}
+                                        disabled={deletingCategory || savingCategory}
                                         className="p-2 rounded-lg text-[#EF4444] transition-colors hover:bg-red-50 disabled:opacity-50"
                                         aria-label="Delete category"
                                     >
@@ -1194,7 +1243,7 @@ export default function Step3({
                                         <button
                                             type="button"
                                             onClick={() => openEditItem(item)}
-                                            disabled={savingItem || deletingItemIds.includes(String(item.id))}
+                                            disabled={savingItem || deletingItem}
                                             className="p-2 rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 disabled:opacity-50"
                                             aria-label="Edit item"
                                         >
@@ -1202,8 +1251,8 @@ export default function Step3({
                                         </button>
                                         <button
                                             type="button"
-                                            onClick={() => void handleDeleteItem(item)}
-                                            disabled={savingItem || deletingItemIds.includes(String(item.id))}
+                                            onClick={() => openDeleteItem(item)}
+                                            disabled={savingItem || deletingItem}
                                             className="p-2 rounded-lg text-[#EF4444] transition-colors hover:bg-red-50 disabled:opacity-50"
                                             aria-label="Delete item"
                                         >
@@ -1262,10 +1311,12 @@ export default function Step3({
                 </button>
             </div>
 
-            {showAddItemModal && (
-                <div className="fixed inset-0 z-[120]">
-                    <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px]" onClick={closeItemModal} />
-                    <div className="fixed inset-0 flex items-center justify-center p-4">
+            {showAddItemModal &&
+                typeof document !== 'undefined' &&
+                createPortal(
+                    <div className="fixed inset-0 z-[120]">
+                        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={closeItemModal} aria-hidden />
+                        <div className="absolute inset-0 flex items-center justify-center overflow-y-auto p-4">
                         <div className="bg-white w-full max-w-[900px] rounded-[24px] overflow-hidden shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
                             <div className="p-6 border-b border-gray-100 flex items-center justify-between">
                                 <h2 className="text-[22px] font-bold text-[#1A1A1A]">
@@ -1578,9 +1629,126 @@ export default function Step3({
                                 </button>
                             </div>
                         </div>
+                        </div>
+                    </div>,
+                    document.body,
+                )}
+
+            {deleteCategoryTarget &&
+                typeof document !== 'undefined' &&
+                createPortal(
+                    <div className="fixed inset-0 z-[10000]">
+                        <div className="absolute inset-0 bg-black/50" onMouseDown={closeDeleteCategory} aria-hidden />
+                        <div className="absolute inset-0 flex items-center justify-center overflow-y-auto p-4 pointer-events-none">
+                    <div
+                        className="pointer-events-auto w-full max-w-[460px] overflow-hidden rounded-[16px] bg-white shadow-xl"
+                        onMouseDown={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between border-b border-gray-100 bg-white px-6 py-5">
+                            <h2 className="text-[18px] font-bold text-[#111827]">Delete Category</h2>
+                            <button
+                                type="button"
+                                onClick={closeDeleteCategory}
+                                className="rounded-full p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+                                disabled={deletingCategory}
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="space-y-4 bg-white p-6">
+                            {!!deleteCategoryErrorLines.length && (
+                                <div className="space-y-1 rounded-[12px] border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700">
+                                    {deleteCategoryErrorLines.map((line, idx) => (
+                                        <div key={`${line}-${idx}`}>{line}</div>
+                                    ))}
+                                </div>
+                            )}
+                            <div className="text-[14px] text-[#374151]">
+                                Are you sure you want to delete{' '}
+                                <span className="font-medium text-[#111827]">{deleteCategoryTarget.name}</span>?
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-end gap-3 border-t border-gray-100 bg-white px-6 py-5">
+                            <button
+                                type="button"
+                                onClick={closeDeleteCategory}
+                                className="rounded-[8px] border border-[#E5E7EB] bg-white px-5 py-2.5 text-[14px] font-medium text-[#374151] transition-colors hover:bg-gray-50"
+                                disabled={deletingCategory}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => void confirmDeleteCategory()}
+                                className={`rounded-[8px] px-5 py-2.5 text-[14px] font-medium text-white transition-colors ${deletingCategory ? 'cursor-not-allowed bg-gray-300' : 'bg-[#EF4444] hover:bg-[#D14343]'}`}
+                                disabled={deletingCategory}
+                            >
+                                {deletingCategory ? 'Deleting...' : 'Delete'}
+                            </button>
+                        </div>
                     </div>
-                </div>
-            )}
+                        </div>
+                    </div>,
+                    document.body,
+                )}
+
+            {deleteItemTarget &&
+                typeof document !== 'undefined' &&
+                createPortal(
+                    <div className="fixed inset-0 z-[10000]">
+                        <div className="absolute inset-0 bg-black/50" onMouseDown={closeDeleteItem} aria-hidden />
+                        <div className="absolute inset-0 flex items-center justify-center overflow-y-auto p-4 pointer-events-none">
+                    <div
+                        className="pointer-events-auto w-full max-w-[460px] overflow-hidden rounded-[16px] bg-white shadow-xl"
+                        onMouseDown={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between border-b border-gray-100 bg-white px-6 py-5">
+                            <h2 className="text-[18px] font-bold text-[#111827]">Delete Item</h2>
+                            <button
+                                type="button"
+                                onClick={closeDeleteItem}
+                                className="rounded-full p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+                                disabled={deletingItem}
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="space-y-4 bg-white p-6">
+                            {!!deleteItemErrorLines.length && (
+                                <div className="space-y-1 rounded-[12px] border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700">
+                                    {deleteItemErrorLines.map((line, idx) => (
+                                        <div key={`${line}-${idx}`}>{line}</div>
+                                    ))}
+                                </div>
+                            )}
+                            <div className="text-[14px] text-[#374151]">
+                                Are you sure you want to delete{' '}
+                                <span className="font-medium text-[#111827]">{deleteItemTarget.name}</span>?
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-end gap-3 border-t border-gray-100 bg-white px-6 py-5">
+                            <button
+                                type="button"
+                                onClick={closeDeleteItem}
+                                className="rounded-[8px] border border-[#E5E7EB] bg-white px-5 py-2.5 text-[14px] font-medium text-[#374151] transition-colors hover:bg-gray-50"
+                                disabled={deletingItem}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => void confirmDeleteItem()}
+                                className={`rounded-[8px] px-5 py-2.5 text-[14px] font-medium text-white transition-colors ${deletingItem ? 'cursor-not-allowed bg-gray-300' : 'bg-[#EF4444] hover:bg-[#D14343]'}`}
+                                disabled={deletingItem}
+                            >
+                                {deletingItem ? 'Deleting...' : 'Delete'}
+                            </button>
+                        </div>
+                    </div>
+                        </div>
+                    </div>,
+                    document.body,
+                )}
         </div>
     );
 }
