@@ -4,11 +4,15 @@ import { useSelector } from 'react-redux';
 
 import NotificationToggle from './NotificationToggle';
 
+/** Section titles — match Step 5 */
+const STEP7_SECTION_TITLE = 'font-sans text-[16px] font-bold leading-[19.2px] tracking-normal text-[#0F1724]';
+
 export default function Step7({ formData, setFormData, handlePrev, handleNext }) {
     const accessToken = useSelector((state) => state.auth.accessToken);
     const [submitting, setSubmitting] = useState(false);
     const [errorLines, setErrorLines] = useState([]);
     const enabledChannels = [formData.appNotify, formData.emailNotify, formData.smsNotify].filter(Boolean).length;
+    const enabledAlertsCount = [formData.newOrderAlert, formData.riderAlert, formData.complaintAlert].filter(Boolean).length;
 
     const toValidationErrorLines = (data) => {
         if (!data || typeof data !== 'object') return [];
@@ -98,9 +102,7 @@ export default function Step7({ formData, setFormData, handlePrev, handleNext })
     return (
         <div className="space-y-10">
             <div className="space-y-6">
-                <h3 className="font-sans text-[15px] font-semibold leading-[18px] tracking-normal text-[#0F1724]">
-                    General Notifications
-                </h3>
+                <h3 className={STEP7_SECTION_TITLE}>General Notifications</h3>
                 <div className="space-y-6">
                     <NotificationToggle
                         title="App Notifications"
@@ -126,7 +128,7 @@ export default function Step7({ formData, setFormData, handlePrev, handleNext })
             <div className="border-t border-gray-100" />
 
             <div className="space-y-6">
-                <h3 className="text-[16px] font-[500] text-[#111827]">Alert Preferences</h3>
+                <h3 className={STEP7_SECTION_TITLE}>Alert Preferences</h3>
                 <div className="space-y-6">
                     <NotificationToggle
                         title="New Order Alert"
@@ -149,9 +151,11 @@ export default function Step7({ formData, setFormData, handlePrev, handleNext })
                 </div>
             </div>
 
-            <div className="bg-[#DD2F2626] p-5 rounded-[8px] mt-2">
-                <p className="text-[13px] text-[#475569]">
+            <div className="bg-[#DD2F2626] border border-primary p-5 rounded-[8px] mt-2">
+                <p className="text-[13px] text-[#475569] leading-relaxed">
                     You have {enabledChannels} notification {enabledChannels === 1 ? 'channel' : 'channels'} enabled
+                    {', '}
+                    and {enabledAlertsCount} alert {enabledAlertsCount === 1 ? 'preference' : 'preferences'} enabled.
                 </p>
             </div>
 

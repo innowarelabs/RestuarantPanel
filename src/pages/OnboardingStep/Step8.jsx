@@ -2,6 +2,11 @@ import { AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
 
+/** Field labels — match Step 5 / Step 7 */
+const STEP8_FIELD_LABEL_BLOCK = 'block font-sans text-[14px] font-medium leading-[21px] tracking-normal text-[#374151]';
+/** Preview card title */
+const STEP8_SECTION_TITLE = 'font-sans text-[16px] font-bold leading-[19.2px] tracking-normal text-[#0F1724]';
+
 export default function Step8({ formData, setFormData, handlePrev, handleNext }) {
     const accessToken = useSelector((state) => state.auth.accessToken);
     const [submitting, setSubmitting] = useState(false);
@@ -96,7 +101,9 @@ export default function Step8({ formData, setFormData, handlePrev, handleNext })
     return (
         <form className="space-y-6">
             <div className="space-y-2">
-                <label className="block text-[14px] font-[500] text-[#111827]">Support Email <span className="text-red-500">*</span></label>
+                <label className={STEP8_FIELD_LABEL_BLOCK}>
+                    Support Email <span className="text-red-500">*</span>
+                </label>
                 <input
                     type="email"
                     value={formData.supportEmail}
@@ -107,7 +114,9 @@ export default function Step8({ formData, setFormData, handlePrev, handleNext })
             </div>
 
             <div className="space-y-2">
-                <label className="block text-[14px] font-[500] text-[#111827]">Contact Phone <span className="text-red-500">*</span></label>
+                <label className={STEP8_FIELD_LABEL_BLOCK}>
+                    Contact Phone <span className="text-red-500">*</span>
+                </label>
                 <input
                     type="text"
                     value={formData.supportPhone}
@@ -118,7 +127,9 @@ export default function Step8({ formData, setFormData, handlePrev, handleNext })
             </div>
 
             <div className="space-y-2">
-                <label className="block text-[14px] font-[500] text-[#111827]">Auto-reply Message <span className="text-red-500">*</span></label>
+                <label className={STEP8_FIELD_LABEL_BLOCK}>
+                    Auto-reply Message <span className="text-red-500">*</span>
+                </label>
                 <textarea
                     value={formData.autoReply}
                     onChange={(e) => setFormData({ ...formData, autoReply: e.target.value })}
@@ -128,7 +139,9 @@ export default function Step8({ formData, setFormData, handlePrev, handleNext })
             </div>
 
             <div className="space-y-2">
-                <label className="block text-[14px] font-[500] text-[#111827]">Chat Greeting Message <span className="text-red-500">*</span></label>
+                <label className={STEP8_FIELD_LABEL_BLOCK}>
+                    Chat Greeting Message <span className="text-red-500">*</span>
+                </label>
                 <input
                     type="text"
                     value={formData.chatGreeting}
@@ -139,7 +152,7 @@ export default function Step8({ formData, setFormData, handlePrev, handleNext })
             </div>
 
             <div className="space-y-2">
-                <label className="block text-[14px] font-[500] text-[#111827]">Chat Availability Hours (Optional)</label>
+                <label className={STEP8_FIELD_LABEL_BLOCK}>Chat Availability Hours (Optional)</label>
                 <input
                     type="text"
                     value={formData.chatHours}
@@ -149,8 +162,8 @@ export default function Step8({ formData, setFormData, handlePrev, handleNext })
                 />
             </div>
 
-            <div className="bg-[#DD2F2626] border border-[#DD2F26]/30 p-5 rounded-[12px] mt-4 space-y-3">
-                <h4 className="text-[13px] font-[600] text-primary">Preview: Auto-reply</h4>
+            <div className="bg-[#DD2F2626] border border-primary p-5 rounded-[12px] mt-4 space-y-3">
+                <h4 className={STEP8_SECTION_TITLE}>Preview: Auto-reply</h4>
                 <div className="bg-white p-4 rounded-[8px] border border-[#DD2F26]/10">
                     <p className="text-[14px] text-[#111827] leading-relaxed">
                         {formData.autoReply || 'Your auto-reply message will appear here...'}

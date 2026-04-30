@@ -1,5 +1,5 @@
 import { AlertCircle, ChevronDown, ChevronLeft, ChevronRight, Edit2, Image, Plus, Trash2, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import Toggle from './Toggle';
 
@@ -102,6 +102,12 @@ const mapMenuDish = (raw) => {
     const images = Array.isArray(raw.images) ? raw.images.map((img) => normalizeUrl(String(img))) : [];
     const imageUrl = images.find(Boolean) || '';
     const categoryName = typeof raw.__categoryName === 'string' ? raw.__categoryName : '';
+    const isAvailable =
+        typeof raw.is_available === 'boolean'
+            ? raw.is_available
+            : typeof raw.isAvailable === 'boolean'
+                ? raw.isAvailable
+                : true;
     return {
         id,
         name,
@@ -109,6 +115,7 @@ const mapMenuDish = (raw) => {
         price: Number.isFinite(price) ? price : 0,
         imageUrl,
         categoryName,
+        isAvailable,
     };
 };
 
@@ -123,11 +130,20 @@ const mapCategory = (raw) => {
     const name = typeof raw.name === 'string' ? raw.name : '';
     if (!id || !name) return null;
     const description = typeof raw.description === 'string' ? raw.description : '';
-    const imageUrl = typeof raw.image_url === 'string' ? normalizeUrl(raw.image_url) : typeof raw.imageUrl === 'string' ? normalizeUrl(raw.imageUrl) : '';
+    const imageRaw =
+        (typeof raw.image === 'string' && raw.image) ||
+        (typeof raw.image_url === 'string' && raw.image_url) ||
+        (typeof raw.imageUrl === 'string' && raw.imageUrl) ||
+        '';
+    const imageUrl = imageRaw ? normalizeUrl(imageRaw) : '';
     const visible = typeof raw.visible === 'boolean' ? raw.visible : true;
     const imageName = imageUrl ? imageUrl.split('/').pop() || '' : '';
     return { id, name, description, imageUrl, imageName, visible };
 };
+
+/** Sofia Pro 500 / 14px / 21px line-height / #374151 */
+const STEP3_FIELD_LABEL = 'block font-sans text-[14px] font-medium leading-[21px] tracking-normal text-[#374151]';
+const STEP3_LABEL_LEAD = 'font-sans text-[14px] font-medium leading-[21px] tracking-normal text-[#374151]';
 
 export default function Step3({
     categories,
@@ -163,6 +179,8 @@ export default function Step3({
     const [errorLines, setErrorLines] = useState([]);
     const [menuItemsErrorLines, setMenuItemsErrorLines] = useState([]);
     const [menuItems, setMenuItems] = useState([]);
+
+    const categoryImageInputRef = useRef(null);
 
     const restaurantId = formData.restaurantId?.trim();
     const editingCategory = categories.find((c) => c.id === editingCategoryId) || null;
@@ -338,6 +356,7 @@ export default function Step3({
                     name: formData.categoryName.trim(),
                     image_url: imageUrl,
                     description: formData.categoryDesc?.trim() || '',
+                    status: formData.categoryVisible !== false,
                 }),
             });
 
@@ -571,7 +590,9 @@ export default function Step3({
         <div className="space-y-8">
             <div className="">
                 <div className="flex items-center justify-between gap-4 mb-4">
-                    <h3 className="text-[16px] font-[400] text-[#1A1A1A]">Add Menu Categories</h3>
+                    <h3 className="font-sans text-[16px] font-semibold leading-[19.2px] tracking-normal text-[#0F1724]">
+                        Add Menu Categories
+                    </h3>
                     {editingCategoryId && (
                         <button type="button" onClick={resetCategoryForm} className="text-[13px] text-[#6B7280] font-[500] hover:underline">
                             Cancel edit
@@ -581,7 +602,7 @@ export default function Step3({
                 <div className="space-y-4">
                     <div>
                         <div className="flex items-end justify-between gap-3 mb-1.5">
-                            <label className="block text-[14px] font-[500] text-[#1A1A1A]">Image</label>
+                            <label className={STEP3_FIELD_LABEL}>Category Image</label>
                             <span className="text-[11px] text-[#6B7280] font-[400]">
                                 Required: {CATEGORY_IMAGE_REQUIRED_PX.width}×{CATEGORY_IMAGE_REQUIRED_PX.height}px
                             </span>
@@ -595,6 +616,7 @@ export default function Step3({
                                 {categoryImage?.name ?? editingCategory?.imageName ?? 'No file chosen'}
                             </span>
                             <input
+                                ref={categoryImageInputRef}
                                 id="categoryImageUpload"
                                 type="file"
                                 accept="image/*"
@@ -603,13 +625,26 @@ export default function Step3({
                             />
                         </div>
                         {categoryImagePreviewUrl && (
-                            <div className="w-[270px] h-[195px] rounded-[16px] overflow-hidden border border-[#E5E7EB] bg-white mt-2">
-                                <img src={categoryImagePreviewUrl} alt="Category Preview" className="w-full h-full object-cover" />
+                            <div className="relative w-[270px] mt-2">
+                                <div className="w-full h-[195px] rounded-[16px] overflow-hidden border border-[#E5E7EB] bg-white">
+                                    <img src={categoryImagePreviewUrl} alt="Category Preview" className="w-full h-full object-contain" />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setCategoryImageFile(null);
+                                        if (categoryImageInputRef.current) categoryImageInputRef.current.value = '';
+                                    }}
+                                    className="absolute top-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-[#0F1724]/70 text-white shadow-sm transition-colors hover:bg-[#0F1724]/90"
+                                    aria-label="Remove category image"
+                                >
+                                    <X size={16} strokeWidth={2.5} />
+                                </button>
                             </div>
                         )}
                     </div>
                     <div>
-                        <label className="block text-[14px] font-[500] text-[#1A1A1A] mb-1.5">Name</label>
+                        <label className={`${STEP3_FIELD_LABEL} mb-1.5`}>Category Name</label>
                         <input
                             type="text"
                             placeholder="e.g., Burgers, Pizzas, Drinks"
@@ -619,7 +654,7 @@ export default function Step3({
                         />
                     </div>
                     <div>
-                        <label className="block text-[14px] font-[500] text-[#1A1A1A] mb-1.5">Description (optional)</label>
+                        <label className={`${STEP3_FIELD_LABEL} mb-1.5`}>Category Description (optional)</label>
                         <input
                             type="text"
                             placeholder="Brief description of this category"
@@ -627,6 +662,28 @@ export default function Step3({
                             onChange={(e) => setFormData({ ...formData, categoryDesc: e.target.value })}
                             className="onboarding-input h-11"
                         />
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="min-w-0 pr-2">
+                            <p className={STEP3_LABEL_LEAD}>Category Visibility</p>
+                            <p className="text-[12px] text-[#6B7280] mt-0.5 leading-snug">Show this category to customers</p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                            <span
+                                className={`text-[12px] font-[600] min-w-[28px] text-right ${formData.categoryVisible !== false ? 'text-primary' : 'text-[#9CA3AF]'}`}
+                            >
+                                {formData.categoryVisible !== false ? 'ON' : 'OFF'}
+                            </span>
+                            <Toggle
+                                active={formData.categoryVisible !== false}
+                                onClick={() =>
+                                    setFormData((prev) => ({
+                                        ...prev,
+                                        categoryVisible: !(prev.categoryVisible !== false),
+                                    }))
+                                }
+                            />
+                        </div>
                     </div>
                     <button
                         type="button"
@@ -639,10 +696,13 @@ export default function Step3({
                 </div>
             </div>
 
-            <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-[16px] text-[#1A1A1A]">Your Categories ({categories.length})</h3>
+            <div className="">
+                <div className="flex items-center justify-between gap-4 mb-4">
+                    <h3 className="font-sans text-[16px] font-semibold leading-[19.2px] tracking-normal text-[#0F1724]">
+                        Your Categories ({categories.length})
+                    </h3>
                 </div>
+                <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
                 {loadingCategories ? (
                     <div className="py-6 text-center text-[#6B7280] text-[13px]">
                         Loading categories...
@@ -655,24 +715,28 @@ export default function Step3({
                     <div className="space-y-3">
                         {categories.map((category) => (
                             <div key={category.id} className="flex items-start justify-between gap-4 p-4 bg-[#F6F8F9]/50 rounded-[12px] border border-[#E5E7EB]">
-                                <div className="min-w-0">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <p className="text-[14px] font-[600] text-[#1A1A1A] truncate">{category.name}</p>
-                                        <span className={`text-[10px] px-2 py-0.5 rounded-[999px] ${category.visible ? 'bg-primary-bg text-primary' : 'bg-[#FEF2F2] text-[#EF4444]'}`}>
-                                            {category.visible ? 'Enabled' : 'Disabled'}
-                                        </span>
-                                    </div>
-                                    {category.description ? (
-                                        <p className="text-[12px] text-[#6B7280] mt-1">{category.description}</p>
-                                    ) : null}
-                                    {category.imageUrl ? (
-                                        <div className="mt-2 w-[120px] h-[70px] rounded-[10px] overflow-hidden border border-[#E5E7EB] bg-white">
+                                <div className="flex items-start gap-4 min-w-0 flex-1">
+                                    <div className="w-[54px] h-[54px] rounded-[12px] bg-white border border-[#E5E7EB] overflow-hidden shrink-0 flex items-center justify-center text-gray-300">
+                                        {category.imageUrl ? (
                                             <img src={category.imageUrl} alt={category.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <Image size={18} />
+                                        )}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <p className="text-[14px] font-[600] text-[#1A1A1A] truncate">{category.name}</p>
+                                            <span className={`text-[10px] px-2 py-0.5 rounded-[999px] ${category.visible ? 'bg-primary-bg text-primary' : 'bg-[#FEF2F2] text-[#EF4444]'}`}>
+                                                {category.visible ? 'Enabled' : 'Disabled'}
+                                            </span>
                                         </div>
-                                    ) : null}
-                                    {category.imageName ? (
-                                        <p className="text-[11px] text-[#9CA3AF] mt-2 truncate">Image: {category.imageName}</p>
-                                    ) : null}
+                                        {category.description ? (
+                                            <p className="text-[12px] text-[#6B7280] mt-1">{category.description}</p>
+                                        ) : null}
+                                        {category.imageName && !category.imageUrl ? (
+                                            <p className="text-[11px] text-[#9CA3AF] mt-2 truncate">Image: {category.imageName}</p>
+                                        ) : null}
+                                    </div>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
                                     {/* <button type="button" onClick={() => startEditCategory(category)} className="p-2 hover:bg-gray-100 rounded-lg">
@@ -686,11 +750,12 @@ export default function Step3({
                         ))}
                     </div>
                 )}
+                </div>
             </div>
 
             <div className="">
-                <div className="flex items-center justify-between gap-4">
-                    <h3 className="text-[16px] font-[400] text-[#1A1A1A]">Add Item</h3>
+                <div className="flex items-center justify-between gap-4 mb-4">
+                    <h3 className="font-sans text-[16px] font-semibold leading-[19.2px] tracking-normal text-[#0F1724]">Add Item</h3>
                     <button
                         type="button"
                         disabled={!canOpenAddItem}
@@ -705,10 +770,13 @@ export default function Step3({
                 )}
             </div>
 
-            <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-[16px] text-[#1A1A1A]">Your Items ({loadingItems ? '...' : menuItems.length})</h3>
+            <div className="">
+                <div className="flex items-center justify-between gap-4 mb-4">
+                    <h3 className="font-sans text-[16px] font-semibold leading-[19.2px] tracking-normal text-[#0F1724]">
+                        Your Items ({loadingItems ? '...' : menuItems.length})
+                    </h3>
                 </div>
+                <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
                 {loadingItems ? (
                     <div className="py-10 text-center text-[#6B7280] text-[13px]">
                         Loading items...
@@ -731,7 +799,14 @@ export default function Step3({
                                             )}
                                         </div>
                                         <div className="min-w-0">
-                                            <p className="text-[14px] font-[600] text-[#1A1A1A] truncate">{item.name}</p>
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <p className="text-[14px] font-[600] text-[#1A1A1A] truncate">{item.name}</p>
+                                                <span
+                                                    className={`text-[10px] px-2 py-0.5 rounded-[999px] shrink-0 ${item.isAvailable ? 'bg-primary-bg text-primary' : 'bg-[#FEF2F2] text-[#EF4444]'}`}
+                                                >
+                                                    {item.isAvailable ? 'Active' : 'Inactive'}
+                                                </span>
+                                            </div>
                                             <p className="text-[12px] text-[#6B7280] mt-1">{item.categoryName || '—'} • ${item.price}</p>
                                         </div>
                                     </div>
@@ -740,6 +815,7 @@ export default function Step3({
                         })}
                     </div>
                 )}
+                </div>
             </div>
 
             {!!menuItemsErrorLines.length && (
@@ -803,7 +879,7 @@ export default function Step3({
                             <div className="p-6 max-h-[75vh] overflow-y-auto space-y-5 custom-scrollbar">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                     <div className="space-y-2">
-                                        <label className="block text-[14px] font-[600] text-[#1A1A1A]">Item Name <span className="text-red-500">*</span></label>
+                                        <label className={STEP3_FIELD_LABEL}>Item Name <span className="text-red-500">*</span></label>
                                         <input
                                             type="text"
                                             placeholder="e.g. Classic Cheeseburger"
@@ -813,7 +889,7 @@ export default function Step3({
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="block text-[14px] font-[600] text-[#1A1A1A]">
+                                        <label className={STEP3_FIELD_LABEL}>
                                             Price {!itemForm.hasVariants && <span className="text-red-500">*</span>}
                                         </label>
                                         <input
@@ -829,7 +905,7 @@ export default function Step3({
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                     <div className="space-y-2">
-                                        <label className="block text-[14px] font-[600] text-[#1A1A1A]">Category <span className="text-red-500">*</span></label>
+                                        <label className={STEP3_FIELD_LABEL}>Category <span className="text-red-500">*</span></label>
                                         <div className="relative">
                                             <select
                                                 value={itemForm.categoryId}
@@ -847,7 +923,7 @@ export default function Step3({
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="block text-[14px] font-[600] text-[#1A1A1A]">Item Image</label>
+                                    <label className={STEP3_FIELD_LABEL}>Item Image</label>
                                     <label
                                         htmlFor="itemImageUpload"
                                         className="w-full h-[240px] rounded-[16px] border-2 border-dashed border-[#E5E7EB] bg-white flex flex-col items-center justify-center cursor-pointer overflow-hidden"
@@ -874,7 +950,7 @@ export default function Step3({
 
                                 <div className="flex items-center justify-between bg-[#F6F8F9] rounded-[12px] p-4">
                                     <div>
-                                        <h4 className="text-[14px] font-[600] text-[#1A1A1A]">Has Variants?</h4>
+                                        <h4 className={STEP3_LABEL_LEAD}>Has Variants?</h4>
                                         <p className="text-[12px] text-[#6B7280]">E.g., Small, Medium, Large</p>
                                     </div>
                                     <Toggle active={!!itemForm.hasVariants} onClick={() => setItemForm((prev) => ({ ...prev, hasVariants: !prev.hasVariants }))} />
@@ -883,7 +959,7 @@ export default function Step3({
                                 {itemForm.hasVariants && (
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between">
-                                            <label className="block text-[14px] font-[600] text-[#1A1A1A]">Variants <span className="text-red-500">*</span></label>
+                                            <label className={STEP3_FIELD_LABEL}>Variants <span className="text-red-500">*</span></label>
                                             <button
                                                 type="button"
                                                 onClick={addVariant}
@@ -926,7 +1002,7 @@ export default function Step3({
                                 )}
 
                                 <div className="space-y-2">
-                                    <label className="block text-[14px] font-[600] text-[#1A1A1A]">Description</label>
+                                    <label className={STEP3_FIELD_LABEL}>Description</label>
                                     <textarea
                                         placeholder="Describe your item..."
                                         value={itemForm.description}
@@ -937,7 +1013,7 @@ export default function Step3({
 
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between">
-                                        <label className="block text-[14px] font-[600] text-[#1A1A1A]">Add-ons (Optional)</label>
+                                        <label className={STEP3_FIELD_LABEL}>Add-ons (Optional)</label>
                                         <button
                                             type="button"
                                             onClick={addAddOn}
@@ -972,7 +1048,7 @@ export default function Step3({
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="block text-[14px] font-[600] text-[#1A1A1A]">Tags</label>
+                                    <label className={STEP3_FIELD_LABEL}>Tags</label>
                                     <input
                                         type="text"
                                         placeholder="Type a tag and press Enter"
@@ -998,7 +1074,7 @@ export default function Step3({
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
                                     <div className="space-y-2">
-                                        <label className="block text-[14px] font-[600] text-[#1A1A1A]">Prep Time (minutes)</label>
+                                        <label className={STEP3_FIELD_LABEL}>Prep Time (minutes)</label>
                                         <input
                                             type="text"
                                             value={itemForm.prepTimeMinutes}
@@ -1007,17 +1083,17 @@ export default function Step3({
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="block text-[14px] font-[600] text-[#1A1A1A]">Availability</label>
+                                        <label className={STEP3_FIELD_LABEL}>Availability</label>
                                         <div className="flex items-center gap-3 h-[56px]">
                                             <Toggle active={itemForm.isAvailable !== false} onClick={() => setItemForm((prev) => ({ ...prev, isAvailable: !prev.isAvailable }))} />
-                                            <span className="text-[14px] text-[#374151]">{itemForm.isAvailable !== false ? 'Available' : 'Unavailable'}</span>
+                                            <span className={STEP3_LABEL_LEAD}>{itemForm.isAvailable !== false ? 'Available' : 'Unavailable'}</span>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div className="flex items-center justify-between bg-[#F6F8F9] rounded-[12px] p-4">
                                     <div>
-                                        <h4 className="text-[14px] font-[600] text-[#1A1A1A]">Track Inventory</h4>
+                                        <h4 className={STEP3_LABEL_LEAD}>Track Inventory</h4>
                                         <p className="text-[12px] text-[#6B7280]">Monitor stock levels for this item</p>
                                     </div>
                                     <Toggle active={!!itemForm.trackInventory} onClick={() => setItemForm((prev) => ({ ...prev, trackInventory: !prev.trackInventory }))} />
@@ -1026,7 +1102,7 @@ export default function Step3({
                                 {itemForm.trackInventory && (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                         <div className="space-y-2">
-                                            <label className="block text-[14px] font-[600] text-[#1A1A1A]">Stock Quantity</label>
+                                            <label className={STEP3_FIELD_LABEL}>Stock Quantity</label>
                                             <input
                                                 type="text"
                                                 placeholder="100"
@@ -1036,7 +1112,7 @@ export default function Step3({
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="block text-[14px] font-[600] text-[#1A1A1A]">Low Stock Alert</label>
+                                            <label className={STEP3_FIELD_LABEL}>Low Stock Alert</label>
                                             <input
                                                 type="text"
                                                 placeholder="10"
@@ -1050,7 +1126,7 @@ export default function Step3({
 
                                 <div className="flex items-center justify-between bg-[#F6F8F9] rounded-[12px] p-4">
                                     <div>
-                                        <h4 className="text-[14px] font-[600] text-[#1A1A1A]">Catering</h4>
+                                        <h4 className={STEP3_LABEL_LEAD}>Catering</h4>
                                         <p className="text-[12px] text-[#6B7280]">Enable minimum order for catering</p>
                                     </div>
                                     <Toggle
@@ -1067,7 +1143,7 @@ export default function Step3({
 
                                 {itemForm.catering && (
                                     <div className="space-y-2">
-                                        <label className="block text-[14px] font-[600] text-[#1A1A1A]">Minimum Order</label>
+                                        <label className={STEP3_FIELD_LABEL}>Minimum Order</label>
                                         <input
                                             type="text"
                                             placeholder="0"

@@ -1339,16 +1339,48 @@ export default function OnboardingStep() {
                                 <h3 className="text-[17px] font-bold text-[#1A1A1A] mb-6 border-b border-gray-100 pb-2">F. Bank Information</h3>
                                 <div className="grid grid-cols-2 gap-y-6 text-[14px]">
                                     <div><p className="text-[#9CA3AF] font-[500] mb-1">Holder Name</p><p className="font-semibold text-[#111827]">{formData.accHolder}</p></div>
-                                    <div><p className="text-[#9CA3AF] font-[500] mb-1">Frequency</p><p className="font-semibold text-[#111827]">{formData.payoutFreq}</p></div>
-                                    <div className="col-span-2"><p className="text-[#9CA3AF] font-[500] mb-1">Routing Number</p><p className="font-semibold text-[#111827]">{formData.routing}</p></div>
+                                    <div><p className="text-[#9CA3AF] font-[500] mb-1">Account Number</p><p className="font-semibold text-[#111827]">{String(formData.accNumber ?? '').trim() || '—'}</p></div>
+                                    <div className="col-span-2"><p className="text-[#9CA3AF] font-[500] mb-1">Payout Frequency</p><p className="font-semibold text-[#111827]">{String(formData.payoutFreq ?? '').trim() || '—'}</p></div>
                                 </div>
                             </section>
 
                             <section>
                                 <h3 className="text-[17px] font-bold text-[#1A1A1A] mb-6 border-b border-gray-100 pb-2">G. Notifications</h3>
-                                <div className="grid grid-cols-2 gap-y-6 text-[14px]">
-                                    <div><p className="text-[#9CA3AF] font-[500] mb-1">App / Email / SMS</p><p className="font-semibold text-[#111827]">{[formData.appNotify && 'App', formData.emailNotify && 'Email', formData.smsNotify && 'SMS'].filter(Boolean).join(' / ') || 'None'}</p></div>
-                                    <div><p className="text-[#9CA3AF] font-[500] mb-1">Special Alerts</p><p className="font-semibold text-[#111827]">{[formData.newOrderAlert && 'New Order', formData.riderAlert && 'Rider', formData.complaintAlert && 'Complaints'].filter(Boolean).length} active</p></div>
+                                <div className="space-y-5 text-[14px]">
+                                    <div>
+                                        <p className="text-[#9CA3AF] font-[500] mb-2">App / Email / SMS</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {formData.appNotify ? (
+                                                <span className="inline-flex items-center rounded-full bg-primary-bg px-3 py-1 font-sans text-[12px] font-medium text-primary">App</span>
+                                            ) : null}
+                                            {formData.emailNotify ? (
+                                                <span className="inline-flex items-center rounded-full bg-primary-bg px-3 py-1 font-sans text-[12px] font-medium text-primary">Email</span>
+                                            ) : null}
+                                            {formData.smsNotify ? (
+                                                <span className="inline-flex items-center rounded-full bg-primary-bg px-3 py-1 font-sans text-[12px] font-medium text-primary">SMS</span>
+                                            ) : null}
+                                            {!formData.appNotify && !formData.emailNotify && !formData.smsNotify ? (
+                                                <span className="text-[13px] font-medium text-[#6B7280]">None</span>
+                                            ) : null}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <p className="text-[#9CA3AF] font-[500] mb-2">Special Alerts</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {formData.newOrderAlert ? (
+                                                <span className="inline-flex items-center rounded-full bg-primary-bg px-3 py-1 font-sans text-[12px] font-medium text-primary">New Order</span>
+                                            ) : null}
+                                            {formData.riderAlert ? (
+                                                <span className="inline-flex items-center rounded-full bg-primary-bg px-3 py-1 font-sans text-[12px] font-medium text-primary">Rider</span>
+                                            ) : null}
+                                            {formData.complaintAlert ? (
+                                                <span className="inline-flex items-center rounded-full bg-primary-bg px-3 py-1 font-sans text-[12px] font-medium text-primary">Complaints</span>
+                                            ) : null}
+                                            {!formData.newOrderAlert && !formData.riderAlert && !formData.complaintAlert ? (
+                                                <span className="text-[13px] font-medium text-[#6B7280]">None</span>
+                                            ) : null}
+                                        </div>
+                                    </div>
                                 </div>
                             </section>
 
@@ -1413,7 +1445,7 @@ export default function OnboardingStep() {
             {showAddRewardModal && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={closeAddRewardModal} />
-                    <div className="bg-white w-full max-w-[500px] rounded-[24px] overflow-hidden shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+                    <div className="bg-white w-full max-w-[560px] rounded-[24px] overflow-hidden shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
                         {/* Modal Header */}
                         <div className="p-5 border-b border-gray-100 flex items-center justify-between">
                             <h2 className="text-[18px] font-bold text-[#1A1A1A]">{editingReward ? 'Edit Reward Item' : 'Add Reward Item'}</h2>
@@ -1436,28 +1468,28 @@ export default function OnboardingStep() {
                                 />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="flex flex-col gap-4">
                                 {/* Points Required */}
-                                <div className="space-y-1">
+                                <div className="space-y-1 w-full">
                                     <label className="block text-[13px] font-[500] text-[#1A1A1A]">Points Required</label>
                                     <input
                                         type="text"
                                         value={rewardForm.pointsRequired}
                                         onChange={(e) => setRewardForm((prev) => ({ ...prev, pointsRequired: e.target.value }))}
                                         placeholder="e.g., 175"
-                                        className="onboarding-input !h-[44px] !rounded-[8px] !text-[13px]"
+                                        className="onboarding-input !h-[44px] !rounded-[8px] !text-[13px] w-full"
                                     />
                                 </div>
 
                                 {/* Choose Menu Item */}
-                                <div className="space-y-1">
+                                <div className="space-y-1 w-full min-w-0">
                                     <label className="block text-[13px] font-[500] text-[#1A1A1A]">Choose Menu Item</label>
                                     <div className="relative">
                                         <select
                                             value={rewardForm.menuItemId}
                                             onChange={(e) => setRewardForm((prev) => ({ ...prev, menuItemId: e.target.value }))}
                                             disabled={loadingMenuItems}
-                                            className="onboarding-input !h-[44px] !rounded-[8px] !text-[13px] appearance-none"
+                                            className="onboarding-input !h-[44px] !rounded-[8px] !text-[13px] appearance-none w-full min-w-0"
                                         >
                                             <option value="">{loadingMenuItems ? 'Loading items...' : 'Select an item...'}</option>
                                             {menuItems.map((item) => (

@@ -15,7 +15,7 @@ function CompletedCard({ name }) {
         <div className="bg-white border border-[#E5E7EB] rounded-[12px] p-5">
             <h4 className="text-[15px] font-[400] text-[#1A1A1A] mb-1.5">{name}</h4>
             <p className="text-[13px] text-[#6B7280] flex items-center gap-1.5 font-[400]">
-                <Check size={14} className="text-[#DD2F26]" strokeWidth={3} /> Completed
+                <Check size={14} className="text-[#1A1A1A]" strokeWidth={3} /> Completed
             </p>
         </div>
     );

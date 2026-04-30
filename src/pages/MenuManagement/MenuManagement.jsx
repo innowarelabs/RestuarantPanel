@@ -214,7 +214,12 @@ const mapCategory = (raw) => {
     if (!name) return null;
     const safeId = id || name;
     const description = typeof raw.description === 'string' ? raw.description : '';
-    const imageUrl = typeof raw.image_url === 'string' ? normalizeUrl(raw.image_url) : typeof raw.imageUrl === 'string' ? normalizeUrl(raw.imageUrl) : '';
+    const imageRaw =
+        (typeof raw.image === 'string' && raw.image) ||
+        (typeof raw.image_url === 'string' && raw.image_url) ||
+        (typeof raw.imageUrl === 'string' && raw.imageUrl) ||
+        '';
+    const imageUrl = imageRaw ? normalizeUrl(imageRaw) : '';
     const visible = typeof raw.visible === 'boolean' ? raw.visible : true;
     const count =
         typeof raw.count === 'number'

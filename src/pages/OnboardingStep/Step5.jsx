@@ -4,6 +4,12 @@ import { useSelector } from 'react-redux';
 
 import Toggle from './Toggle';
 
+/** Section titles: Points Earning Settings, Reward Catalog */
+const STEP5_SECTION_TITLE = 'font-sans text-[16px] font-bold leading-[19.2px] tracking-normal text-[#0F1724]';
+/** Field / control labels */
+const STEP5_FIELD_LABEL = 'font-sans text-[14px] font-medium leading-[21px] tracking-normal text-[#374151]';
+const STEP5_FIELD_LABEL_BLOCK = `block ${STEP5_FIELD_LABEL}`;
+
 export default function Step5({
     formData,
     setFormData,
@@ -44,6 +50,8 @@ export default function Step5({
 
     /** Treat missing/legacy state as ON (matches defaultFormData). Only explicit `false` turns bonus off. */
     const firstOrderBonusEnabled = formData.bonusFirstOrder !== false;
+
+    const activeRewardsCount = Array.isArray(rewards) ? rewards.filter((r) => r && r.is_active).length : 0;
 
     const handleSubmitStep5 = async () => {
         const restaurantId = formData.restaurantId?.trim();
@@ -125,11 +133,13 @@ export default function Step5({
         }
     };
 
+    const loyaltyOn = !!formData.loyaltyEnabled;
+
     return (
         <div className="space-y-10">
             <div className="flex items-start sm:items-center justify-between gap-4">
                 <div>
-                    <h3 className="text-[14px] font-[500] text-[#1A1A1A]">Enable Loyalty Points</h3>
+                    <h3 className={STEP5_FIELD_LABEL_BLOCK}>Enable Loyalty Points</h3>
                     <p className="text-[12px] text-[#6B7280] mt-0.5">Turn on to start rewarding customers with points</p>
                 </div>
                 <div className="shrink-0">
@@ -138,27 +148,29 @@ export default function Step5({
             </div>
 
             <div className="space-y-5">
-                <h3 className="text-[16px] font-[800] text-[#1A1A1A]">Points Earning Settings</h3>
+                <h3 className={STEP5_SECTION_TITLE}>Points Earning Settings</h3>
 
                 <div className="space-y-2">
-                    <label className="block text-[14px] font-[500] text-[#1A1A1A]">Points earned per $ spent</label>
+                    <label className={STEP5_FIELD_LABEL_BLOCK}>Points earned per $ spent</label>
                     <input
                         type="text"
                         value={formData.pointsPerDollar}
                         onChange={(e) => setFormData({ ...formData, pointsPerDollar: e.target.value })}
-                        className="onboarding-input"
+                        disabled={!loyaltyOn}
+                        className="onboarding-input disabled:cursor-not-allowed disabled:bg-[#F3F4F6] disabled:text-[#9CA3AF]"
                     />
                 </div>
 
                 <div className="space-y-3">
                     <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                            <p className="text-[14px] font-[500] text-[#1A1A1A]">Give bonus points on first order?</p>
+                            <p className={STEP5_FIELD_LABEL}>Give bonus points on first order?</p>
                             <p className="text-[12px] text-[#6B7280] mt-0.5">Reward new customers with extra points</p>
                         </div>
                         <div className="shrink-0">
                             <Toggle
                                 active={firstOrderBonusEnabled}
+                                disabled={!loyaltyOn}
                                 onClick={() =>
                                     setFormData({ ...formData, bonusFirstOrder: !firstOrderBonusEnabled })
                                 }
@@ -167,12 +179,13 @@ export default function Step5({
                     </div>
                     {firstOrderBonusEnabled ? (
                         <div className="pl-4 border-l-[3px] border-primary space-y-2 pt-0.5">
-                            <label className="block text-[14px] font-[500] text-[#1A1A1A]">Bonus points amount</label>
+                            <label className={STEP5_FIELD_LABEL_BLOCK}>Bonus points amount</label>
                             <input
                                 type="text"
                                 value={formData.bonusAmount}
                                 onChange={(e) => setFormData({ ...formData, bonusAmount: e.target.value })}
-                                className="onboarding-input"
+                                disabled={!loyaltyOn}
+                                className="onboarding-input disabled:cursor-not-allowed disabled:bg-[#F3F4F6] disabled:text-[#9CA3AF]"
                             />
                         </div>
                     ) : null}
@@ -181,21 +194,26 @@ export default function Step5({
                 <div className="space-y-3">
                     <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                            <p className="text-[14px] font-[500] text-[#1A1A1A]">Minimum order amount to earn points?</p>
+                            <p className={STEP5_FIELD_LABEL}>Minimum order amount to earn points?</p>
                             <p className="text-[12px] text-[#6B7280] mt-0.5">Set a minimum spend requirement</p>
                         </div>
                         <div className="shrink-0">
-                            <Toggle active={formData.minOrderLoyalty} onClick={() => setFormData({ ...formData, minOrderLoyalty: !formData.minOrderLoyalty })} />
+                            <Toggle
+                                active={formData.minOrderLoyalty}
+                                disabled={!loyaltyOn}
+                                onClick={() => setFormData({ ...formData, minOrderLoyalty: !formData.minOrderLoyalty })}
+                            />
                         </div>
                     </div>
                     {formData.minOrderLoyalty ? (
                         <div className="pl-4 border-l-[3px] border-primary space-y-2 pt-0.5">
-                            <label className="block text-[14px] font-[500] text-[#1A1A1A]">Minimum amount ($)</label>
+                            <label className={STEP5_FIELD_LABEL_BLOCK}>Minimum amount ($)</label>
                             <input
                                 type="text"
                                 value={formData.minOrderAmount}
                                 onChange={(e) => setFormData({ ...formData, minOrderAmount: e.target.value })}
-                                className="onboarding-input"
+                                disabled={!loyaltyOn}
+                                className="onboarding-input disabled:cursor-not-allowed disabled:bg-[#F3F4F6] disabled:text-[#9CA3AF]"
                             />
                         </div>
                     ) : null}
@@ -204,22 +222,27 @@ export default function Step5({
                 <div className="space-y-3">
                     <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                            <p className="text-[14px] font-[500] text-[#1A1A1A]">Points expire?</p>
+                            <p className={STEP5_FIELD_LABEL}>Points expire?</p>
                             <p className="text-[12px] text-[#6B7280] mt-0.5">Set an expiration period for points</p>
                         </div>
                         <div className="shrink-0">
-                            <Toggle active={formData.pointsExpire} onClick={() => setFormData({ ...formData, pointsExpire: !formData.pointsExpire })} />
+                            <Toggle
+                                active={formData.pointsExpire}
+                                disabled={!loyaltyOn}
+                                onClick={() => setFormData({ ...formData, pointsExpire: !formData.pointsExpire })}
+                            />
                         </div>
                     </div>
                     {formData.pointsExpire ? (
                         <div className="pl-4 border-l-[3px] border-primary space-y-2 pt-0.5">
-                            <label className="block text-[14px] font-[500] text-[#1A1A1A]">Expiry period</label>
+                            <label className={STEP5_FIELD_LABEL_BLOCK}>Expiry period</label>
                             <input
                                 type="text"
                                 placeholder="365"
                                 value={formData.expiryPeriod}
                                 onChange={(e) => setFormData({ ...formData, expiryPeriod: e.target.value })}
-                                className="onboarding-input"
+                                disabled={!loyaltyOn}
+                                className="onboarding-input disabled:cursor-not-allowed disabled:bg-[#F3F4F6] disabled:text-[#9CA3AF]"
                             />
                         </div>
                     ) : null}
@@ -229,15 +252,17 @@ export default function Step5({
             <div className="space-y-6 pt-2">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <h3 className="text-[16px] font-[800] text-[#1A1A1A]">Reward Catalog</h3>
-                        <p className="text-[13px] text-[#6B7280] mt-0.5">Items customers can redeem with their points</p>
+                        <h3 className={STEP5_SECTION_TITLE}>Reward Catalog</h3>
+                        <p className="text-[13px] text-[#6B7280] mt-0.5">Customers can redeem items with their points</p>
                     </div>
                     <button
+                        type="button"
+                        disabled={!loyaltyOn}
                         onClick={() => {
                             setEditingReward(null);
                             setShowAddRewardModal(true);
                         }}
-                        className="h-10 w-full sm:w-auto px-4 bg-primary text-white rounded-[8px] text-[14px] font-[500] flex items-center justify-center gap-2 hover:bg-[#C52820] transition-colors shadow-sm"
+                        className="h-10 w-full sm:w-auto px-4 bg-primary text-white rounded-[8px] text-[14px] font-[500] flex items-center justify-center gap-2 hover:bg-[#C52820] transition-colors shadow-sm disabled:cursor-not-allowed disabled:bg-[#E5E7EB] disabled:text-[#9CA3AF] disabled:hover:bg-[#E5E7EB]"
                     >
                         <Plus size={16} /> Add Reward Item
                     </button>
@@ -275,18 +300,20 @@ export default function Step5({
                                 <div className="flex items-center gap-2 shrink-0">
                                     <button
                                         type="button"
+                                        disabled={!loyaltyOn}
                                         onClick={() => {
                                             setEditingReward(reward);
                                             setShowAddRewardModal(true);
                                         }}
-                                        className="p-2 hover:bg-gray-50 rounded-lg text-gray-400"
+                                        className="p-2 hover:bg-gray-50 rounded-lg text-gray-400 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:opacity-40"
                                     >
                                         <Edit2 size={16} />
                                     </button>
                                     <button
                                         type="button"
+                                        disabled={!loyaltyOn}
                                         onClick={() => onDeleteRewardClick?.(reward)}
-                                        className="p-2 hover:bg-red-50 rounded-lg text-red-400"
+                                        className="p-2 hover:bg-red-50 rounded-lg text-red-400 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:opacity-40"
                                         aria-label={`Delete reward ${reward.reward_name || ''}`}
                                     >
                                         <Trash2 size={16} />
@@ -298,7 +325,7 @@ export default function Step5({
                 </div>
             </div>
 
-            <div className="bg-[#FEF2F2] border border-[#DD2F26] p-5 rounded-[12px] space-y-3">
+            <div className="rounded-[12px] border border-primary bg-[#DD2F2626] p-5 space-y-3">
                 <h4 className="text-[13px] font-[500] text-primary">Loyalty Program Summary</h4>
                 <ul className="space-y-2">
                     <li className="text-[12px] text-[#475569] flex items-start gap-2">
@@ -317,7 +344,9 @@ export default function Step5({
                     </li>
                     <li className="text-[12px] text-[#475569] flex items-start gap-2">
                         <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                        <span>3 active rewards available</span>
+                        <span>
+                            {activeRewardsCount} active reward{activeRewardsCount === 1 ? '' : 's'} available
+                        </span>
                     </li>
                 </ul>
             </div>
