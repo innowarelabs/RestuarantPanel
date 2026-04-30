@@ -62,6 +62,7 @@ const AdminSupportTickets = ({ onViewTicket, refreshKey }) => {
     /** `apiId` while PATCH in flight — blocks duplicate submits. */
     const [patchingId, setPatchingId] = useState(null);
     const menuDropdownRef = useRef(null);
+    const tableScrollRef = useRef(null);
 
     /** Category tag colors (design spec). */
     const getCategoryColor = (type) => {
@@ -185,17 +186,39 @@ const AdminSupportTickets = ({ onViewTicket, refreshKey }) => {
     const openMenu = (field, ticket, e) => {
         if (!ticket.apiId || patchingId === ticket.apiId) return;
         const r = e.currentTarget.getBoundingClientRect();
-        setMenu((prev) =>
-            prev && prev.apiId === ticket.apiId && prev.field === field
-                ? null
-                : {
-                      field,
-                      apiId: ticket.apiId,
-                      top: r.bottom + 4,
-                      left: r.left,
-                      minWidth: r.width,
-                  },
-        );
+        setMenu((prev) => {
+            if (prev && prev.apiId === ticket.apiId && prev.field === field) {
+                return null;
+            }
+            const rowCount = field === 'priority' ? PRIORITY_OPTIONS.length : STATUS_OPTIONS.length;
+            const estH = Math.min(256, rowCount * 44 + 12);
+            const gap = 4;
+            const margin = 8;
+            const spaceBelow = window.innerHeight - r.bottom - gap;
+            const spaceAbove = r.top - gap;
+            let top;
+            let bottom;
+            if (spaceBelow >= estH || spaceBelow >= spaceAbove) {
+                top = r.bottom + gap;
+                bottom = undefined;
+            } else {
+                bottom = window.innerHeight - r.top + gap;
+                top = undefined;
+            }
+            let left = r.left;
+            const mw = Math.max(r.width, 168);
+            if (left + mw > window.innerWidth - margin) {
+                left = Math.max(margin, window.innerWidth - mw - margin);
+            }
+            return {
+                field,
+                apiId: ticket.apiId,
+                left,
+                minWidth: r.width,
+                top,
+                bottom,
+            };
+        });
     };
 
     const applyPriority = async (apiId, value) => {
@@ -274,6 +297,27 @@ const AdminSupportTickets = ({ onViewTicket, refreshKey }) => {
         };
         document.addEventListener('mousedown', onPointerDown);
         return () => document.removeEventListener('mousedown', onPointerDown);
+    }, [menu]);
+
+    useEffect(() => {
+        if (!menu) return;
+        const close = () => setMenu(null);
+        const onWheel = (ev) => {
+            if (menuDropdownRef.current?.contains(ev.target)) return;
+            close();
+        };
+        const onScroll = () => close();
+        const tableEl = tableScrollRef.current;
+        window.addEventListener('resize', close);
+        window.addEventListener('scroll', onScroll, true);
+        document.addEventListener('wheel', onWheel, { capture: true, passive: true });
+        tableEl?.addEventListener('scroll', onScroll);
+        return () => {
+            window.removeEventListener('resize', close);
+            window.removeEventListener('scroll', onScroll, true);
+            document.removeEventListener('wheel', onWheel, { capture: true });
+            tableEl?.removeEventListener('scroll', onScroll);
+        };
     }, [menu]);
 
     useEffect(() => {
@@ -392,7 +436,7 @@ const AdminSupportTickets = ({ onViewTicket, refreshKey }) => {
                     {error}
                 </div>
             ) : (
-                <div className="overflow-x-auto">
+        <div className="overflow-x-auto" ref={tableScrollRef}>
                     <table className="w-full text-left">
                         <thead>
                             <tr className="bg-[#F9FAFB]">
@@ -563,7 +607,8 @@ const AdminSupportTickets = ({ onViewTicket, refreshKey }) => {
                 ref={menuDropdownRef}
                 className="fixed z-[100] max-h-64 min-w-[168px] overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-xl"
                 style={{
-                    top: menu.top,
+                    top: menu.top != null ? menu.top : 'auto',
+                    bottom: menu.bottom != null ? menu.bottom : 'auto',
                     left: menu.left,
                     minWidth: Math.max(menu.minWidth || 0, 168),
                 }}
