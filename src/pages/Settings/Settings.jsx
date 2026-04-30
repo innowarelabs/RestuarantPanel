@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import BusinessProfile from '../../components/Settings/BusinessProfile/BusinessProfile';
 import OperatingHours from '../../components/Settings/OperatingHours/OperatingHours';
 import OrderSettings from '../../components/Settings/OrderSettings/OrderSettings';
-import DeliverySettings from '../../components/Settings/DeliverySettings/DeliverySettings';
-import StaffPermissions from '../../components/Settings/StaffPermissions/StaffPermissions';
+// import DeliverySettings from '../../components/Settings/DeliverySettings/DeliverySettings';
+// import StaffPermissions from '../../components/Settings/StaffPermissions/StaffPermissions';
 import NotificationsSettings from '../../components/Settings/Notifications/NotificationsSettings';
 import IntegrationsSettings from '../../components/Settings/Integrations/IntegrationsSettings';
 import LoyaltyPreferences from '../../components/Settings/LoyaltyPreferences/LoyaltyPreferences';
@@ -18,8 +18,8 @@ const Settings = () => {
         'Business Profile',
         'Operating Hours',
         'Order Settings',
-        'Delivery Settings',
-        'Staff & Permissions',
+        // 'Delivery Settings',
+        // 'Staff & Permissions',
         'Notifications',
         'Integrations',
         'Loyalty Preferences',
@@ -36,10 +36,10 @@ const Settings = () => {
                 return <OperatingHours />;
             case 'Order Settings':
                 return <OrderSettings />;
-            case 'Delivery Settings':
-                return <DeliverySettings />;
-            case 'Staff & Permissions':
-                return <StaffPermissions />;
+            // case 'Delivery Settings':
+            //     return <DeliverySettings />;
+            // case 'Staff & Permissions':
+            //     return <StaffPermissions />;
             case 'Notifications':
                 return <NotificationsSettings />;
             case 'Integrations':

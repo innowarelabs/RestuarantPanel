@@ -4,19 +4,23 @@ import RewardCard from './RewardCard';
 import RewardModal from './RewardModal';
 import DeleteRewardModal from './DeleteRewardModal';
 
-const RewardCatalog = ({ 
-    rewards = [], 
-    loading = false, 
-    error = null, 
+const RewardCatalog = ({
+    rewards = [],
+    loading = false,
+    error = null,
     menuItems = [],
     categories = [],
     loadingMenuItems = false,
     rewardTypes = [],
     loadingRewardTypes = false,
     rewardTypesError = null,
-    onSaveReward, 
-    onDeleteReward, 
-    onRefreshRewards 
+    onSaveReward,
+    onDeleteReward,
+    onRefreshRewards,
+    wrapperClassName = '',
+    headingTitle = 'Reward Catalog',
+    headingSubtitle = 'Define which free items customers can redeem using points.',
+    addButtonLabel = 'Add Reward Item',
 }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState('add');
@@ -77,17 +81,19 @@ const RewardCatalog = ({
     };
 
     return (
-        <div className="mb-8 bg-[#FFFFFF] p-6 border border-[#E5E7EB] rounded-[16px] -mt-[20px]">
+        <div
+            className={`mb-8 bg-[#FFFFFF] p-6 border border-[#E5E7EB] rounded-[16px] -mt-[20px] ${wrapperClassName}`.trim()}
+        >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <div>
-                    <h2 className="text-[18px] font-[800] text-general-text">Reward Catalog</h2>
-                    <p className="text-[13px] text-[#6B7280]">Define which free items customers can redeem using points.</p>
+                    <h2 className="text-[18px] font-[800] text-general-text">{headingTitle}</h2>
+                    <p className="text-[13px] text-[#6B7280]">{headingSubtitle}</p>
                 </div>
                 <button
                     onClick={handleAddClick}
                     className="flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 bg-primary text-white rounded-[8px] text-[14px] font-[500] hover:bg-primary/90 transition-colors active:scale-95 transition-transform"
                 >
-                    <Plus className="w-4 h-4" /> Add Reward Item
+                    <Plus className="w-4 h-4" /> {addButtonLabel}
                 </button>
             </div>
 
