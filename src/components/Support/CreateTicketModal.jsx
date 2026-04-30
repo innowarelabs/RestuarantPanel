@@ -1,6 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useSelector } from 'react-redux';
-import { X, Paperclip, ChevronDown } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { X, Paperclip, ChevronDown, Trash2 } from 'lucide-react';
+
+/** FastAPI / Pydantic 422 `detail` → one string for toast (newlines between items). */
+const formatTicketApiError = (json) => {
+    if (!json || typeof json !== 'object') return 'Failed to create ticket';
+    const detail = json.detail;
+    if (Array.isArray(detail) && detail.length > 0) {
+        const lines = detail
+            .map((item) => {
+                if (!item || typeof item !== 'object') return null;
+                const loc = Array.isArray(item.loc) ? item.loc : [];
+                const fieldParts = loc.filter((x) => x !== 'body' && x !== 'query' && x !== 'path');
+                const fieldLabel = fieldParts.length ? String(fieldParts[fieldParts.length - 1]) : '';
+                const msg = item.msg || item.message || 'Invalid value';
+                return fieldLabel ? `${fieldLabel}: ${msg}` : msg;
+            })
+            .filter(Boolean);
+        if (lines.length) return lines.join('\n');
+    }
+    if (typeof json.message === 'string' && json.message.trim()) return json.message.trim();
+    if (typeof json.error === 'string' && json.error.trim()) return json.error.trim();
+    return 'Failed to create ticket';
+};
+
+const extractTicketIdFromResponse = (json) => {
+    if (!json || typeof json !== 'object') return '';
+    const asStr = (v) => {
+        if (typeof v === 'string' && v.trim()) return v.trim();
+        if (typeof v === 'number' && Number.isFinite(v)) return String(v);
+        return '';
+    };
+    const d = json.data;
+    if (d && typeof d === 'object') {
+        const nested = asStr(d.id) || asStr(d.ticket_id) || asStr(d.uuid);
+        if (nested) return nested;
+    }
+    return asStr(json.id) || asStr(json.ticket_id) || '';
+};
 
 const CreateTicketModal = ({ isOpen, onClose, onSuccess }) => {
     const accessToken = useSelector((state) => state.auth.accessToken);
@@ -12,9 +50,10 @@ const CreateTicketModal = ({ isOpen, onClose, onSuccess }) => {
     const [description, setDescription] = useState('');
     const [orderNumber, setOrderNumber] = useState('');
     const [preferredContact, setPreferredContact] = useState('email');
+    /** Pending files for ticket (multiple allowed; each has stable id for list UI). */
     const [attachments, setAttachments] = useState([]);
+    const fileInputRef = useRef(null);
     const [submitting, setSubmitting] = useState(false);
-    const [error, setError] = useState('');
 
     const getRestaurantId = () => {
         const fromUser = user && typeof user === 'object' && typeof user.restaurant_id === 'string' ? user.restaurant_id : '';
@@ -54,22 +93,59 @@ const CreateTicketModal = ({ isOpen, onClose, onSuccess }) => {
         setOrderNumber('');
         setPreferredContact('email');
         setAttachments([]);
-        setError('');
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    const removeAttachment = (id) => {
+        setAttachments((prev) => prev.filter((a) => a.id !== id));
+    };
+
+    const postTicketAttachment = async (ticketId, file) => {
+        const baseUrl = import.meta.env.VITE_BACKEND_URL;
+        if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+        const url = `${baseUrl.replace(/\/$/, '')}/api/v1/tickets/${encodeURIComponent(ticketId)}/attachments`;
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
+            },
+            body: formData,
+        });
+        const rawText = await res.text();
+        let json = {};
+        if (rawText) {
+            try {
+                json = JSON.parse(rawText);
+            } catch {
+                json = { message: rawText };
+            }
+        }
+        if (!res.ok) {
+            throw new Error(formatTicketApiError(json));
+        }
+        return json;
     };
 
     const handleSubmit = async () => {
         if (!title.trim() || !description.trim()) {
-            setError('Title and description are required.');
+            toast.error('Title and description are required.');
             return;
         }
 
         if (!accessToken) {
-            setError('You are not authenticated. Please log in again.');
+            toast.error('You are not authenticated. Please log in again.');
+            return;
+        }
+
+        if (!restaurantId) {
+            toast.error('Restaurant ID is missing. Please log in again.');
             return;
         }
 
         setSubmitting(true);
-        setError('');
 
         try {
             const baseUrl = import.meta.env.VITE_BACKEND_URL;
@@ -84,21 +160,17 @@ const CreateTicketModal = ({ isOpen, onClose, onSuccess }) => {
                 description: description.trim(),
                 ticket_type: mapCategoryToTicketType(category),
                 priority: mapPriorityToApi(priority),
+                order_number: orderNumber.trim(),
                 preferred_contact: preferredContact,
+                tags: '',
+                restaurant_id: restaurantId,
             };
-
-            if (orderNumber.trim()) {
-                payload.order_number = orderNumber.trim();
-            }
 
             const headers = {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${accessToken}`,
+                'X-Restaurant-Id': restaurantId,
             };
-
-            if (restaurantId) {
-                headers['X-Restaurant-Id'] = restaurantId;
-            }
 
             const res = await fetch(url, {
                 method: 'POST',
@@ -106,22 +178,65 @@ const CreateTicketModal = ({ isOpen, onClose, onSuccess }) => {
                 body: JSON.stringify(payload),
             });
 
-            const json = await res.json();
+            const rawText = await res.text();
+            let json = {};
+            if (rawText) {
+                try {
+                    json = JSON.parse(rawText);
+                } catch {
+                    json = { message: rawText };
+                }
+            }
 
             const code = json?.code;
             const isSuccessCode = code && typeof code === 'string' && code.startsWith('SUCCESS_');
             const isStatusSuccess = res.status === 201 || (res.ok && res.status >= 200 && res.status < 300);
 
-            if (isSuccessCode || isStatusSuccess) {
-                resetForm();
-                onSuccess?.();
-                onClose?.();
-            } else {
-                const message = json?.message || 'Failed to create ticket';
-                setError(message);
+            if (!isSuccessCode && !isStatusSuccess) {
+                toast.error(formatTicketApiError(json));
+                return;
             }
+
+            const ticketId = extractTicketIdFromResponse(json);
+            const filesToUpload = attachments.map((a) => a.file);
+            const ticketSuccessMsg = json?.message || 'Ticket created successfully';
+
+            if (filesToUpload.length > 0) {
+                if (!ticketId) {
+                    toast.success(ticketSuccessMsg);
+                    toast.error(
+                        'Attachments were not uploaded: ticket id was missing in the server response.'
+                    );
+                } else {
+                    const failed = [];
+                    for (let i = 0; i < filesToUpload.length; i += 1) {
+                        const file = filesToUpload[i];
+                        try {
+                            await postTicketAttachment(ticketId, file);
+                        } catch (attErr) {
+                            failed.push({ name: file.name, message: attErr?.message || 'Upload failed' });
+                        }
+                    }
+                    if (failed.length > 0) {
+                        toast.success(ticketSuccessMsg);
+                        toast.error(
+                            failed.length === filesToUpload.length
+                                ? `Attachments failed:\n${failed.map((f) => `${f.name}: ${f.message}`).join('\n')}`
+                                : `Some attachments failed:\n${failed.map((f) => `${f.name}: ${f.message}`).join('\n')}`
+                        );
+                    } else {
+                        toast.success(json?.message || 'Ticket and attachments submitted successfully');
+                    }
+                }
+            } else {
+                toast.success(ticketSuccessMsg);
+            }
+
+            resetForm();
+            onSuccess?.();
+            onClose?.();
         } catch (e) {
-            setError(e.message || 'Failed to create ticket');
+            toast.error(e.message || 'Failed to create ticket');
         } finally {
             setSubmitting(false);
         }
@@ -244,23 +359,45 @@ const CreateTicketModal = ({ isOpen, onClose, onSuccess }) => {
                                 Upload Files
                             </label>
                             <input
+                                ref={fileInputRef}
                                 id="platform-ticket-attachments"
                                 type="file"
                                 multiple
                                 className="hidden"
                                 onChange={(e) => {
-                                    const files = Array.from(e.target.files || []);
-                                    setAttachments(files);
+                                    const picked = Array.from(e.target.files || []);
+                                    if (!picked.length) return;
+                                    setAttachments((prev) => [
+                                        ...prev,
+                                        ...picked.map((file) => ({
+                                            id: `${file.name}-${file.size}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+                                            file,
+                                        })),
+                                    ]);
+                                    e.target.value = '';
                                 }}
                             />
                             {attachments.length > 0 && (
-                                <div className="text-[12px] text-gray-500 space-y-1">
-                                    {attachments.map((file, idx) => (
-                                        <div key={idx} className="truncate">
-                                            {file.name}
-                                        </div>
+                                <ul className="text-[12px] text-gray-600 space-y-1.5">
+                                    {attachments.map(({ id, file }) => (
+                                        <li
+                                            key={id}
+                                            className="flex items-center justify-between gap-2 rounded-[6px] border border-gray-100 bg-gray-50/80 px-2 py-1.5"
+                                        >
+                                            <span className="truncate" title={file.name}>
+                                                {file.name}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => removeAttachment(id)}
+                                                className="shrink-0 p-1 text-gray-500 hover:text-red-600 rounded transition-colors"
+                                                aria-label={`Remove ${file.name}`}
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                        </li>
                                     ))}
-                                </div>
+                                </ul>
                             )}
                         </div>
                     </div>
@@ -306,11 +443,6 @@ const CreateTicketModal = ({ isOpen, onClose, onSuccess }) => {
 
                 {/* Footer */}
                 <div className="p-5 border-t border-gray-100 flex justify-end gap-3 bg-[#F9FAFB]/50">
-                    {error && (
-                        <div className="flex-1 text-left text-[12px] text-red-500">
-                            {error}
-                        </div>
-                    )}
                     <button
                         onClick={() => {
                             resetForm();

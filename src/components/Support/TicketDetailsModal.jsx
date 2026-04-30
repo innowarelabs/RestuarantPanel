@@ -1,8 +1,20 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
+import toast from 'react-hot-toast';
 import { X, Clock, Paperclip, Send, FileText } from 'lucide-react';
 
 const getBaseUrl = () => (import.meta.env.VITE_BACKEND_URL || 'https://api.baaie.com').replace(/\/$/, '');
+
+/** API often returns `/uploads/...` — join with API origin for browser navigation. */
+const resolveAttachmentHref = (url) => {
+    if (!url || typeof url !== 'string') return '';
+    const trimmed = url.trim();
+    if (!trimmed) return '';
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    const base = getBaseUrl();
+    const path = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+    return `${base}${path}`;
+};
 
 const formatDateTime = (s) => {
     if (!s) return '—';
@@ -28,21 +40,90 @@ const labelize = (v) => {
     return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
 };
 
-const getPriorityChipClass = (p) => {
-    const v = (p || '').toLowerCase();
-    if (v === 'high') return 'bg-red-50 text-red-600';
-    if (v === 'medium') return 'bg-orange-50 text-orange-500';
-    if (v === 'low') return 'bg-blue-50 text-blue-500';
-    return 'bg-gray-100 text-gray-600';
+/** Short relative labels for Details tab (e.g. "2 days ago", "1h ago"). */
+const formatRelativeTime = (dateString) => {
+    if (!dateString) return '—';
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return '—';
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMinutes / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMinutes < 1) return 'Just now';
+    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return '1 day ago';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    return formatDateTime(dateString);
 };
 
-const getTypeBadgeClass = (t) => {
-    const v = (t || '').toLowerCase();
-    if (v === 'technical') return 'bg-blue-100 text-blue-600';
-    if (v === 'billing') return 'bg-green-100 text-green-600';
-    if (v === 'account') return 'bg-indigo-100 text-indigo-600';
-    if (v === 'integrations') return 'bg-yellow-100 text-yellow-800';
-    return 'bg-gray-100 text-gray-600';
+/** Pill shell + semantic colors — same as `AdminSupportTickets` table tags. */
+const SUPPORT_TAG_PILL =
+    'inline-flex items-center max-w-full gap-0.5 rounded-[6px] px-3 py-1 text-[12px] font-medium leading-[18px] tracking-normal';
+
+const supportTagFontStyle = { fontFamily: '"Sofia Pro", ui-sans-serif, system-ui, sans-serif' };
+
+const getSupportCategoryColor = (type) => {
+    const value = String(type || '')
+        .toLowerCase()
+        .replace(/\s+/g, '_');
+    switch (value) {
+        case 'billing':
+        case 'payment':
+        case 'payouts':
+            return 'bg-[#DD2F2633] text-[#16A34A]';
+        case 'technical':
+            return 'bg-[#DBEAFE] text-[#2563EB]';
+        case 'integrations':
+        case 'integration':
+            return 'bg-[#FEF3C7] text-[#CA8A04]';
+        case 'account':
+        case 'support':
+            return 'bg-[#E0E7FF] text-[#6366F1]';
+        default:
+            return 'bg-[#F3F4F6] text-[#4B5563]';
+    }
+};
+
+const getSupportPriorityColor = (priority) => {
+    const value = String(priority || '').toLowerCase();
+    switch (value) {
+        case 'high':
+        case 'urgent':
+            return 'bg-[#FEE2E2] text-[#DC2626]';
+        case 'medium':
+        case 'normal':
+            return 'bg-[#FFEDD5] text-[#EA580C]';
+        case 'low':
+            return 'bg-[#DBEAFE] text-[#2563EB]';
+        default:
+            return 'bg-[#F3F4F6] text-[#4B5563]';
+    }
+};
+
+const getSupportStatusColor = (status) => {
+    const value = String(status || '')
+        .toLowerCase()
+        .replace(/\s+/g, '_');
+    switch (value) {
+        case 'open':
+        case 'pending':
+            return 'bg-[#DCFCE7] text-[#16A34A]';
+        case 'in_progress':
+            return 'bg-[#DBEAFE] text-[#2563EB]';
+        case 'awaiting_info':
+        case 'waiting_customer':
+            return 'bg-[#FEF3C7] text-[#CA8A04]';
+        case 'resolved':
+            return 'bg-[#EEF2FF] text-[#4F46E5]';
+        case 'closed':
+            return 'bg-[#F3F4F6] text-[#6B7280]';
+        default:
+            return 'bg-[#F3F4F6] text-[#4B5563]';
+    }
 };
 
 const getStatusBadgeClass = (s) => {
@@ -62,11 +143,11 @@ const getStatusBadgeClass = (s) => {
     return 'bg-gray-50 text-gray-600 font-medium border border-gray-100';
 };
 
-const DetailField = ({ label, children, className = '' }) => (
+const DetailField = ({ label, children, className = '', valueClassName = '' }) => (
     <div className={className}>
-        <p className="text-[11px] font-[700] uppercase tracking-widest text-gray-400 mb-1.5">{label}</p>
+        <p className="mb-1.5 text-[11px] font-[700] uppercase tracking-widest text-gray-400">{label}</p>
         {typeof children === 'string' || typeof children === 'number' ? (
-            <p className="text-[14px] font-[500] text-[#111827]">{children}</p>
+            <p className={`text-[14px] font-[600] text-[#111827] ${valueClassName}`}>{children}</p>
         ) : (
             children
         )}
@@ -85,8 +166,12 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket }) => {
     const [sending, setSending] = useState(false);
     const [replyText, setReplyText] = useState('');
     const [error, setError] = useState('');
+    /** File queued to upload after message send (Conversation → paperclip). */
+    const [pendingAttachment, setPendingAttachment] = useState(null);
+    const [statusPatching, setStatusPatching] = useState(false);
 
     const conversationContainerRef = useRef(null);
+    const attachmentInputRef = useRef(null);
 
     const getRestaurantId = () => {
         const fromUser = user && typeof user === 'object' && typeof user.restaurant_id === 'string' ? user.restaurant_id : '';
@@ -170,6 +255,70 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket }) => {
         }
     };
 
+    /** Reload ticket JSON + messages without full-modal loading flash. */
+    const refetchTicketDetails = async () => {
+        const apiTicketId = resolveTicketIdForApi();
+        if (!apiTicketId || !accessToken) return;
+
+        try {
+            const baseUrl = getBaseUrl();
+            const url = `${baseUrl}/api/v1/tickets/${encodeURIComponent(apiTicketId)}`;
+            const headers = {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${accessToken}`,
+            };
+            if (restaurantId) {
+                headers['X-Restaurant-Id'] = restaurantId;
+            }
+            const res = await fetch(url, { method: 'GET', headers });
+            const json = await res.json();
+            const details = json?.data ?? null;
+            if (details) {
+                setTicketDetails(details);
+                if (Array.isArray(details.conversation) && details.conversation.length) {
+                    const mappedConversation = details.conversation.map(mapApiMessageToUi).filter(Boolean);
+                    if (mappedConversation.length) setMessages(mappedConversation);
+                }
+            }
+            await fetchMessages(apiTicketId);
+        } catch (e) {
+            console.error('refetchTicketDetails failed', e);
+        }
+    };
+
+    const postTicketAttachment = async (ticketId, file) => {
+        const baseUrl = getBaseUrl();
+        const url = `${baseUrl}/api/v1/tickets/${encodeURIComponent(ticketId)}/attachments`;
+        const formData = new FormData();
+        formData.append('file', file);
+        const headers = {
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+            ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
+        };
+        const res = await fetch(url, {
+            method: 'POST',
+            headers,
+            body: formData,
+        });
+        const raw = await res.text();
+        let json = {};
+        if (raw) {
+            try {
+                json = JSON.parse(raw);
+            } catch {
+                json = { message: raw };
+            }
+        }
+        if (!res.ok) {
+            const msg = json?.message || json?.error || 'Failed to upload attachment';
+            throw new Error(msg);
+        }
+        if (json?.code != null && !String(json.code).startsWith('SUCCESS')) {
+            throw new Error(json?.message || 'Failed to upload attachment');
+        }
+        return json;
+    };
+
     const fetchTicketDetails = async () => {
         const apiTicketId = resolveTicketIdForApi();
         if (!apiTicketId || !accessToken) {
@@ -228,6 +377,8 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket }) => {
             setActiveTab('Conversation');
             setReplyText('');
             setError('');
+            setPendingAttachment(null);
+            if (attachmentInputRef.current) attachmentInputRef.current.value = '';
         }
     }, [isOpen, ticket]);
 
@@ -295,7 +446,8 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket }) => {
 
     const handleSendMessage = async () => {
         const text = (replyText || '').trim();
-        if (!text || !accessToken) return;
+        const file = pendingAttachment;
+        if ((!text && !file) || !accessToken) return;
 
         const apiTicketId = resolveTicketIdForApi();
         if (!apiTicketId) return;
@@ -304,10 +456,62 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket }) => {
             setSending(true);
             setError('');
 
-            const baseUrl = getBaseUrl();
-            const idParam = encodeURIComponent(apiTicketId);
-            const url = `${baseUrl}/api/v1/tickets/${idParam}/messages`;
+            if (text) {
+                const baseUrl = getBaseUrl();
+                const idParam = encodeURIComponent(apiTicketId);
+                const url = `${baseUrl}/api/v1/tickets/${idParam}/messages`;
 
+                const headers = {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${accessToken}`,
+                };
+                if (restaurantId) {
+                    headers['X-Restaurant-Id'] = restaurantId;
+                }
+
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ comment: text }),
+                });
+
+                const json = await res.json();
+                const code = json?.code;
+                const ok = res.ok || (code && typeof code === 'string' && code.startsWith('SUCCESS_'));
+
+                if (!ok) {
+                    const message = json?.message || 'Failed to send message';
+                    throw new Error(message);
+                }
+
+                setReplyText('');
+                await fetchMessages(apiTicketId);
+            }
+
+            if (file) {
+                await postTicketAttachment(apiTicketId, file);
+                setPendingAttachment(null);
+                if (attachmentInputRef.current) attachmentInputRef.current.value = '';
+                await refetchTicketDetails();
+                setActiveTab('Attachments');
+                toast.success('Attachment uploaded');
+            }
+        } catch (e) {
+            const msg = e.message || 'Failed to send';
+            setError(msg);
+            toast.error(msg);
+        } finally {
+            setSending(false);
+        }
+    };
+
+    const patchTicketStatus = async (status) => {
+        const apiTicketId = resolveTicketIdForApi();
+        if (!apiTicketId || !accessToken) return;
+        setStatusPatching(true);
+        try {
+            const baseUrl = getBaseUrl();
+            const url = `${baseUrl}/api/v1/tickets/${encodeURIComponent(apiTicketId)}`;
             const headers = {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${accessToken}`,
@@ -315,28 +519,29 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket }) => {
             if (restaurantId) {
                 headers['X-Restaurant-Id'] = restaurantId;
             }
-
             const res = await fetch(url, {
-                method: 'POST',
+                method: 'PATCH',
                 headers,
-                body: JSON.stringify({ comment: text }),
+                body: JSON.stringify({ status }),
             });
-
-            const json = await res.json();
-            const code = json?.code;
-            const ok = res.ok || (code && typeof code === 'string' && code.startsWith('SUCCESS_'));
-
-            if (!ok) {
-                const message = json?.message || 'Failed to send message';
-                throw new Error(message);
+            const raw = await res.text();
+            let json = {};
+            if (raw) {
+                try {
+                    json = JSON.parse(raw);
+                } catch {
+                    json = {};
+                }
             }
-
-            setReplyText('');
-            await fetchMessages(apiTicketId);
+            if (!res.ok || (json.code != null && !String(json.code).startsWith('SUCCESS'))) {
+                throw new Error(json.message || json.error || 'Update failed');
+            }
+            toast.success('Ticket updated');
+            await refetchTicketDetails();
         } catch (e) {
-            setError(e.message || 'Failed to send message');
+            toast.error(e.message || 'Failed to update ticket');
         } finally {
-            setSending(false);
+            setStatusPatching(false);
         }
     };
 
@@ -347,6 +552,52 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket }) => {
     const priorityForStyle = d?.priority || (ticket?.raw && ticket.raw.priority) || 'medium';
     const descriptionText = d?.description || '';
     const attachments = Array.isArray(d?.attachments) ? d.attachments : [];
+
+    const rawStatusNorm = String(statusForStyle || '')
+        .toLowerCase()
+        .replace(/\s+/g, '_');
+    const isTerminalStatus = rawStatusNorm === 'resolved' || rawStatusNorm === 'closed';
+
+    const categoryLabel =
+        d?.category != null && String(d.category).trim() !== ''
+            ? labelize(d.category)
+            : d?.ticket_type != null
+              ? labelize(d.ticket_type)
+              : ticket?.category
+                ? String(ticket.category)
+                : '—';
+
+    const categoryTypeKey = String(
+        d?.ticket_type || d?.category || ticket?.categoryType || ticket?.raw?.ticket_type || ticket?.raw?.category || ''
+    )
+        .toLowerCase()
+        .replace(/\s+/g, '_');
+
+    const orderDisplay =
+        d?.order_number != null && String(d.order_number).trim() !== ''
+            ? String(d.order_number).trim().startsWith('#')
+                ? String(d.order_number).trim()
+                : `#${String(d.order_number).trim()}`
+            : null;
+
+    const priorityStr = String(priorityForStyle || '').toLowerCase();
+    const slaTargetDisplay = (() => {
+        if (!d) return '—';
+        if (d.sla_target != null && String(d.sla_target).trim()) return String(d.sla_target).trim();
+        const labelKeys = ['sla_resolution_label', 'response_sla_label', 'sla_label'];
+        for (const k of labelKeys) {
+            if (d[k]) return String(d[k]);
+        }
+        const hourKeys = ['sla_hours', 'response_sla_hours', 'first_response_sla_hours', 'sla_resolution_hours'];
+        for (const k of hourKeys) {
+            const n = d[k];
+            if (typeof n === 'number' && !Number.isNaN(n)) return `${n} hours`;
+        }
+        if (priorityStr === 'urgent' || priorityStr === 'high') return '24 hours';
+        if (priorityStr === 'medium') return '48 hours';
+        if (priorityStr === 'low') return '72 hours';
+        return '—';
+    })();
 
     const buildTimeline = () => {
         const events = [];
@@ -384,7 +635,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket }) => {
     const renderContent = () => {
         if (loadingDetails) {
             return (
-                <div className="flex min-h-[320px] items-center justify-center p-8">
+                <div className="flex h-full min-h-0 items-center justify-center p-8">
                     <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                 </div>
             );
@@ -393,10 +644,10 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket }) => {
         switch (activeTab) {
             case 'Conversation':
                 return (
-                    <div className="flex max-h-[450px] flex-col">
+                    <div className="flex h-full min-h-0 flex-col">
                         <div
                             ref={conversationContainerRef}
-                            className="h-[350px] space-y-6 overflow-y-auto p-6 custom-scrollbar"
+                            className="min-h-0 flex-1 space-y-6 overflow-y-auto p-6 custom-scrollbar"
                         >
                             {loadingMessages && (
                                 <p className="text-[12px] text-gray-500">Loading conversation…</p>
@@ -446,18 +697,18 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket }) => {
                             })}
                         </div>
 
-                        <div className="border-t border-gray-100 bg-[#F9FAFB]/50 p-6">
-                            {error && <p className="mb-2 text-[12px] text-red-500">{error}</p>}
-                            <div className="mb-4 flex items-center gap-2">
+                        <div className="shrink-0 border-t border-gray-100 bg-[#F9FAFB]/50 px-6 pb-3 pt-2">
+                            {error && <p className="mb-1.5 text-[12px] text-red-500">{error}</p>}
+                            <div className="mb-2 flex items-center gap-2">
                                 <button
                                     type="button"
-                                    className="cursor-default rounded-[6px] border border-gray-200 bg-white px-3 py-1 text-[10px] font-[700] uppercase tracking-wider text-[#6B7280]"
+                                    className="cursor-default rounded-[6px] border border-gray-200 bg-white px-2.5 py-0.5 text-[10px] font-[700] uppercase tracking-wider text-[#6B7280]"
                                 >
                                     Internal Notes OFF
                                 </button>
                             </div>
 
-                            <div className="rounded-[12px] border border-[#E5E7EB] bg-white p-4 shadow-sm">
+                            <div className="rounded-[12px] border border-[#E5E7EB] bg-white p-3 shadow-sm">
                                 <textarea
                                     rows="2"
                                     placeholder="Type your message..."
@@ -465,143 +716,207 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket }) => {
                                     onChange={(e) => setReplyText(e.target.value)}
                                     className="custom-scrollbar w-full resize-none border-none bg-transparent text-[14px] font-[500] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none"
                                 />
-                                <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
-                                    <div className="flex items-center gap-5 text-[#9CA3AF]">
-                                        <button type="button" className="cursor-pointer active:scale-90 transition-colors hover:text-[#DD2F26]">
-                                            <Paperclip className="h-4 w-4" />
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="flex items-center gap-2 rounded-md px-2 py-1 text-[12px] font-[700] text-[#DD2F26] transition-all hover:bg-[#DD2F26]/5 active:scale-95"
-                                        >
-                                            Quick Replies
-                                        </button>
-                                    </div>
+                            </div>
+
+                            <div className="mt-2 flex items-center justify-between gap-3">
+                                <div className="flex min-w-0 flex-1 items-center gap-3">
+                                    <input
+                                        ref={attachmentInputRef}
+                                        type="file"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                            const f = e.target.files?.[0];
+                                            setPendingAttachment(f || null);
+                                        }}
+                                    />
                                     <button
                                         type="button"
-                                        onClick={handleSendMessage}
-                                        disabled={sending || !replyText.trim()}
-                                        className={`flex items-center gap-2 rounded-[8px] bg-[#DD2F26] px-6 py-2 text-[13px] font-[600] text-white shadow-md transition-all hover:bg-[#C52820] active:scale-95 ${
-                                            sending || !replyText.trim() ? 'cursor-not-allowed opacity-70' : ''
-                                        }`}
+                                        title="Attach file"
+                                        disabled={sending}
+                                        onClick={() => attachmentInputRef.current?.click()}
+                                        className="shrink-0 cursor-pointer text-[#9CA3AF] transition-colors hover:text-[#DD2F26] disabled:cursor-not-allowed disabled:opacity-50"
                                     >
-                                        <Send className="h-4 w-4" />
-                                        {sending ? 'Sending…' : 'Send'}
+                                        <Paperclip className="h-4 w-4" />
                                     </button>
+                                    {pendingAttachment ? (
+                                        <div className="flex min-w-0 items-center gap-2 text-[12px] font-[500] text-[#374151]">
+                                            <span className="truncate" title={pendingAttachment.name}>
+                                                {pendingAttachment.name}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                disabled={sending}
+                                                onClick={() => {
+                                                    setPendingAttachment(null);
+                                                    if (attachmentInputRef.current) attachmentInputRef.current.value = '';
+                                                }}
+                                                className="shrink-0 text-[11px] font-[600] text-primary hover:underline disabled:opacity-50"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                    ) : null}
                                 </div>
+                                <button
+                                    type="button"
+                                    onClick={handleSendMessage}
+                                    disabled={sending || (!replyText.trim() && !pendingAttachment)}
+                                    className={`flex shrink-0 items-center gap-2 rounded-[8px] bg-[#DD2F26] px-5 py-1.5 text-[13px] font-[600] text-white shadow-md transition-all hover:bg-[#C52820] active:scale-95 ${
+                                        sending || (!replyText.trim() && !pendingAttachment)
+                                            ? 'cursor-not-allowed opacity-70'
+                                            : ''
+                                    }`}
+                                >
+                                    <Send className="h-4 w-4" />
+                                    {sending ? 'Sending…' : 'Send'}
+                                </button>
                             </div>
                         </div>
                     </div>
                 );
             case 'Details': {
                 return (
-                    <div className="max-h-[450px] space-y-6 overflow-y-auto p-6 custom-scrollbar">
-                        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                            <DetailField label="Ticket number">{d?.ticket_number || ticket?.id || '—'}</DetailField>
-                            <DetailField label="Ticket type">
+                    <div className="h-full min-h-0 overflow-y-auto p-6 custom-scrollbar">
+                        <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
+                            <DetailField label="Category">
                                 <span
-                                    className={`inline-flex rounded-[6px] px-2 py-1 text-[10px] font-bold ${
-                                        ticket?.category && !d?.ticket_type
-                                            ? ticket.categoryColor
-                                            : getTypeBadgeClass(d?.ticket_type)
-                                    }`}
+                                    className={`${SUPPORT_TAG_PILL} ${getSupportCategoryColor(categoryTypeKey)}`}
+                                    style={supportTagFontStyle}
                                 >
-                                    {d?.ticket_type != null ? labelize(d.ticket_type) : ticket?.category || '—'}
+                                    <span className="truncate">{categoryLabel}</span>
                                 </span>
                             </DetailField>
                             <DetailField label="Priority">
                                 <span
-                                    className={`inline-flex rounded-[6px] px-2 py-1 text-[10px] font-bold ${
-                                        ticket?.priority && !d?.priority ? ticket.priorityColor : getPriorityChipClass(priorityForStyle)
+                                    className={`${SUPPORT_TAG_PILL} ${
+                                        ticket?.priority && !d?.priority
+                                            ? ticket.priorityColor
+                                            : getSupportPriorityColor(priorityForStyle)
                                     }`}
+                                    style={supportTagFontStyle}
                                 >
-                                    {d?.priority != null ? labelize(d.priority) : ticket?.priority || '—'}
+                                    <span className="truncate">
+                                        {d?.priority != null ? labelize(d.priority) : ticket?.priority || '—'}
+                                    </span>
                                 </span>
                             </DetailField>
                             <DetailField label="Status">
                                 <span
-                                    className={`inline-flex rounded-[6px] px-3 py-1 text-[10px] font-bold ${
-                                        ticket?.status && !d?.status ? ticket.statusColor : getStatusBadgeClass(statusForStyle)
+                                    className={`${SUPPORT_TAG_PILL} ${
+                                        ticket?.status && !d?.status
+                                            ? ticket.statusColor
+                                            : getSupportStatusColor(rawStatusNorm)
                                     }`}
+                                    style={supportTagFontStyle}
                                 >
-                                    {d?.status != null ? labelize(d.status) : displayStatus}
+                                    <span className="truncate">
+                                        {d?.status != null ? labelize(d.status) : displayStatus}
+                                    </span>
                                 </span>
                             </DetailField>
-                            <DetailField label="Order number">
-                                {d?.order_number != null && d.order_number !== ''
-                                    ? d.order_number
-                                    : '—'}
+                            <DetailField label="Created">{formatRelativeTime(d?.created_at)}</DetailField>
+                            <DetailField label="Last Updated">
+                                {formatRelativeTime(d?.updated_at || d?.last_response_at)}
                             </DetailField>
-                            <DetailField label="Preferred contact">
-                                {d?.preferred_contact != null ? labelize(d.preferred_contact) : '—'}
+                            <DetailField label="Assigned To">Admin Team</DetailField>
+                        </div>
+
+                        <div className="mt-6 space-y-6">
+                            <DetailField label="Related Order">
+                                {orderDisplay ? (
+                                    <p className="text-[14px] font-[600] text-[#DD2F26]">{orderDisplay}</p>
+                                ) : (
+                                    <p className="text-[14px] font-[600] text-[#111827]">—</p>
+                                )}
                             </DetailField>
-                        </div>
 
-                        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                            <DetailField label="Created by">{d?.created_by_name || '—'}</DetailField>
-                            <DetailField label="Assigned to">{d?.assigned_to_name || 'Unassigned'}</DetailField>
-                            <DetailField label="Restaurant">{d?.restaurant_name || ticket?.restaurantName || '—'}</DetailField>
-                            <DetailField label="Restaurant email">{d?.restaurant_email || '—'}</DetailField>
-                            <DetailField label="Owner email">{d?.owner_email || '—'}</DetailField>
-                        </div>
-
-                        <div>
-                            <p className="text-[11px] font-[700] uppercase tracking-widest text-gray-400 mb-1.5">Subject</p>
-                            <p className="text-[14px] font-[600] text-[#111827]">{d?.subject || ticket?.title || '—'}</p>
-                        </div>
-
-                        <div>
-                            <p className="text-[11px] font-[700] uppercase tracking-widest text-gray-400 mb-1.5">Description</p>
-                            <p className="whitespace-pre-wrap text-[14px] font-[500] leading-relaxed text-[#4B5563]">
-                                {descriptionText || '—'}
-                            </p>
-                        </div>
-
-                        {d?.resolution && (
-                            <div>
-                                <p className="text-[11px] font-[700] uppercase tracking-widest text-gray-400 mb-1.5">Resolution</p>
-                                <p className="whitespace-pre-wrap text-[14px] font-[500] text-[#111827]">{d.resolution}</p>
-                            </div>
-                        )}
-
-                        <div className="grid grid-cols-1 gap-2 text-[12px] text-gray-500 sm:grid-cols-2">
-                            {d?.id && (
-                                <p>
-                                    <span className="font-[600] text-gray-400">ID:</span> {d.id}
+                            <DetailField label="Description">
+                                <p className="whitespace-pre-wrap text-[14px] font-[500] leading-relaxed text-[#4B5563]">
+                                    {descriptionText || '—'}
                                 </p>
-                            )}
-                            {typeof d?.comments_count === 'number' && (
-                                <p>
-                                    <span className="font-[600] text-gray-400">Comments count:</span> {d.comments_count}
-                                </p>
-                            )}
+                            </DetailField>
+
+                            <DetailField label="SLA Target">{slaTargetDisplay}</DetailField>
+
+                            {d?.resolution ? (
+                                <DetailField label="Resolution">
+                                    <p className="whitespace-pre-wrap text-[14px] font-[500] leading-relaxed text-[#111827]">
+                                        {d.resolution}
+                                    </p>
+                                </DetailField>
+                            ) : null}
+                        </div>
+
+                        <div className="mt-8 flex flex-wrap gap-3">
+                            <button
+                                type="button"
+                                disabled={statusPatching || isTerminalStatus}
+                                onClick={() => patchTicketStatus('resolved')}
+                                className="rounded-[8px] bg-[#DD2F26] px-5 py-2.5 text-[14px] font-[600] text-white shadow-sm transition-colors hover:bg-[#C52820] disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Resolve Ticket
+                            </button>
+                            <button
+                                type="button"
+                                disabled={statusPatching || !isTerminalStatus}
+                                onClick={() => patchTicketStatus('open')}
+                                className="rounded-[8px] border border-gray-300 bg-white px-5 py-2.5 text-[14px] font-[600] text-[#111827] shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Reopen Ticket
+                            </button>
                         </div>
                     </div>
                 );
             }
             case 'Attachments':
                 return (
-                    <div className="min-h-[200px] p-6">
+                    <div className="h-full min-h-0 overflow-y-auto p-6 custom-scrollbar">
                         {attachments.length === 0 ? (
                             <p className="text-[14px] text-gray-500">No attachments.</p>
                         ) : (
                             <ul className="space-y-3">
                                 {attachments.map((a, i) => {
                                     const name = a.file_name || a.name || a.filename || `File ${i + 1}`;
+                                    const href = resolveAttachmentHref(a.url);
                                     return (
                                         <li
-                                            key={a.id || i}
-                                            className="flex items-center gap-3 rounded-[12px] border border-gray-100 bg-[#F9FAFB] px-4 py-3"
+                                            key={a.id || `${name}-${i}`}
+                                            className="overflow-hidden rounded-[12px] border border-gray-100 bg-[#F9FAFB]"
                                         >
-                                            <FileText className="h-8 w-8 shrink-0 text-gray-400" />
-                                            <div className="min-w-0">
-                                                <p className="truncate text-[14px] font-[600] text-[#111827]">{name}</p>
-                                                {a.size && (
-                                                    <p className="text-[11px] text-gray-400">
-                                                        {typeof a.size === 'number' ? `${(a.size / 1024).toFixed(1)} KB` : a.size}
-                                                    </p>
-                                                )}
-                                            </div>
+                                            {href ? (
+                                                <a
+                                                    href={href}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex cursor-pointer items-center gap-3 px-4 py-3 text-inherit no-underline transition-colors hover:bg-gray-100"
+                                                >
+                                                    <FileText className="h-8 w-8 shrink-0 text-gray-400" />
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="truncate text-[14px] font-[600] text-[#111827]">{name}</p>
+                                                        {a.size != null && a.size !== '' && (
+                                                            <p className="text-[11px] text-gray-400">
+                                                                {typeof a.size === 'number'
+                                                                    ? `${(a.size / 1024).toFixed(1)} KB`
+                                                                    : a.size}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </a>
+                                            ) : (
+                                                <div className="flex items-center gap-3 px-4 py-3">
+                                                    <FileText className="h-8 w-8 shrink-0 text-gray-400" />
+                                                    <div className="min-w-0">
+                                                        <p className="truncate text-[14px] font-[600] text-[#111827]">{name}</p>
+                                                        {a.size != null && a.size !== '' && (
+                                                            <p className="text-[11px] text-gray-400">
+                                                                {typeof a.size === 'number'
+                                                                    ? `${(a.size / 1024).toFixed(1)} KB`
+                                                                    : a.size}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </li>
                                     );
                                 })}
@@ -612,7 +927,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket }) => {
             case 'Timeline': {
                 const timeline = buildTimeline();
                 return (
-                    <div className="min-h-[200px] p-6">
+                    <div className="h-full min-h-0 overflow-y-auto p-6 custom-scrollbar">
                         {timeline.length === 0 ? (
                             <p className="text-[14px] text-gray-500">No timeline events yet.</p>
                         ) : (
@@ -649,40 +964,44 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket }) => {
             onClick={onClose}
         >
             <div
-                className="w-full max-w-3xl max-h-[90vh] overflow-hidden overflow-y-auto rounded-[12px] border border-[#00000033] bg-white shadow-2xl duration-200 animate-in zoom-in-95"
+                className="flex h-[min(90vh,670px)] w-full max-w-3xl flex-col overflow-hidden rounded-[12px] border border-[#00000033] bg-white shadow-2xl duration-200 animate-in zoom-in-95"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="border-b border-gray-100 p-5">
-                    <div className="mb-1 flex items-start justify-between gap-2">
-                        <h2 className="text-left text-[18px] font-bold text-[#111827]">{displaySubject}</h2>
-                        <button
-                            onClick={onClose}
-                            className="shrink-0 rounded-full p-2 text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600"
-                        >
-                            <X className="h-5 w-5" />
-                        </button>
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-2">
-                        <span className="text-[13px] font-[500] uppercase tracking-wide text-gray-500">{displayTicketNo}</span>
-                        <div className="h-1 w-1 rounded-full bg-gray-300" />
-                        <span
-                            className={`inline-flex rounded-[4px] px-2 py-0.5 text-[11px] font-bold ${
-                                d ? getStatusBadgeClass(d.status) : ticket?.statusColor || getStatusBadgeClass(statusForStyle)
-                            }`}
-                        >
-                            {displayStatus}
-                        </span>
+                <div className="shrink-0 border-b border-gray-100 p-5">
+                    <div className="flex flex-col gap-0">
+                        <div className="flex items-start justify-between gap-2">
+                            <h2 className="text-left text-[20px] font-bold leading-[24px] tracking-normal text-[#111827]">
+                                {displaySubject}
+                            </h2>
+                            <button
+                                onClick={onClose}
+                                className="shrink-0 rounded-full p-2 text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-[13px] font-[500] uppercase tracking-wide text-gray-500">{displayTicketNo}</span>
+                            <div className="h-1 w-1 rounded-full bg-gray-300" />
+                            <span
+                                className={`inline-flex rounded-[4px] px-2 py-0.5 text-[11px] font-bold ${
+                                    d ? getStatusBadgeClass(d.status) : ticket?.statusColor || getStatusBadgeClass(statusForStyle)
+                                }`}
+                            >
+                                {displayStatus}
+                            </span>
+                        </div>
                     </div>
                 </div>
 
-                <div className="flex border-b border-gray-100 bg-[#F9FAFB]/30 px-2 sm:px-4 overflow-x-auto no-scrollbar">
-                    <div className="flex min-w-max">
+                <div className="flex h-[52px] shrink-0 items-stretch border-b border-gray-100 bg-[#F9FAFB]/30 px-2 overflow-x-auto no-scrollbar sm:px-4">
+                    <div className="flex min-h-0 min-w-max items-stretch">
                         {tabs.map((tab) => (
                             <button
                                 key={tab}
                                 type="button"
                                 onClick={() => setActiveTab(tab)}
-                                className={`relative px-3 py-3 text-[13px] font-[600] transition-all sm:px-4 ${
+                                className={`relative flex items-center px-3 text-[13px] font-[600] transition-all sm:px-4 ${
                                     activeTab === tab ? 'text-[#DD2F26]' : 'text-gray-400 hover:text-gray-600'
                                 }`}
                             >
@@ -695,7 +1014,7 @@ const TicketDetailsModal = ({ isOpen, onClose, ticket }) => {
                     </div>
                 </div>
 
-                <div className="max-h-[min(520px,70vh)] custom-scrollbar overflow-y-auto overflow-x-hidden">{renderContent()}</div>
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{renderContent()}</div>
             </div>
         </div>
     );

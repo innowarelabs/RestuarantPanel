@@ -102,12 +102,19 @@ const mapMenuDish = (raw) => {
     const images = Array.isArray(raw.images) ? raw.images.map((img) => normalizeUrl(String(img))) : [];
     const imageUrl = images.find(Boolean) || '';
     const categoryName = typeof raw.__categoryName === 'string' ? raw.__categoryName : '';
-    const isAvailable =
-        typeof raw.is_available === 'boolean'
-            ? raw.is_available
-            : typeof raw.isAvailable === 'boolean'
-                ? raw.isAvailable
-                : true;
+    /** GET menu items expose `item_available`; POST body unchanged (`is_available`). */
+    let isAvailable = true;
+    if (typeof raw.item_available === 'boolean') {
+        isAvailable = raw.item_available;
+    } else if (raw.item_available === 1 || raw.item_available === '1') {
+        isAvailable = true;
+    } else if (raw.item_available === 0 || raw.item_available === '0') {
+        isAvailable = false;
+    } else if (typeof raw.is_available === 'boolean') {
+        isAvailable = raw.is_available;
+    } else if (typeof raw.isAvailable === 'boolean') {
+        isAvailable = raw.isAvailable;
+    }
     return {
         id,
         name,
@@ -117,6 +124,22 @@ const mapMenuDish = (raw) => {
         categoryName,
         isAvailable,
     };
+};
+
+/** GET categories may expose `is_visible` / `is_active`; keep `visible` on mapped objects for existing UI/state. */
+const mapCategoryVisibility = (raw) => {
+    if (!raw || typeof raw !== 'object') return true;
+    if (typeof raw.is_visible === 'boolean') return raw.is_visible;
+    if (raw.is_visible === 1 || raw.is_visible === '1') return true;
+    if (raw.is_visible === 0 || raw.is_visible === '0') return false;
+    if (typeof raw.is_active === 'boolean') return raw.is_active;
+    if (raw.is_active === 1 || raw.is_active === '1') return true;
+    if (raw.is_active === 0 || raw.is_active === '0') return false;
+    if (typeof raw.visible === 'boolean') return raw.visible;
+    if (typeof raw.status === 'boolean') return raw.status;
+    if (raw.status === 1 || raw.status === '1') return true;
+    if (raw.status === 0 || raw.status === '0') return false;
+    return true;
 };
 
 const mapCategory = (raw) => {
@@ -136,7 +159,7 @@ const mapCategory = (raw) => {
         (typeof raw.imageUrl === 'string' && raw.imageUrl) ||
         '';
     const imageUrl = imageRaw ? normalizeUrl(imageRaw) : '';
-    const visible = typeof raw.visible === 'boolean' ? raw.visible : true;
+    const visible = mapCategoryVisibility(raw);
     const imageName = imageUrl ? imageUrl.split('/').pop() || '' : '';
     return { id, name, description, imageUrl, imageName, visible };
 };
@@ -356,7 +379,7 @@ export default function Step3({
                     name: formData.categoryName.trim(),
                     image_url: imageUrl,
                     description: formData.categoryDesc?.trim() || '',
-                    status: formData.categoryVisible !== false,
+                    is_active: formData.categoryVisible !== false,
                 }),
             });
 
@@ -727,7 +750,7 @@ export default function Step3({
                                         <div className="flex items-center gap-2 flex-wrap">
                                             <p className="text-[14px] font-[600] text-[#1A1A1A] truncate">{category.name}</p>
                                             <span className={`text-[10px] px-2 py-0.5 rounded-[999px] ${category.visible ? 'bg-primary-bg text-primary' : 'bg-[#FEF2F2] text-[#EF4444]'}`}>
-                                                {category.visible ? 'Enabled' : 'Disabled'}
+                                                {category.visible ? 'Active' : 'Inactive'}
                                             </span>
                                         </div>
                                         {category.description ? (

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Search, Plus, MoreVertical, Edit2, Trash2, X } from 'lucide-react';
+import AddMenuItemModal from '../../components/Header/AddMenuItemModal';
 import EditMenuItemModal from '../../components/MenuManagement/EditMenuItemModal';
 import MenuPreviewModal from '../../components/MenuManagement/MenuPreviewModal';
 import AddCategoryModal from '../../components/MenuManagement/AddCategoryModal';
@@ -482,6 +483,8 @@ export default function MenuManagement() {
     const [isAddTodaysDealModalOpen, setIsAddTodaysDealModalOpen] = useState(false);
     const [isAddTopSellerModalOpen, setIsAddTopSellerModalOpen] = useState(false);
     const [isAddCateringItemModalOpen, setIsAddCateringItemModalOpen] = useState(false);
+    const [isAddMenuItemModalOpen, setIsAddMenuItemModalOpen] = useState(false);
+    const [menuType, setMenuType] = useState('regular');
     const [selectedItem, setSelectedItem] = useState(null);
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [categoryMenu, setCategoryMenu] = useState(null);
@@ -1121,10 +1124,58 @@ export default function MenuManagement() {
     }, [categories]);
 
     return (
-        <div className="max-w-[1600px] mx-auto animate-in fade-in duration-500">
-            <div className='grid grid-cols-1 xl:grid-cols-12 gap-6'>
+        <div className="mx-auto min-w-0 max-w-[1600px] animate-in fade-in duration-500">
+            <div className="mb-6 flex flex-col gap-4 bg-transparent sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                    <span className="font-sans text-[14px] font-medium leading-[21px] text-[#6B7280] sm:self-center">Menu Type</span>
+                    <div className="inline-flex w-fit rounded-[10px] bg-[#E8EAED] p-1">
+                        <button
+                            type="button"
+                            onClick={() => setMenuType('regular')}
+                            className={`rounded-[8px] px-4 py-2 font-sans text-[14px] font-medium transition-colors ${
+                                menuType === 'regular' ? 'bg-white text-primary shadow-sm' : 'bg-transparent text-[#6B7280]'
+                            }`}
+                        >
+                            Regular Menu
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setMenuType('catering')}
+                            className={`rounded-[8px] px-4 py-2 font-sans text-[14px] font-medium transition-colors ${
+                                menuType === 'catering' ? 'bg-white text-primary shadow-sm' : 'bg-transparent text-[#6B7280]'
+                            }`}
+                        >
+                            Catering Menu
+                        </button>
+                    </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+                    <button
+                        type="button"
+                        onClick={() => setIsAddCateringItemModalOpen(true)}
+                        className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-[10px] border border-primary/25 bg-white px-4 font-sans text-[14px] font-medium text-primary shadow-sm transition-colors hover:bg-[#FEF2F2]"
+                    >
+                        <Plus size={18} strokeWidth={2.25} />
+                        Create Catering Package
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setIsAddMenuItemModalOpen(true)}
+                        className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-[10px] bg-primary px-4 font-sans text-[14px] font-medium text-white shadow-sm transition-colors hover:bg-[#C52820]"
+                    >
+                        <Plus size={18} strokeWidth={2.25} className="text-white" />
+                        Add Menu Item
+                    </button>
+                </div>
+            </div>
+
+            {menuType === 'catering' ? (
+                <div className="min-h-[420px] rounded-[12px] border border-dashed border-[#E5E7EB] bg-transparent" aria-hidden />
+            ) : (
+                <>
+            <div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-12">
                 {/* Left Sidebar: Categories */}
-                <div className="xl:col-span-4 bg-white rounded-[12px] p-5 border border-[#00000033] h-[475px]">
+                <div className="min-w-0 xl:col-span-4 h-[475px] rounded-[12px] border border-[#00000033] bg-white p-5">
                     <h2 className="text-[18px] font-bold text-[#111827] mb-4">Categories</h2>
 
                     {/* Search */}
@@ -1222,10 +1273,10 @@ export default function MenuManagement() {
                 </div>
 
                 {/* Right Side Column (Table) */}
-                <div className="xl:col-span-8 flex flex-col gap-6">
-                    <div className="bg-white rounded-[12px] border border-[#00000033] overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
+                <div className="flex min-w-0 flex-col gap-6 xl:col-span-8">
+                    <div className="min-w-0 overflow-hidden rounded-[12px] border border-[#00000033] bg-white">
+                        <div className="max-w-full min-w-0 overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+                            <table className="w-full min-w-[920px] border-collapse text-left">
                                 <thead>
                                     <tr className="border-b border-[#E5E7EB] text-[12px] font-[500] text-[#6B7280] uppercase tracking-wider bg-gray-50/50">
                                         <th className="px-4 py-4 whitespace-nowrap">Item Name</th>
@@ -1371,7 +1422,7 @@ export default function MenuManagement() {
                 </div>
             </div>
 
-            <div className="bg-white rounded-[12px] border border-[#00000033] p-6 mt-6">
+            <div className="mt-6 min-w-0 rounded-[12px] border border-[#00000033] bg-white p-6">
                 <div className="flex items-center justify-between gap-4">
                     <h3 className="text-[16px] font-[800] text-[#111827]">Today’s Deal</h3>
                     <button
@@ -1381,9 +1432,9 @@ export default function MenuManagement() {
                         + Add Today’s Deal
                     </button>
                 </div>
-                <div className="mt-4 border border-[#E5E7EB] rounded-[12px] overflow-hidden">
-                    <div className="w-full overflow-x-auto">
-                        <table className="min-w-[900px] w-full text-left border-collapse">
+                <div className="mt-4 overflow-hidden rounded-[12px] border border-[#E5E7EB]">
+                    <div className="max-w-full min-w-0 overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+                        <table className="w-full min-w-[920px] border-collapse text-left">
                         <thead className="bg-[#F9FAFB]">
                             <tr>
                                 <th className="px-4 py-3 text-[12px] font-[600] text-[#6B7280] uppercase">Item</th>
@@ -1464,7 +1515,7 @@ export default function MenuManagement() {
                 </div>
             </div>
 
-            <div className="bg-white rounded-[12px] border border-[#00000033] p-6 mt-6">
+            <div className="mt-6 min-w-0 rounded-[12px] border border-[#00000033] bg-white p-6">
                 <div className="flex items-center justify-between gap-4">
                     <h3 className="text-[16px] font-[800] text-[#111827]">Top Seller</h3>
                     <button
@@ -1474,9 +1525,9 @@ export default function MenuManagement() {
                         + Add Top Seller
                     </button>
                 </div>
-                <div className="mt-4 border border-[#E5E7EB] rounded-[12px] overflow-hidden">
-                    <div className="w-full overflow-x-auto">
-                        <table className="min-w-[780px] w-full text-left border-collapse">
+                <div className="mt-4 overflow-hidden rounded-[12px] border border-[#E5E7EB]">
+                    <div className="max-w-full min-w-0 overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+                        <table className="w-full min-w-[720px] border-collapse text-left">
                             <thead className="bg-[#F9FAFB]">
                                 <tr>
                                     <th className="px-4 py-3 text-[12px] font-[600] text-[#6B7280] uppercase">Item</th>
@@ -1547,7 +1598,7 @@ export default function MenuManagement() {
                 </div>
             </div>
 
-            <div className="bg-white rounded-[12px] border border-[#00000033] p-6 mt-6">
+            <div className="mt-6 min-w-0 rounded-[12px] border border-[#00000033] bg-white p-6">
                 <div className="flex items-center justify-between gap-4">
                     <h3 className="text-[16px] font-[800] text-[#111827]">Catering Items</h3>
                     <button
@@ -1557,9 +1608,9 @@ export default function MenuManagement() {
                         + Add Catering Item
                     </button>
                 </div>
-                <div className="mt-4 border border-[#E5E7EB] rounded-[12px] overflow-hidden">
-                    <div className="w-full overflow-x-auto">
-                        <table className="min-w-[900px] w-full text-left border-collapse">
+                <div className="mt-4 overflow-hidden rounded-[12px] border border-[#E5E7EB]">
+                    <div className="max-w-full min-w-0 overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+                        <table className="w-full min-w-[880px] border-collapse text-left">
                             <thead className="bg-[#F9FAFB]">
                                 <tr>
                                     <th className="px-4 py-3 text-[12px] font-[600] text-[#6B7280] uppercase">Item</th>
@@ -1635,6 +1686,8 @@ export default function MenuManagement() {
                     </div>
                 </div>
             </div>
+                </>
+            )}
 
             {/* Quick Analytics */}
             {/* <div className="bg-white rounded-[12px] border border-[#00000033] p-6 mt-6">
@@ -1709,6 +1762,7 @@ export default function MenuManagement() {
             </div> */}
 
             {/* Modals */}
+            <AddMenuItemModal isOpen={isAddMenuItemModalOpen} onClose={() => setIsAddMenuItemModalOpen(false)} />
             <EditMenuItemModal
                 key={`${selectedItem?.id || 'none'}-${isEditModalOpen ? 'open' : 'closed'}`}
                 isOpen={isEditModalOpen}

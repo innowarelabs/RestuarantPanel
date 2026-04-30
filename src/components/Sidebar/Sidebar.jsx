@@ -183,7 +183,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse }) {
                         anchorSelect={`[data-tooltip-id="${openStatusTooltipId}"]`}
                         positionStrategy="fixed"
                         style={{
-                            backgroundColor: '#15B99E',
+                            backgroundColor: 'var(--color-primary)',
                             color: '#fff',
                             fontSize: '0.875rem',
                             padding: '0.3rem 0.5rem',
@@ -291,7 +291,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse }) {
                                         anchorSelect={`[data-tooltip-id="${tooltipId}"]`}
                                         positionStrategy="fixed"
                                         style={{
-                                            backgroundColor: '#15B99E',
+                                            backgroundColor: 'var(--color-primary)',
                                             color: '#fff',
                                             fontSize: '0.875rem',
                                             padding: '0.3rem 0.5rem',
