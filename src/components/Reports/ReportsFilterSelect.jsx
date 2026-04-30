@@ -14,6 +14,8 @@ export function ReportsFilterSelect({
     listboxId: listboxIdProp,
     borderClassName = 'border-[#00000033]',
     containerClassName = 'relative w-full min-w-0 lg:max-w-[231.43px]',
+    /** Shorter height (h-10) to align with toolbar buttons; smaller text */
+    compact = false,
 }) {
     const [open, setOpen] = useState(false);
     const rootRef = useRef(null);
@@ -42,11 +44,15 @@ export function ReportsFilterSelect({
         return () => document.removeEventListener('keydown', onKey);
     }, [open]);
 
-    const baseTrigger =
-        `box-border flex w-full h-12 min-h-[48px] items-center justify-between gap-2 bg-white ` +
-        'py-1 pl-4 pr-4 text-left text-[14px] text-[#0F1724] ' +
-        `rounded-lg border ${borderClassName} ` +
-        'transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/20';
+    const baseTrigger = compact
+        ? `box-border flex w-full h-10 min-h-0 items-center justify-between gap-1.5 bg-white ` +
+          'py-2 pl-3 pr-3 text-left text-sm text-[#0F1724] ' +
+          `rounded-[8px] border ${borderClassName} ` +
+          'transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/20'
+        : `box-border flex w-full h-12 min-h-[48px] items-center justify-between gap-2 bg-white ` +
+          'py-1 pl-4 pr-4 text-left text-[14px] text-[#0F1724] ' +
+          `rounded-lg border ${borderClassName} ` +
+          'transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/20';
 
     return (
         <div ref={rootRef} className={containerClassName}>
@@ -58,7 +64,9 @@ export function ReportsFilterSelect({
                 aria-controls={listId}
                 onClick={() => setOpen((v) => !v)}
             >
-                <div className="flex min-w-0 flex-1 items-center gap-2 text-[14px] text-[#0F1724]">
+                <div
+                    className={`flex min-w-0 flex-1 items-center gap-2 text-[#0F1724] ${compact ? 'text-sm' : 'text-[14px]'}`}
+                >
                     {leftAdornment ? <span className="inline-flex shrink-0">{leftAdornment}</span> : null}
                     <span className="min-w-0 truncate font-normal">{displayLabel}</span>
                 </div>

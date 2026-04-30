@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     Activity,
     Package,
@@ -13,8 +13,16 @@ import {
 } from 'lucide-react';
 import ReportsStats from './ReportsStats';
 import ReportCategoryCard from './ReportCategoryCard';
+import { ReportsFilterSelect } from './ReportsFilterSelect';
 
-const ReportsMain = ({ onSelectReport, dashboardCards }) => {
+const PERIOD_OPTIONS = [
+    { value: 'day', label: 'Last 24 Hours' },
+    { value: 'month', label: 'Last 30 days' },
+    { value: 'year', label: 'Last 1 Year' },
+];
+
+const ReportsMain = ({ onSelectReport, onDownloadPdf, downloadingReportId, dashboardCards }) => {
+    const [periodKey, setPeriodKey] = useState('month');
     // Order: 2 columns × 5 rows — left to right, top to bottom (matches design)
     const reportCategories = [
         {
@@ -100,22 +108,33 @@ const ReportsMain = ({ onSelectReport, dashboardCards }) => {
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-                    <button className="flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 bg-white border border-gray-200 rounded-[8px] text-sm  text-gray-600 hover:bg-gray-50 transition-colors ">
-                        <Calendar className="w-4 h-4" />
-                        Last 30 Days
-                    </button>
-                    <button className="flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 bg-white border border-gray-200 rounded-[8px] text-sm  text-gray-600 hover:bg-gray-50 transition-colors ">
-                        <FileSpreadsheet className="w-4 h-4" />
+                    <ReportsFilterSelect
+                        value={periodKey}
+                        onValueChange={setPeriodKey}
+                        options={PERIOD_OPTIONS}
+                        ariaLabel="Report period"
+                        compact
+                        leftAdornment={<Calendar className="h-3.5 w-3.5 text-gray-500 shrink-0" aria-hidden />}
+                        containerClassName="relative w-full sm:w-auto sm:max-w-[158px]"
+                    />
+                    <button
+                        type="button"
+                        className="flex h-10 items-center justify-center gap-2 w-full sm:w-auto px-4 bg-white border border-gray-200 rounded-[8px] text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                    >
+                        <FileSpreadsheet className="w-4 h-4 shrink-0" />
                         Export CSV
                     </button>
-                    <button className="flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 bg-primary text-white rounded-[8px] text-sm  shadow-lg  hover:bg-primary/90 transition-all">
-                        <FileText className="w-4 h-4" />
+                    <button
+                        type="button"
+                        className="flex h-10 items-center justify-center gap-2 w-full sm:w-auto px-4 bg-primary text-white rounded-[8px] text-sm shadow-lg hover:bg-primary/90 transition-all"
+                    >
+                        <FileText className="w-4 h-4 shrink-0" />
                         Export PDF
                     </button>
                 </div>
             </div>
 
-            <ReportsStats dashboardCards={dashboardCards} />
+            <ReportsStats dashboardCards={dashboardCards} periodKey={periodKey} />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 {reportCategories.map(cat => (
@@ -123,6 +142,8 @@ const ReportsMain = ({ onSelectReport, dashboardCards }) => {
                         key={cat.id}
                         {...cat}
                         onViewReport={() => onSelectReport(cat.id)}
+                        onDownloadPdf={() => onDownloadPdf?.(cat.id)}
+                        downloadBusy={downloadingReportId === cat.id}
                     />
                 ))}
             </div>

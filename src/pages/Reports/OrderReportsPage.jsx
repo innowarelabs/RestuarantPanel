@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import OrderReports from '../../components/Reports/OrderReports';
+import { buildOrderReportPdf } from '../../utils/reportCardPdfDownload';
 
 const REPORTS_API_BASE = 'https://api.baaie.com';
 
@@ -66,40 +67,14 @@ const OrderReportsPage = () => {
         [fetchOrderReport]
     );
 
-    const handleExportPdf = useCallback(async () => {
+    const handleExportPdf = useCallback(() => {
+        if (!orderReportData) return;
         try {
-            const baseUrl = (import.meta.env.VITE_BACKEND_URL || REPORTS_API_BASE).replace(/\/$/, '');
-            const restaurantId = getRestaurantId();
-            const url = `${baseUrl}/api/v1/reports/order-report/export/pdf`;
-            const res = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
-                },
-            });
-            const contentType = res.headers.get('content-type') || '';
-            if (contentType.includes('application/pdf')) {
-                const blob = await res.blob();
-                const blobUrl = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = blobUrl;
-                a.download = `order-report-${new Date().toISOString().slice(0, 10)}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(blobUrl);
-            } else if (contentType.includes('application/json')) {
-                const responseData = await res.json();
-                console.log('Order report PDF export response:', responseData);
-            } else {
-                const text = await res.text();
-                console.log('Order report PDF export response:', { status: res.status, contentType, data: text });
-            }
+            buildOrderReportPdf(orderReportData).save(`order-report-${new Date().toISOString().slice(0, 10)}.pdf`);
         } catch (err) {
             console.error('Order report PDF export error:', err);
         }
-    }, [accessToken, getRestaurantId]);
+    }, [orderReportData]);
 
     const handleExportCsv = useCallback(async () => {
         try {

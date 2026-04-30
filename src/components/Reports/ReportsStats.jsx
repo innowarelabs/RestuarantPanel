@@ -1,50 +1,133 @@
 import React from 'react';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
-const formatCurrency = (val) => (val != null ? `$${Number(val).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}` : '--');
+const formatCurrency = (val) =>
+    val != null && Number.isFinite(Number(val))
+        ? `$${Number(val).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+        : '--';
 
-const StatCard = ({ title, value, change, isPositive, subtitle }) => (
-    <div className="bg-white rounded-[12px] border border-[#00000033] p-3 sm:p-4 h-[135px] sm:h-[150px] flex flex-col justify-between">
-        <div>
-            <p className="text-[13px] sm:text-[14px] font-medium text-gray-500 mb-0.5 sm:mb-1">{title}</p>
-            <h3 className="text-[20px] sm:text-[24px] font-bold text-general-text truncate">{value}</h3>
-        </div>
-        {(change != null || subtitle) && (
-            <div className="flex flex-col gap-1 sm:gap-1.5 px-0.5">
-                {change != null && (
-                    <div className={`flex items-center gap-1 text-[11px] sm:text-[13px] px-1.5 py-0.5 rounded w-fit ${isPositive ? 'text-green-500 bg-green-50' : 'text-red-500 bg-red-50'}`}>
-                        {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                        {change}
-                    </div>
-                )}
-                {subtitle && <span className="text-[11px] sm:text-[13px] text-gray-400 font-medium truncate">{subtitle}</span>}
+const formatInt = (val) =>
+    val != null && Number.isFinite(Number(val)) ? Number(val).toLocaleString() : '--';
+
+/** Format API trend_pct for display */
+function formatTrendPercent(raw) {
+    if (raw == null || raw === '') return null;
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return null;
+    const sign = n > 0 ? '+' : '';
+    const decimals = Math.abs(n % 1) < 1e-9 ? 0 : 2;
+    return `${sign}${n.toFixed(decimals)}%`;
+}
+
+function trendTone(pctRaw) {
+    if (pctRaw == null || pctRaw === '') return null;
+    const n = Number(pctRaw);
+    if (!Number.isFinite(n)) return null;
+    if (n > 0) return 'up';
+    if (n < 0) return 'down';
+    return 'flat';
+}
+
+const StatCard = ({ title, value, trendPct, loading, vsPreviousPeriod }) => {
+    const pctLabel = formatTrendPercent(trendPct);
+    const tone = trendTone(trendPct);
+
+    const trendTextClass =
+        tone === 'up'
+            ? 'text-[#16a34a]'
+            : tone === 'down'
+              ? 'text-[#dc2626]'
+              : tone === 'flat'
+                ? 'text-gray-600'
+                : '';
+
+    const showTrend = pctLabel != null && tone != null && !loading;
+    const showVsLine = vsPreviousPeriod && !loading;
+
+    return (
+        <div className="bg-white rounded-[12px] border border-[#00000033] p-4 sm:p-5 min-h-[140px] sm:min-h-[152px] flex flex-col">
+            <div className="flex flex-col gap-1">
+                <p className="text-[13px] sm:text-[14px] font-medium text-gray-500">{title}</p>
+                <h3 className="text-[20px] sm:text-[24px] font-bold text-[#0F1724] truncate tracking-tight">{value}</h3>
+                <div className="flex flex-col gap-0.5 pt-1">
+                    {loading && <span className="text-[11px] sm:text-[12px] text-gray-400">Loading…</span>}
+
+                    {showTrend && (
+                        <div className={`flex items-center gap-1 text-[12px] sm:text-[13px] font-semibold ${trendTextClass}`}>
+                            {tone === 'up' ? (
+                                <TrendingUp className="w-3.5 h-3.5 shrink-0" strokeWidth={2.5} aria-hidden />
+                            ) : tone === 'down' ? (
+                                <TrendingDown className="w-3.5 h-3.5 shrink-0" strokeWidth={2.5} aria-hidden />
+                            ) : (
+                                <Minus className="w-3.5 h-3.5 shrink-0" strokeWidth={2.5} aria-hidden />
+                            )}
+                            <span>{pctLabel}</span>
+                        </div>
+                    )}
+
+                    {showVsLine && (
+                        <p className="text-[10px] sm:text-[11px] text-gray-400 font-normal leading-snug">vs previous period</p>
+                    )}
+                </div>
             </div>
-        )}
-    </div>
-);
+        </div>
+    );
+};
 
-const ReportsStats = ({ dashboardCards }) => {
-    const period = dashboardCards?.month ?? {};
+const ReportsStats = ({ dashboardCards, periodKey = 'month' }) => {
+    const period = dashboardCards?.[periodKey] ?? {};
+    const trends = period.trend_pct && typeof period.trend_pct === 'object' ? period.trend_pct : {};
+
     const stats = dashboardCards
         ? [
-            { title: "Total Sales", value: formatCurrency(period.total_sales), subtitle: "vs previous period" },
-            { title: "Number of Orders", value: (period.number_of_orders ?? 0).toLocaleString(), subtitle: "vs previous period" },
-            { title: "Net Earnings", value: formatCurrency(period.net_earning), subtitle: "vs previous period" },
-            { title: "Commission Paid", value: formatCurrency(period.commission), subtitle: "vs previous period" },
-            { title: "Total Refunds", value: formatCurrency(period.refund), subtitle: "vs previous period" },
-        ]
+              {
+                  title: 'Total Sales',
+                  value: formatCurrency(period.total_sales),
+                  trendPct: trends.total_sales,
+                  loading: false,
+                  vsPreviousPeriod: true,
+              },
+              {
+                  title: 'Number of Orders',
+                  value: formatInt(period.number_of_orders),
+                  trendPct: trends.number_of_orders,
+                  loading: false,
+                  vsPreviousPeriod: true,
+              },
+              {
+                  title: 'Net Earnings',
+                  value: formatCurrency(period.net_earning),
+                  trendPct: trends.net_earning,
+                  loading: false,
+                  vsPreviousPeriod: true,
+              },
+              {
+                  title: 'Commission Paid',
+                  value: formatCurrency(period.commission),
+                  trendPct: trends.commission,
+                  loading: false,
+                  vsPreviousPeriod: true,
+              },
+              {
+                  title: 'Total Refunds',
+                  value: formatCurrency(period.refund),
+                  trendPct: trends.refund,
+                  loading: false,
+                  vsPreviousPeriod: true,
+              },
+          ]
         : [
-            { title: "Total Sales", value: "--", subtitle: "Loading..." },
-            { title: "Number of Orders", value: "--", subtitle: "Loading..." },
-            { title: "Net Earnings", value: "--", subtitle: "Loading..." },
-            { title: "Commission Paid", value: "--", subtitle: "Loading..." },
-            { title: "Total Refunds", value: "--", subtitle: "Loading..." },
-        ];
+              { title: 'Total Sales', value: '--', trendPct: null, loading: true, vsPreviousPeriod: false },
+              { title: 'Number of Orders', value: '--', trendPct: null, loading: true, vsPreviousPeriod: false },
+              { title: 'Net Earnings', value: '--', trendPct: null, loading: true, vsPreviousPeriod: false },
+              { title: 'Commission Paid', value: '--', trendPct: null, loading: true, vsPreviousPeriod: false },
+              { title: 'Total Refunds', value: '--', trendPct: null, loading: true, vsPreviousPeriod: false },
+          ];
 
     return (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-6 mb-8">
             {stats.map((stat, index) => (
-                <StatCard key={index} {...stat} />
+                <StatCard key={`${stat.title}-${index}`} {...stat} />
             ))}
         </div>
     );

@@ -18,6 +18,10 @@ import OrderReportsPage from './pages/Reports/OrderReportsPage';
 import PayoutCommissionPage from './pages/Reports/PayoutCommissionPage';
 import MenuPerformancePage from './pages/Reports/MenuPerformancePage';
 import SalesReportsPage from './pages/Reports/SalesReportsPage';
+import CustomerLoyaltyReportsPage from './pages/Reports/CustomerLoyaltyReportsPage';
+import DeliveryReportsPage from './pages/Reports/DeliveryReportsPage';
+import AccountingTaxReportsPage from './pages/Reports/AccountingTaxReportsPage';
+import IntegrationReportsPage from './pages/Reports/IntegrationReportsPage';
 import Supports from './pages/Supports/Supports';
 import Settings from './pages/Settings/Settings';
 import OnboardingStep from './pages/OnboardingStep/OnboardingStep';
@@ -234,6 +238,10 @@ function App() {
             <Route path="/reports/payout-commission" element={<PayoutCommissionPage />} />
             <Route path="/reports/menu-performance" element={<MenuPerformancePage />} />
             <Route path="/reports/sales-reports" element={<SalesReportsPage />} />
+            <Route path="/reports/customer-loyalty" element={<CustomerLoyaltyReportsPage />} />
+            <Route path="/reports/delivery" element={<DeliveryReportsPage />} />
+            <Route path="/reports/accounting-tax" element={<AccountingTaxReportsPage />} />
+            <Route path="/reports/integration" element={<IntegrationReportsPage />} />
             <Route path="/supports" element={<Supports />} />
             <Route path="/settings" element={<Settings />} />
 
