@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { ChevronLeft, Calendar, Download, Filter, X, Check } from 'lucide-react';
@@ -6,9 +6,66 @@ import { Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import ScheduleReportModal from '../../components/Reports/ScheduleReportModal';
 import { ReportsFilterSelect } from '../../components/Reports/ReportsFilterSelect';
 import { DATE_RANGE_OPTIONS } from '../../components/Reports/reportsFilterConstants';
-import { buildSalesReportPdf, buildSalesReportQuery, DEFAULT_SALES_FILTERS } from '../../utils/salesReportPdf';
+import { buildSalesReportQuery, buildSalesReportBreakdownQuery, DEFAULT_SALES_FILTERS } from '../../utils/salesReportPdf';
 
 const REPORTS_API_BASE = 'https://api.baaie.com';
+
+/** Parse `filename` / `filename*` from Content-Disposition for CSV export. */
+function parseFilenameFromContentDisposition(header) {
+    if (!header || typeof header !== 'string') return null;
+    const star = /filename\*=UTF-8''([^;\n]+)/i.exec(header);
+    if (star) {
+        try {
+            return decodeURIComponent(star[1].trim().replace(/^["']|["']$/g, ''));
+        } catch {
+            return star[1];
+        }
+    }
+    const quoted = /filename\s*=\s*"([^"]+)"/i.exec(header);
+    if (quoted) return quoted[1];
+    const plain = /filename\s*=\s*([^;\n]+)/i.exec(header);
+    if (plain) return plain[1].trim().replace(/^["']|["']$/g, '');
+    return null;
+}
+
+function triggerCsvFileDownload(csvText, downloadName) {
+    const name = (downloadName || 'sales-report').replace(/[/\\]/g, '');
+    const finalName = /\.csv$/i.test(name) ? name : `${name}.csv`;
+    const blob = new Blob(['\uFEFF', csvText], { type: 'text/csv;charset=utf-8' });
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = finalName;
+    a.rel = 'noopener';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+        a.remove();
+        URL.revokeObjectURL(blobUrl);
+    }, 250);
+}
+
+function triggerPdfFileDownload(blob, downloadName) {
+    const name = (downloadName || 'sales-report').replace(/[/\\]/g, '');
+    const finalName = /\.pdf$/i.test(name) ? name : `${name}.pdf`;
+    const pdfBlob =
+        blob.type && blob.type.includes('pdf')
+            ? blob
+            : new Blob([blob], { type: 'application/pdf' });
+    const blobUrl = URL.createObjectURL(pdfBlob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = finalName;
+    a.rel = 'noopener';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+        a.remove();
+        URL.revokeObjectURL(blobUrl);
+    }, 250);
+}
 
 const SERVICE_TYPE_OPTIONS = [
     { value: 'delivery', label: 'Delivery' },
@@ -23,22 +80,10 @@ const PAYMENT_OPTIONS = [
     { value: 'all', label: 'All' },
 ];
 
-const PLATFORM_OPTIONS = [
-    { value: 'ubereats', label: 'UberEats' },
-    { value: 'doordash', label: 'DoorDash' },
-    { value: 'inhouse', label: 'In-house' },
-    { value: 'all', label: 'All' },
-];
-
-/** UI-only mock for Sales Trend card (not from API) */
-const MOCK_SALES_TREND_CHART = [
-    { label: '1 Dec', value: 850 },
-    { label: '2 Dec', value: 920 },
-    { label: '3 Dec', value: 780 },
-    { label: '4 Dec', value: 1050 },
-    { label: '5 Dec', value: 1000 },
-    { label: '6 Dec', value: 1120 },
-    { label: '7 Dec', value: 1200 },
+const SALES_TREND_GRANULARITY_OPTIONS = [
+    { granularity: 'day', label: 'Daily' },
+    { granularity: 'week', label: 'Weekly' },
+    { granularity: 'month', label: 'Monthly' },
 ];
 
 const TREND_GRADIENT_ID = 'salesTrendAreaFill';
@@ -232,7 +277,11 @@ const SalesReportsPage = () => {
     const [csvDownloading, setCsvDownloading] = useState(false);
     const [filters, setFilters] = useState(() => ({ ...DEFAULT_SALES_FILTERS }));
     const [exportQuery, setExportQuery] = useState(() => buildSalesReportQuery(DEFAULT_SALES_FILTERS));
-    const [trendPeriod, setTrendPeriod] = useState('daily');
+    const [salesTrendGranularity, setSalesTrendGranularity] = useState('day');
+    const [salesTrendRows, setSalesTrendRows] = useState([]);
+    const [salesTrendDateRangeLabel, setSalesTrendDateRangeLabel] = useState('');
+    const [salesTrendLoading, setSalesTrendLoading] = useState(false);
+    const [salesTrendError, setSalesTrendError] = useState(null);
     const [dailyBreakdownFiltersOpen, setDailyBreakdownFiltersOpen] = useState(false);
     const [dailyBreakdownFilterDraft, setDailyBreakdownFilterDraft] = useState(() => ({
         orderStatus: { ...DAILY_BREAKDOWN_FILTER_DEFAULTS.orderStatus },
@@ -242,6 +291,11 @@ const SalesReportsPage = () => {
         orderStatus: { ...DAILY_BREAKDOWN_FILTER_DEFAULTS.orderStatus },
         payment: { ...DAILY_BREAKDOWN_FILTER_DEFAULTS.payment },
     }));
+    const [lastAppliedSalesFilters, setLastAppliedSalesFilters] = useState(() => ({ ...DEFAULT_SALES_FILTERS }));
+    const [breakdownDailyRows, setBreakdownDailyRows] = useState([]);
+    const [breakdownDateRangeLabel, setBreakdownDateRangeLabel] = useState('');
+    const [breakdownLoading, setBreakdownLoading] = useState(false);
+    const [breakdownError, setBreakdownError] = useState(null);
     const [scheduleReportOpen, setScheduleReportOpen] = useState(false);
     const accessToken = useSelector((state) => state.auth.accessToken);
     const user = useSelector((state) => state.auth.user);
@@ -277,6 +331,7 @@ const SalesReportsPage = () => {
                 });
                 const data = await res.json();
                 if (data.code === 'SUCCESS_200' && data.data) {
+                    setLastAppliedSalesFilters({ ...f });
                     setReportData(data.data);
                     setExportQuery(query);
                 } else {
@@ -292,6 +347,130 @@ const SalesReportsPage = () => {
         [accessToken, getRestaurantId]
     );
 
+    const fetchSalesTrends = useCallback(async () => {
+        if (!accessToken) return;
+        const baseUrl = (import.meta.env.VITE_BACKEND_URL || REPORTS_API_BASE).replace(/\/$/, '');
+        const restaurantId = getRestaurantId();
+        const params = new URLSearchParams({ granularity: salesTrendGranularity });
+        const url = `${baseUrl}/api/v1/reports/sales-trends?${params.toString()}`;
+        setSalesTrendLoading(true);
+        setSalesTrendError(null);
+        try {
+            const res = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
+                },
+            });
+            const ct = res.headers.get('content-type') || '';
+            const data = ct.includes('application/json') ? await res.json() : null;
+            if (!res.ok) {
+                setSalesTrendRows([]);
+                setSalesTrendDateRangeLabel('');
+                setSalesTrendError(data?.message || `Sales trends request failed (${res.status})`);
+                return;
+            }
+            if (data?.code === 'SUCCESS_200' && data.data) {
+                const list = Array.isArray(data.data.sales_trend) ? data.data.sales_trend : [];
+                setSalesTrendRows(
+                    list.map((item) => ({
+                        label: typeof item.label === 'string' ? item.label : String(item.date || ''),
+                        value: typeof item.sales === 'number' ? item.sales : Number(item.sales) || 0,
+                        orders: typeof item.orders === 'number' ? item.orders : Number(item.orders) || 0,
+                        date: item.date,
+                    })),
+                );
+                setSalesTrendDateRangeLabel(
+                    typeof data.data.date_range_label === 'string' ? data.data.date_range_label : '',
+                );
+            } else {
+                setSalesTrendRows([]);
+                setSalesTrendDateRangeLabel('');
+                setSalesTrendError(data?.message || 'Failed to load sales trend');
+            }
+        } catch (err) {
+            setSalesTrendRows([]);
+            setSalesTrendDateRangeLabel('');
+            setSalesTrendError(err?.message || 'Failed to load sales trend');
+        } finally {
+            setSalesTrendLoading(false);
+        }
+    }, [accessToken, getRestaurantId, salesTrendGranularity]);
+
+    const fetchSalesReportBreakdown = useCallback(async () => {
+        if (!accessToken) return;
+        const baseUrl = (import.meta.env.VITE_BACKEND_URL || REPORTS_API_BASE).replace(/\/$/, '');
+        const restaurantId = getRestaurantId();
+        const query = buildSalesReportBreakdownQuery(lastAppliedSalesFilters, dailyBreakdownFilterApplied);
+        const url = `${baseUrl}/api/v1/reports/sales-report/breakdown?${query}`;
+        setBreakdownLoading(true);
+        setBreakdownError(null);
+        try {
+            const res = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
+                },
+            });
+            const ct = res.headers.get('content-type') || '';
+            const data = ct.includes('application/json') ? await res.json() : null;
+            if (!res.ok) {
+                setBreakdownDailyRows([]);
+                setBreakdownDateRangeLabel('');
+                setBreakdownError(data?.message || `Breakdown request failed (${res.status})`);
+                return;
+            }
+            if (data?.code === 'SUCCESS_200' && data.data) {
+                const list = Array.isArray(data.data.daily_breakdown) ? data.data.daily_breakdown : [];
+                setBreakdownDailyRows(list);
+                setBreakdownDateRangeLabel(
+                    typeof data.data.date_range_label === 'string' ? data.data.date_range_label : '',
+                );
+            } else {
+                setBreakdownDailyRows([]);
+                setBreakdownDateRangeLabel('');
+                setBreakdownError(data?.message || 'Failed to load daily breakdown');
+            }
+        } catch (err) {
+            setBreakdownDailyRows([]);
+            setBreakdownDateRangeLabel('');
+            setBreakdownError(err?.message || 'Failed to load daily breakdown');
+        } finally {
+            setBreakdownLoading(false);
+        }
+    }, [accessToken, getRestaurantId, lastAppliedSalesFilters, dailyBreakdownFilterApplied]);
+
+    useEffect(() => {
+        fetchSalesTrends();
+    }, [fetchSalesTrends]);
+
+    useEffect(() => {
+        fetchSalesReportBreakdown();
+    }, [fetchSalesReportBreakdown]);
+
+    const trendYAxisDomain = useMemo(() => {
+        const vals = salesTrendRows.map((r) => r.value);
+        const max = Math.max(1, ...vals);
+        const top = Math.ceil(max * 1.1);
+        return [0, top];
+    }, [salesTrendRows]);
+
+    const renderSalesTrendTooltip = useCallback(({ active, payload, label }) => {
+        if (!active || !payload?.length) return null;
+        const row = payload[0].payload;
+        return (
+            <div className="rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 text-[13px] shadow-md">
+                <p className="mb-1 font-semibold text-[#111827]">{label}</p>
+                <p className="text-[#374151]">Sales: {formatCurrency(row.value)}</p>
+                <p className="text-[#6B7280]">Orders: {row.orders != null ? Number(row.orders).toLocaleString() : '—'}</p>
+            </div>
+        );
+    }, []);
+
     useEffect(() => {
         fetchSalesReport(DEFAULT_SALES_FILTERS);
     }, [fetchSalesReport]);
@@ -300,18 +479,71 @@ const SalesReportsPage = () => {
         fetchSalesReport(filters);
     };
 
-    const handleExportPdf = useCallback(() => {
+    const handleExportPdf = useCallback(async () => {
         if (!reportData) return;
         try {
             setPdfDownloading(true);
-            const doc = buildSalesReportPdf(reportData);
-            doc.save(`sales-report-${new Date().toISOString().slice(0, 10)}.pdf`);
+            const baseUrl = (import.meta.env.VITE_BACKEND_URL || REPORTS_API_BASE).replace(/\/$/, '');
+            const restaurantId = getRestaurantId();
+            const q = exportQuery || buildSalesReportQuery(DEFAULT_SALES_FILTERS);
+            const url = `${baseUrl}/api/v1/reports/sales-report/export/pdf?${q}`;
+            const res = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
+                },
+            });
+            const ct = (res.headers.get('content-type') || '').toLowerCase();
+            const cd = res.headers.get('content-disposition');
+
+            if (!res.ok) {
+                const errText = await res.text();
+                let message = `PDF export failed (${res.status})`;
+                if (ct.includes('application/json')) {
+                    try {
+                        const j = JSON.parse(errText);
+                        if (typeof j.message === 'string') message = j.message;
+                    } catch {
+                        /* ignore */
+                    }
+                }
+                console.error('[sales-report/export/pdf]', message, errText.slice(0, 400));
+                return;
+            }
+
+            if (ct.includes('application/json')) {
+                try {
+                    const data = await res.json();
+                    console.error('[sales-report/export/pdf]', data?.message || 'Unexpected JSON body', data);
+                } catch {
+                    console.error('[sales-report/export/pdf] Invalid JSON body');
+                }
+                return;
+            }
+
+            if (
+                ct.includes('application/pdf') ||
+                ct.includes('/pdf') ||
+                ct.includes('application/octet-stream')
+            ) {
+                const blob = await res.blob();
+                const defaultName = `sales-report-${new Date().toISOString().slice(0, 10)}.pdf`;
+                const fromHeader = parseFilenameFromContentDisposition(cd);
+                const filename =
+                    fromHeader && fromHeader.trim().length > 0 ? fromHeader.trim() : defaultName;
+                triggerPdfFileDownload(blob, filename);
+                return;
+            }
+
+            const text = await res.text();
+            console.error('[sales-report/export/pdf] Unknown content-type', ct, text.slice(0, 400));
         } catch (err) {
-            console.error('Sales report PDF export error:', err);
+            console.error('[sales-report/export/pdf]', err);
         } finally {
             setPdfDownloading(false);
         }
-    }, [reportData]);
+    }, [accessToken, getRestaurantId, exportQuery, reportData]);
 
     const handleExportCsv = useCallback(async () => {
         try {
@@ -327,27 +559,52 @@ const SalesReportsPage = () => {
                     ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
                 },
             });
-            const contentType = res.headers.get('content-type') || '';
-            if (contentType.includes('text/csv')) {
-                const text = await res.text();
-                const blob = new Blob([text], { type: 'text/csv;charset=utf-8' });
-                const blobUrl = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = blobUrl;
-                a.download = `sales-report-${new Date().toISOString().slice(0, 10)}.csv`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(blobUrl);
-            } else if (contentType.includes('application/json')) {
-                const data = await res.json();
-                console.log('Sales report CSV export response:', data);
+            const text = await res.text();
+            const ct = (res.headers.get('content-type') || '').toLowerCase();
+            const cd = res.headers.get('content-disposition');
+
+            if (!res.ok) {
+                let message = `CSV export failed (${res.status})`;
+                if (ct.includes('application/json')) {
+                    try {
+                        const j = JSON.parse(text);
+                        if (typeof j.message === 'string') message = j.message;
+                    } catch {
+                        /* ignore */
+                    }
+                }
+                console.error('[sales-report/export/csv]', message, text.slice(0, 400));
+                return;
+            }
+
+            if (ct.includes('application/json') || text.trimStart().startsWith('{')) {
+                try {
+                    const data = JSON.parse(text);
+                    console.error('[sales-report/export/csv]', data?.message || 'Unexpected JSON body', data);
+                } catch {
+                    console.error('[sales-report/export/csv] Unexpected body', text.slice(0, 400));
+                }
+                return;
+            }
+
+            const defaultName = `sales-report-${new Date().toISOString().slice(0, 10)}.csv`;
+            const fromHeader = parseFilenameFromContentDisposition(cd);
+            const filename = fromHeader && fromHeader.trim().length > 0 ? fromHeader.trim() : defaultName;
+
+            const treatAsCsv =
+                ct.includes('text/csv') ||
+                ct.includes('application/csv') ||
+                ct.includes('csv') ||
+                ct.includes('text/plain') ||
+                ct.length === 0;
+
+            if (treatAsCsv) {
+                triggerCsvFileDownload(text, filename);
             } else {
-                const text = await res.text();
-                console.log('Sales report CSV export response:', { status: res.status, contentType, data: text });
+                console.error('[sales-report/export/csv] Unknown content-type, not downloading', { contentType: ct });
             }
         } catch (err) {
-            console.error('Sales report CSV export error:', err);
+            console.error('[sales-report/export/csv]', err);
         } finally {
             setCsvDownloading(false);
         }
@@ -363,8 +620,6 @@ const SalesReportsPage = () => {
             { label: 'Commission', value: formatCurrency(reportData.stats.commission) },
         ]
         : [];
-
-    const dailyBreakdown = reportData?.daily_breakdown || [];
 
     const openDailyBreakdownFilters = () => {
         setDailyBreakdownFilterDraft({
@@ -403,6 +658,7 @@ const SalesReportsPage = () => {
                                 onValueChange={(v) => setFilters((prev) => ({ ...prev, serviceType: v }))}
                                 options={SERVICE_TYPE_OPTIONS}
                                 ariaLabel="Service type"
+                                containerClassName="relative w-full min-w-0"
                             />
                         </div>
                         <div className="w-full min-w-0 flex-1 lg:min-w-0">
@@ -411,14 +667,7 @@ const SalesReportsPage = () => {
                                 onValueChange={(v) => setFilters((prev) => ({ ...prev, paymentMethod: v }))}
                                 options={PAYMENT_OPTIONS}
                                 ariaLabel="Payment method"
-                            />
-                        </div>
-                        <div className="w-full min-w-0 flex-1 lg:min-w-0">
-                            <ReportsFilterSelect
-                                value={filters.platform}
-                                onValueChange={(v) => setFilters((prev) => ({ ...prev, platform: v }))}
-                                options={PLATFORM_OPTIONS}
-                                ariaLabel="Platform"
+                                containerClassName="relative w-full min-w-0"
                             />
                         </div>
                         <div className="w-full min-w-0 flex-1 lg:min-w-0">
@@ -427,6 +676,7 @@ const SalesReportsPage = () => {
                                 onValueChange={(v) => setFilters((prev) => ({ ...prev, dateRange: v }))}
                                 options={DATE_RANGE_OPTIONS}
                                 ariaLabel="Date range"
+                                containerClassName="relative w-full min-w-0"
                                 leftAdornment={
                                     <Calendar
                                         className="h-4 w-4 shrink-0 text-gray-500"
@@ -449,96 +699,75 @@ const SalesReportsPage = () => {
                     </div>
                 </div>
 
-                {loading && (
-                    <div className="mb-3 rounded-[16px] border border-[#00000033] bg-white p-6 text-center text-gray-500">
-                        Loading...
-                    </div>
-                )}
-                {error && (
-                    <div className="mb-3 rounded-[10px] border border-red-200 bg-red-50 p-4 text-[14px] text-red-700">
-                        {error}
-                    </div>
-                )}
-                {!loading && !error && reportData && (
-                    <>
-                        {/* Stats */}
-                        <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 sm:gap-3">
-                            {stats.map((stat, i) => (
-                                <div
-                                    key={i}
-                                    className="box-border border border-[#E8E8E8] bg-white rounded-[12px] p-5"
-                                >
-                                    <p className="mb-1 text-[14px] text-[#6B7280]">{stat.label}</p>
-                                    <p className="text-[20px] font-bold text-[#111827]">{stat.value}</p>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Sales Trend — mock UI (Daily / Weekly / Monthly not wired to API) */}
-                        <div className="mb-4 flex flex-col rounded-[16px] border border-[#00000033] bg-[#FFFFFF] p-5">
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                {accessToken && (
+                    <div className="mb-4 flex flex-col rounded-[16px] border border-[#00000033] bg-[#FFFFFF] p-5">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="min-w-0">
                                 <h2 className="text-[18px] font-bold text-[#111827]">Sales Trend</h2>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    {[
-                                        { id: 'daily', label: 'Daily' },
-                                        { id: 'weekly', label: 'Weekly' },
-                                        { id: 'monthly', label: 'Monthly' },
-                                    ].map((p) => (
-                                        <button
-                                            key={p.id}
-                                            type="button"
-                                            onClick={() => setTrendPeriod(p.id)}
-                                            className={`rounded-lg px-3.5 py-1.5 text-[13px] font-medium transition ${
-                                                trendPeriod === p.id
-                                                    ? 'bg-[#DD2F26] text-white shadow-sm'
-                                                    : 'bg-gray-100 text-[#4B5563] hover:bg-gray-200/80'
-                                            }`}
-                                        >
-                                            {p.label}
-                                        </button>
-                                    ))}
-                                </div>
+                                {salesTrendDateRangeLabel ? (
+                                    <p className="mt-1 text-[13px] text-[#6B7280]">{salesTrendDateRangeLabel}</p>
+                                ) : null}
                             </div>
-                            <div className="mt-[15px] h-[300px] w-full min-w-0 sm:h-[320px]">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart
-                                        data={MOCK_SALES_TREND_CHART}
-                                        margin={{ top: 8, right: 12, left: 0, bottom: 4 }}
+                            <div className="flex flex-wrap items-center gap-2">
+                                {SALES_TREND_GRANULARITY_OPTIONS.map((o) => (
+                                    <button
+                                        key={o.granularity}
+                                        type="button"
+                                        onClick={() => setSalesTrendGranularity(o.granularity)}
+                                        className={`rounded-lg px-3.5 py-1.5 text-[13px] font-medium transition ${
+                                            salesTrendGranularity === o.granularity
+                                                ? 'bg-[#DD2F26] text-white shadow-sm'
+                                                : 'bg-gray-100 text-[#4B5563] hover:bg-gray-200/80'
+                                        }`}
                                     >
+                                        {o.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        {salesTrendError && (
+                            <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+                                {salesTrendError}
+                            </div>
+                        )}
+                        <div className="mt-[15px] h-[300px] w-full min-w-0 sm:h-[320px]">
+                            {salesTrendLoading ? (
+                                <div className="flex h-full items-center justify-center text-[14px] text-[#6B7280]">
+                                    Loading chart…
+                                </div>
+                            ) : salesTrendRows.length === 0 ? (
+                                <div className="flex h-full items-center justify-center text-[14px] text-[#6B7280]">
+                                    No sales trend data for this period.
+                                </div>
+                            ) : (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={salesTrendRows} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
                                         <defs>
                                             <linearGradient id={TREND_GRADIENT_ID} x1="0" y1="0" x2="0" y2="1">
                                                 <stop offset="0%" stopColor="#DD2F26" stopOpacity={0.32} />
                                                 <stop offset="100%" stopColor="#DD2F26" stopOpacity={0} />
                                             </linearGradient>
                                         </defs>
-                                        <CartesianGrid
-                                            strokeDasharray="3 3"
-                                            stroke="#E5E7EB"
-                                            vertical
-                                            horizontal
-                                        />
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical horizontal />
                                         <XAxis
                                             dataKey="label"
-                                            tick={{ fontSize: 12, fill: '#6B7280' }}
+                                            tick={{ fontSize: 11, fill: '#6B7280' }}
                                             tickLine={false}
                                             axisLine={{ stroke: '#D1D5DB' }}
+                                            interval="preserveStartEnd"
+                                            angle={salesTrendRows.length > 12 ? -35 : 0}
+                                            textAnchor={salesTrendRows.length > 12 ? 'end' : 'middle'}
+                                            height={salesTrendRows.length > 12 ? 56 : 30}
                                         />
                                         <YAxis
-                                            domain={[0, 1200]}
-                                            ticks={[0, 300, 600, 900, 1200]}
+                                            domain={trendYAxisDomain}
+                                            tickCount={5}
                                             tick={{ fontSize: 12, fill: '#6B7280' }}
                                             tickLine={false}
                                             axisLine={{ stroke: '#D1D5DB' }}
-                                            width={40}
+                                            width={48}
                                         />
-                                        <Tooltip
-                                            formatter={(v) => [Number(v).toLocaleString(), 'Sales']}
-                                            labelClassName="text-gray-800"
-                                            contentStyle={{
-                                                borderRadius: 8,
-                                                border: '1px solid #E5E7EB',
-                                            }}
-                                        />
+                                        <Tooltip content={renderSalesTrendTooltip} />
                                         <Area
                                             type="monotone"
                                             dataKey="value"
@@ -551,56 +780,97 @@ const SalesReportsPage = () => {
                                         />
                                     </AreaChart>
                                 </ResponsiveContainer>
-                            </div>
-                        </div>
-
-                        {/* Daily Breakdown Table */}
-                        <div className="overflow-hidden rounded-[16px] border border-[#00000033] bg-[#FFFFFF]">
-                            <div className="flex items-center justify-between gap-3 p-5 pb-3">
-                                <h2 className="min-w-0 text-[18px] font-bold text-[#111827]">Daily Breakdown</h2>
-                                <button
-                                    type="button"
-                                    onClick={openDailyBreakdownFilters}
-                                    className="box-border inline-flex h-[38.33px] min-w-[97.58px] shrink-0 items-center justify-center gap-2 rounded-lg border border-[#E8E8E8] bg-white pl-4 pr-3 text-center font-sans text-[14px] font-normal leading-[21px] tracking-[0] text-[#374151] opacity-100 transition hover:bg-gray-50"
-                                >
-                                    <Filter
-                                        className="h-4 w-4 shrink-0 text-[#374151]"
-                                        strokeWidth={1.75}
-                                        aria-hidden
-                                    />
-                                    Filters
-                                </button>
-                            </div>
-                            {dailyBreakdown.length === 0 ? (
-                                <div className="p-6 text-center text-[14px] text-[#6B7280]">No daily breakdown data.</div>
-                            ) : (
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left">
-                                        <thead>
-                                            <tr className="border-b border-[#E5E7EB] bg-gray-50/80">
-                                                <th className="px-5 py-3 text-[12px] font-[600] text-[#6B7280] uppercase tracking-wider">Date</th>
-                                                <th className="px-5 py-3 text-[12px] font-[600] text-[#6B7280] uppercase tracking-wider">Orders</th>
-                                                <th className="px-5 py-3 text-[12px] font-[600] text-[#6B7280] uppercase tracking-wider">Sales</th>
-                                                <th className="px-5 py-3 text-[12px] font-[600] text-[#6B7280] uppercase tracking-wider">Refunds ($)</th>
-                                                <th className="px-5 py-3 text-[12px] font-[600] text-[#6B7280] uppercase tracking-wider">Net Revenue ($)</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {dailyBreakdown.map((row) => (
-                                                <tr key={row.date} className="border-b border-[#E5E7EB] hover:bg-gray-50/50">
-                                                    <td className="px-5 py-3 text-[14px] text-[#111827]">{row.label ?? row.date ?? '--'}</td>
-                                                    <td className="px-5 py-3 text-[14px] text-[#6B7280]">{row.orders?.toLocaleString() ?? '--'}</td>
-                                                    <td className="px-5 py-3 text-[14px] font-medium text-[#111827]">{formatCurrency(row.sales)}</td>
-                                                    <td className="px-5 py-3 text-[14px] font-medium text-primary">{formatCurrency(row.refunds)}</td>
-                                                    <td className="px-5 py-3 text-[14px] font-medium text-[#111827]">{formatCurrency(row.net_revenue)}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
                             )}
                         </div>
+                    </div>
+                )}
 
+                {loading && (
+                    <div className="mb-3 rounded-[16px] border border-[#00000033] bg-white p-6 text-center text-gray-500">
+                        Loading...
+                    </div>
+                )}
+                {error && (
+                    <div className="mb-3 rounded-[10px] border border-red-200 bg-red-50 p-4 text-[14px] text-red-700">
+                        {error}
+                    </div>
+                )}
+                {!loading && !error && reportData && (
+                    <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 sm:gap-3">
+                        {stats.map((stat, i) => (
+                            <div
+                                key={i}
+                                className="box-border border border-[#E8E8E8] bg-white rounded-[12px] p-5"
+                            >
+                                <p className="mb-1 text-[14px] text-[#6B7280]">{stat.label}</p>
+                                <p className="text-[20px] font-bold text-[#111827]">{stat.value}</p>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {accessToken && (
+                    <div className="mb-4 overflow-hidden rounded-[16px] border border-[#00000033] bg-[#FFFFFF]">
+                        <div className="flex items-center justify-between gap-3 p-5 pb-3">
+                            <div className="min-w-0">
+                                <h2 className="text-[18px] font-bold text-[#111827]">Daily Breakdown</h2>
+                                {breakdownDateRangeLabel ? (
+                                    <p className="mt-1 text-[13px] text-[#6B7280]">{breakdownDateRangeLabel}</p>
+                                ) : null}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={openDailyBreakdownFilters}
+                                className="box-border inline-flex h-[38.33px] min-w-[97.58px] shrink-0 items-center justify-center gap-2 rounded-lg border border-[#E8E8E8] bg-white pl-4 pr-3 text-center font-sans text-[14px] font-normal leading-[21px] tracking-[0] text-[#374151] opacity-100 transition hover:bg-gray-50"
+                            >
+                                <Filter
+                                    className="h-4 w-4 shrink-0 text-[#374151]"
+                                    strokeWidth={1.75}
+                                    aria-hidden
+                                />
+                                Filters
+                            </button>
+                        </div>
+                        {breakdownError && (
+                            <div className="mx-5 mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+                                {breakdownError}
+                            </div>
+                        )}
+                        {breakdownLoading ? (
+                            <div className="px-5 py-10 text-center text-[14px] text-[#6B7280]">Loading daily breakdown…</div>
+                        ) : breakdownDailyRows.length === 0 ? (
+                            <div className="p-6 text-center text-[14px] text-[#6B7280]">No daily breakdown data.</div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left">
+                                    <thead>
+                                        <tr className="border-b border-[#E5E7EB] bg-gray-50/80">
+                                            <th className="px-5 py-3 text-[12px] font-[600] text-[#6B7280] uppercase tracking-wider">Date</th>
+                                            <th className="px-5 py-3 text-[12px] font-[600] text-[#6B7280] uppercase tracking-wider">Orders</th>
+                                            <th className="px-5 py-3 text-[12px] font-[600] text-[#6B7280] uppercase tracking-wider">Sales</th>
+                                            <th className="px-5 py-3 text-[12px] font-[600] text-[#6B7280] uppercase tracking-wider">Refunds ($)</th>
+                                            <th className="px-5 py-3 text-[12px] font-[600] text-[#6B7280] uppercase tracking-wider">Net Revenue ($)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {breakdownDailyRows.map((row) => (
+                                            <tr key={row.date} className="border-b border-[#E5E7EB] hover:bg-gray-50/50">
+                                                <td className="px-5 py-3 text-[14px] text-[#111827]">{row.label ?? row.date ?? '--'}</td>
+                                                <td className="px-5 py-3 text-[14px] text-[#6B7280]">{row.orders?.toLocaleString() ?? '--'}</td>
+                                                <td className="px-5 py-3 text-[14px] font-medium text-[#111827]">{formatCurrency(row.sales)}</td>
+                                                <td className="px-5 py-3 text-[14px] font-medium text-primary">{formatCurrency(row.refunds)}</td>
+                                                <td className="px-5 py-3 text-[14px] font-medium text-[#111827]">{formatCurrency(row.net_revenue)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {!loading && !error && reportData && (
+                    <>
                         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex flex-col gap-3 min-[400px]:flex-row min-[400px]:items-center min-[400px]:w-auto">
                                 <button

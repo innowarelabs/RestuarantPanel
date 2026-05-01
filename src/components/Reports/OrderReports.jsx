@@ -6,21 +6,13 @@ import ScheduleReportModal from './ScheduleReportModal';
 import { ReportsFilterSelect } from './ReportsFilterSelect';
 import {
     DATE_RANGE_OPTIONS,
-    dateRangeToDays,
     daysToDateRangeValue,
     ORDER_TYPE_FILTER_OPTIONS,
     ORDER_PAYMENT_FILTER_OPTIONS,
-    ORDER_SOURCE_FILTER_OPTIONS,
+    DEFAULT_ORDER_REPORT_FILTERS,
 } from './reportsFilterConstants';
 
 const CHART_COLORS = ['#DD2F26', '#4F46E5', '#F59E0B', '#94A3B8', '#EF4444', '#8B5CF6'];
-
-const DEFAULT_ORDER_FILTERS = {
-    orderType: 'delivery',
-    paymentMethod: 'card',
-    source: 'ubereats',
-    dateRange: 'last-30',
-};
 
 function recentOrderRowMatchesFilter(row, f) {
     if (!f?.orderStatus?.all) {
@@ -54,10 +46,10 @@ function recentOrderRowMatchesFilter(row, f) {
     return true;
 }
 
-const OrderReports = ({ onBack, reportData, loading, error, days, onApplyFilters, onExportPdf, onExportCsv }) => {
+const OrderReports = ({ onBack, reportData, loading, error, days, onApplyFilters, onExportPdf, onExportCsv, pdfExporting = false }) => {
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
     const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
-    const [filterDraft, setFilterDraft] = useState(() => ({ ...DEFAULT_ORDER_FILTERS }));
+    const [filterDraft, setFilterDraft] = useState(() => ({ ...DEFAULT_ORDER_REPORT_FILTERS }));
     const [recentOrdersFilterDraft, setRecentOrdersFilterDraft] = useState(() => ({
         ...RECENT_ORDERS_FILTER_DEFAULTS,
     }));
@@ -66,6 +58,8 @@ const OrderReports = ({ onBack, reportData, loading, error, days, onApplyFilters
     }));
 
     useEffect(() => {
+        // Sync date dropdown when parent refetches with new `days` (order type / payment stay local until Apply).
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- draft mirrors parent-applied range
         setFilterDraft((prev) => ({ ...prev, dateRange: daysToDateRangeValue(days) }));
     }, [days]);
 
@@ -178,19 +172,6 @@ const OrderReports = ({ onBack, reportData, loading, error, days, onApplyFilters
                     </div>
                     <div className="w-full min-w-0 flex-1 lg:min-w-0">
                         <span className="mb-1.5 block font-sans text-[13px] font-medium leading-[19.5px] tracking-normal text-[#1A1A1A]">
-                            Source
-                        </span>
-                        <ReportsFilterSelect
-                            value={filterDraft.source}
-                            onValueChange={(v) => setFilterDraft((prev) => ({ ...prev, source: v }))}
-                            options={ORDER_SOURCE_FILTER_OPTIONS}
-                            ariaLabel="Source"
-                            borderClassName="border-[#E8E8E8]"
-                            containerClassName="relative w-full min-w-0"
-                        />
-                    </div>
-                    <div className="w-full min-w-0 flex-1 lg:min-w-0">
-                        <span className="mb-1.5 block font-sans text-[13px] font-medium leading-[19.5px] tracking-normal text-[#1A1A1A]">
                             Date Range
                         </span>
                         <ReportsFilterSelect
@@ -208,7 +189,13 @@ const OrderReports = ({ onBack, reportData, loading, error, days, onApplyFilters
                     <div className="flex w-full min-w-0 shrink-0 justify-stretch sm:w-[150px] sm:justify-start">
                         <button
                             type="button"
-                            onClick={() => onApplyFilters?.(dateRangeToDays(filterDraft.dateRange))}
+                            onClick={() =>
+                                onApplyFilters?.({
+                                    orderType: filterDraft.orderType,
+                                    paymentMethod: filterDraft.paymentMethod,
+                                    dateRange: filterDraft.dateRange,
+                                })
+                            }
                             disabled={loading}
                             className="box-border flex h-12 min-h-[48px] w-full max-w-full items-center justify-center rounded-lg bg-primary px-4 text-center font-sans text-[14px] font-normal leading-[21px] text-white shadow-sm transition hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60"
                         >
@@ -408,10 +395,11 @@ const OrderReports = ({ onBack, reportData, loading, error, days, onApplyFilters
                     <button
                         type="button"
                         onClick={onExportPdf}
-                        className="inline-flex h-10 w-full min-w-0 items-center justify-center gap-2 rounded-lg border border-[#E8E8E8] bg-transparent px-4 font-sans text-[14px] font-normal leading-[21px] text-[#374151] transition hover:bg-gray-50 min-[400px]:w-auto"
+                        disabled={pdfExporting}
+                        className="inline-flex h-10 w-full min-w-0 items-center justify-center gap-2 rounded-lg border border-[#E8E8E8] bg-transparent px-4 font-sans text-[14px] font-normal leading-[21px] text-[#374151] transition hover:bg-gray-50 min-[400px]:w-auto disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         <Download className="h-4 w-4 shrink-0 text-[#374151]" strokeWidth={1.75} aria-hidden />
-                        Export PDF
+                        {pdfExporting ? 'Exporting…' : 'Export PDF'}
                     </button>
                 </div>
                 <button

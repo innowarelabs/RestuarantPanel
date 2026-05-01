@@ -37,13 +37,13 @@ const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'satur
 const DAY_DISPLAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 const defaultOpeningHours = () => ({
-    monday: { open: '', close: '' },
-    tuesday: { open: '', close: '' },
-    wednesday: { open: '', close: '' },
-    thursday: { open: '', close: '' },
-    friday: { open: '', close: '' },
-    saturday: { open: '', close: '' },
-    sunday: { open: '', close: '' },
+    monday: { open: '', close: '', break_start: '', break_end: '' },
+    tuesday: { open: '', close: '', break_start: '', break_end: '' },
+    wednesday: { open: '', close: '', break_start: '', break_end: '' },
+    thursday: { open: '', close: '', break_start: '', break_end: '' },
+    friday: { open: '', close: '', break_start: '', break_end: '' },
+    saturday: { open: '', close: '', break_start: '', break_end: '' },
+    sunday: { open: '', close: '', break_start: '', break_end: '' },
 });
 
 const mergeOpeningHours = (saved) => {
@@ -55,6 +55,9 @@ const mergeOpeningHours = (saved) => {
             merged[key] = {
                 open: typeof day.open === 'string' ? day.open : merged[key].open,
                 close: typeof day.close === 'string' ? day.close : merged[key].close,
+                break_start:
+                    typeof day.break_start === 'string' ? day.break_start : merged[key].break_start,
+                break_end: typeof day.break_end === 'string' ? day.break_end : merged[key].break_end,
             };
         }
     }
@@ -78,30 +81,98 @@ const openingHoursRecordToDays = (oh) =>
         const close = typeof entry.close === 'string' ? entry.close.trim() : '';
         const isOpen = !!(open && close);
         const fallback = defaultDaysUi()[i].hours;
+        const breakStart = typeof entry.break_start === 'string' ? entry.break_start.trim() : '';
+        const breakEnd = typeof entry.break_end === 'string' ? entry.break_end.trim() : '';
+        const hasBreak = !!(breakStart || breakEnd);
         return {
             name: DAY_DISPLAY_NAMES[i],
             isOpen,
             hours: isOpen ? [open, close] : fallback,
-            hasBreak: false,
-            breakHours: ['', ''],
+            hasBreak,
+            breakHours: hasBreak ? [breakStart, breakEnd] : ['', ''],
         };
     });
 
-const daysToOpeningHoursRecord = (days) => {
-    const out = defaultOpeningHours();
+/** Step 2 API: each day has open, close, break_start, break_end */
+const daysToStep2OpeningHours = (days) => {
+    const out = {};
     days.forEach((day, i) => {
         const key = DAY_KEYS[i];
         if (!day.isOpen) {
-            out[key] = { open: '', close: '' };
-        } else {
-            out[key] = {
-                open: typeof day.hours[0] === 'string' ? day.hours[0].trim() : '',
-                close: typeof day.hours[1] === 'string' ? day.hours[1].trim() : '',
-            };
+            out[key] = { open: '', close: '', break_start: '', break_end: '' };
+            return;
         }
+        const open = typeof day.hours[0] === 'string' ? day.hours[0].trim() : '';
+        const close = typeof day.hours[1] === 'string' ? day.hours[1].trim() : '';
+        let break_start = '';
+        let break_end = '';
+        if (day.hasBreak) {
+            break_start = typeof day.breakHours[0] === 'string' ? day.breakHours[0].trim() : '';
+            break_end = typeof day.breakHours[1] === 'string' ? day.breakHours[1].trim() : '';
+        }
+        out[key] = { open, close, break_start, break_end };
     });
     return out;
 };
+
+const normalizeBool = (value) => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value === 1;
+    if (typeof value === 'string') {
+        const v = value.trim().toLowerCase();
+        if (v === 'true' || v === '1' || v === 'yes') return true;
+        if (v === 'false' || v === '0' || v === 'no') return false;
+    }
+    return null;
+};
+
+/** Prefer step2 GET value, else restaurant detail (Business Profile / GET restaurants/{id}). */
+function pickMergedString(step2, restaurant, key) {
+    const a = step2 && typeof step2 === 'object' && typeof step2[key] === 'string' ? step2[key].trim() : '';
+    if (a) return a;
+    const b =
+        restaurant && typeof restaurant === 'object' && typeof restaurant[key] === 'string'
+            ? restaurant[key].trim()
+            : '';
+    return b;
+}
+
+function pickUrlArray(step2, restaurant, key) {
+    const from = (obj) => {
+        if (!obj || typeof obj !== 'object') return [];
+        const a = obj[key];
+        if (!Array.isArray(a)) return [];
+        return a.map((x) => (typeof x === 'string' ? x.trim() : '')).filter(Boolean);
+    };
+    const e = from(step2);
+    if (e.length) return e;
+    return from(restaurant);
+}
+
+function mergeStep2PutBody(restaurantId, step2, restaurantDetail, opening_hours) {
+    const e = step2 && typeof step2 === 'object' ? step2 : {};
+    const r = restaurantDetail && typeof restaurantDetail === 'object' ? restaurantDetail : {};
+    const str = (k) => pickMergedString(e, r, k);
+    const out = {
+        restaurant_id: restaurantId,
+        street_address: str('street_address'),
+        city: str('city'),
+        state: str('state'),
+        postal_code: str('postal_code'),
+        country: pickMergedString(e, r, 'country') || 'USA',
+        website_header_images: pickUrlArray(e, r, 'website_header_images'),
+        website_footer_images: pickUrlArray(e, r, 'website_footer_images'),
+        alternate_contact: pickMergedString(e, r, 'alternate_contact'),
+        opening_hours,
+        average_preparation_time: pickMergedString(e, r, 'average_preparation_time'),
+        enable_delivery: normalizeBool(e.enable_delivery) ?? normalizeBool(r.enable_delivery) ?? false,
+        enable_pickup: normalizeBool(e.enable_pickup) ?? normalizeBool(r.enable_pickup) ?? false,
+    };
+    if (Array.isArray(e.special_days)) {
+        out.special_days = e.special_days;
+    }
+    return out;
+}
 
 const extractPayload = (raw) => {
     if (!raw) return null;
@@ -159,8 +230,6 @@ const OperatingHours = () => {
     const [saving, setSaving] = useState(false);
     const [saveErrors, setSaveErrors] = useState([]);
 
-    const openingHoursFromDays = daysToOpeningHoursRecord(days);
-
     const openingHoursValid = days.every((day) => {
         if (!day.isOpen) return true;
         const open = day.hours[0]?.trim() ?? '';
@@ -170,10 +239,8 @@ const OperatingHours = () => {
         if (day.hasBreak) {
             const b1 = day.breakHours[0]?.trim() ?? '';
             const b2 = day.breakHours[1]?.trim() ?? '';
-            if (b1 || b2) {
-                if (!b1 || !b2) return false;
-                if (!isValidOpeningHourTime(b1) || !isValidOpeningHourTime(b2)) return false;
-            }
+            if (!b1 || !b2) return false;
+            if (!isValidOpeningHourTime(b1) || !isValidOpeningHourTime(b2)) return false;
         }
         return true;
     });
@@ -191,19 +258,37 @@ const OperatingHours = () => {
         if (day.hasBreak && day.isOpen) {
             const b1 = day.breakHours[0]?.trim() ?? '';
             const b2 = day.breakHours[1]?.trim() ?? '';
-            if (b1 || b2) {
-                return isOpeningHourValueInvalid(b1) || isOpeningHourValueInvalid(b2);
-            }
+            if (!b1 || !b2) return true;
+            return isOpeningHourValueInvalid(b1) || isOpeningHourValueInvalid(b2);
         }
         return false;
     });
 
     const toggleDayOpen = (index) => {
-        setDays((d) => d.map((row, i) => (i === index ? { ...row, isOpen: !row.isOpen } : row)));
+        setDays((d) =>
+            d.map((row, i) => {
+                if (i !== index) return row;
+                const nextOpen = !row.isOpen;
+                if (nextOpen) {
+                    return { ...row, isOpen: true };
+                }
+                return { ...row, isOpen: false, hasBreak: false, breakHours: ['', ''] };
+            }),
+        );
     };
 
     const toggleDayBreak = (index) => {
-        setDays((d) => d.map((row, i) => (i === index ? { ...row, hasBreak: !row.hasBreak } : row)));
+        setDays((d) =>
+            d.map((row, i) => {
+                if (i !== index) return row;
+                const nextHasBreak = !row.hasBreak;
+                return {
+                    ...row,
+                    hasBreak: nextHasBreak,
+                    breakHours: nextHasBreak ? row.breakHours : ['', ''],
+                };
+            }),
+        );
     };
 
     const setMainHour = (dayIndex, slotIndex, value) => {
@@ -271,40 +356,64 @@ const OperatingHours = () => {
 
                 setRestaurantId(resolvedId);
 
-                const detailUrl = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/${encodeURIComponent(resolvedId)}`;
-                const resDetail = await fetch(detailUrl, {
+                const step2Url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step2`;
+                let merged = defaultOpeningHours();
+                let hoursSource = false;
+
+                const res2 = await fetch(step2Url, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
                         Authorization: `Bearer ${accessToken}`,
                     },
                 });
-                const ctDetail = resDetail.headers.get('content-type');
-                const rawDetail = ctDetail?.includes('application/json') ? await resDetail.json() : await resDetail.text();
-
-                if (!resDetail.ok) {
-                    const msg =
-                        typeof rawDetail === 'object' && rawDetail?.message
-                            ? rawDetail.message
-                            : typeof rawDetail === 'string'
-                              ? rawDetail
-                              : 'Failed to load restaurant';
-                    setLoadError(msg);
-                    return;
+                if (res2.ok) {
+                    const ct2 = res2.headers.get('content-type');
+                    const raw2 = ct2?.includes('application/json') ? await res2.json() : await res2.text();
+                    const step2 = extractPayload(raw2);
+                    if (step2?.opening_hours && typeof step2.opening_hours === 'object') {
+                        merged = mergeOpeningHours(step2.opening_hours);
+                        hoursSource = true;
+                    }
                 }
 
-                const detail = extractPayload(rawDetail);
-                const bh = detail?.business_hours;
-                let merged = defaultOpeningHours();
-                if (typeof bh === 'string' && bh.trim()) {
-                    try {
-                        const parsed = JSON.parse(bh);
-                        if (parsed && typeof parsed === 'object') merged = mergeOpeningHours(parsed);
-                    } catch {
-                        merged = defaultOpeningHours();
+                if (!hoursSource) {
+                    const detailUrl = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/${encodeURIComponent(resolvedId)}`;
+                    const resDetail = await fetch(detailUrl, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${accessToken}`,
+                        },
+                    });
+                    const ctDetail = resDetail.headers.get('content-type');
+                    const rawDetail = ctDetail?.includes('application/json')
+                        ? await resDetail.json()
+                        : await resDetail.text();
+
+                    if (!resDetail.ok) {
+                        const msg =
+                            typeof rawDetail === 'object' && rawDetail?.message
+                                ? rawDetail.message
+                                : typeof rawDetail === 'string'
+                                  ? rawDetail
+                                  : 'Failed to load restaurant';
+                        setLoadError(msg);
+                        return;
                     }
-                } else if (bh && typeof bh === 'object') {
-                    merged = mergeOpeningHours(bh);
+
+                    const detail = extractPayload(rawDetail);
+                    const bh = detail?.business_hours;
+                    if (typeof bh === 'string' && bh.trim()) {
+                        try {
+                            const parsed = JSON.parse(bh);
+                            if (parsed && typeof parsed === 'object') merged = mergeOpeningHours(parsed);
+                        } catch {
+                            merged = defaultOpeningHours();
+                        }
+                    } else if (bh && typeof bh === 'object') {
+                        merged = mergeOpeningHours(bh);
+                    }
                 }
 
                 setDays(openingHoursRecordToDays(merged));
@@ -326,16 +435,59 @@ const OperatingHours = () => {
             const baseUrl = import.meta.env.VITE_BACKEND_URL;
             if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
 
-            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/${encodeURIComponent(restaurantId)}`;
-            const res = await fetch(url, {
+            const step2Url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step2`;
+
+            const resGet = await fetch(step2Url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${accessToken}`,
+                },
+            });
+            let existingStep2 = null;
+            if (resGet.ok) {
+                const ctGet = resGet.headers.get('content-type');
+                const rawGet = ctGet?.includes('application/json') ? await resGet.json() : await resGet.text();
+                existingStep2 = extractPayload(rawGet);
+            }
+
+            const detailUrl = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/${encodeURIComponent(restaurantId)}`;
+            const resDetail = await fetch(detailUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${accessToken}`,
+                },
+            });
+            let restaurantDetail = null;
+            if (resDetail.ok) {
+                const ctD = resDetail.headers.get('content-type');
+                const rawD = ctD?.includes('application/json') ? await resDetail.json() : await resDetail.text();
+                restaurantDetail = extractPayload(rawD);
+            }
+
+            const opening_hours = daysToStep2OpeningHours(days);
+            const body = mergeStep2PutBody(restaurantId, existingStep2, restaurantDetail, opening_hours);
+
+            if (
+                !String(body.street_address || '').trim() ||
+                !String(body.city || '').trim() ||
+                !String(body.state || '').trim() ||
+                !String(body.postal_code || '').trim()
+            ) {
+                setSaveErrors([
+                    'Street address, city, state, and postal code are required. Add them under Settings → Business Profile (Business Address), then save again.',
+                ]);
+                return;
+            }
+
+            const res = await fetch(step2Url, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${accessToken}`,
                 },
-                body: JSON.stringify({
-                    business_hours: JSON.stringify(openingHoursFromDays),
-                }),
+                body: JSON.stringify(body),
             });
 
             const contentType = res.headers.get('content-type');
@@ -394,20 +546,20 @@ const OperatingHours = () => {
                 {!loading && !loadError && (
                     <>
                         <div className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar">
-                            <div className="min-w-[600px] space-y-0">
+                            <div className="min-w-[760px] space-y-0">
                                 {days.map((day, dayIndex) => (
                                     <div
                                         key={day.name}
-                                        className="flex items-center py-4 border-b border-[#F3F4F6] last:border-0 gap-4"
+                                        className="flex items-center gap-3 border-b border-[#F3F4F6] py-4 last:border-0 sm:gap-4"
                                     >
                                         <div className="w-32 flex-shrink-0">
                                             <span className="font-[500] text-[14px] text-[#1A1A1A]">{day.name}</span>
                                         </div>
-                                        <div className="flex items-center gap-4 flex-1">
+                                        <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
                                             <button
                                                 type="button"
                                                 onClick={() => toggleDayOpen(dayIndex)}
-                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none flex-shrink-0 ${day.isOpen ? 'bg-[#DD2F26]' : 'bg-gray-200'}`}
+                                                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${day.isOpen ? 'bg-[#DD2F26]' : 'bg-gray-200'}`}
                                             >
                                                 <span
                                                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${day.isOpen ? 'translate-x-6' : 'translate-x-1'}`}
@@ -415,7 +567,7 @@ const OperatingHours = () => {
                                             </button>
 
                                             {day.isOpen ? (
-                                                <div className="flex items-center gap-2 flex-shrink-0">
+                                                <div className="flex shrink-0 items-center gap-2">
                                                     <input
                                                         type="text"
                                                         value={day.hours[0]}
@@ -431,45 +583,45 @@ const OperatingHours = () => {
                                                     />
                                                 </div>
                                             ) : (
-                                                <span className="text-sm text-[#9CA3AF] flex-shrink-0">Closed</span>
+                                                <span className="shrink-0 text-sm text-[#9CA3AF]">Closed</span>
                                             )}
 
-                                            {/* Break toggle + break times — hidden for now
-                                            <div className="flex items-center gap-4 ml-auto">
-                                                <div className="flex items-center gap-2 flex-shrink-0">
+                                            <div className="ml-auto mr-[20px] flex shrink-0 items-center gap-3 sm:gap-4">
+                                                <div className="flex w-[128px] shrink-0 -translate-x-[20px] items-center gap-2 sm:w-[136px]">
                                                     <button
                                                         type="button"
                                                         onClick={() => toggleDayBreak(dayIndex)}
                                                         disabled={!day.isOpen}
-                                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed ${day.hasBreak ? 'bg-[#DD2F26]' : 'bg-gray-200'}`}
+                                                        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${day.hasBreak ? 'bg-[#DD2F26]' : 'bg-gray-200'}`}
                                                     >
                                                         <span
                                                             className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${day.hasBreak ? 'translate-x-6' : 'translate-x-1'}`}
                                                         />
                                                     </button>
-                                                    <span className="text-[14px] text-[#9CA3AF] whitespace-nowrap">
+                                                    <span className="min-w-0 flex-1 truncate text-[14px] text-[#9CA3AF]">
                                                         {day.hasBreak ? 'Break' : 'No break'}
                                                     </span>
                                                 </div>
-                                                <div
-                                                    className={`flex items-center gap-2 ${day.hasBreak && day.isOpen ? '' : 'pointer-events-none opacity-50'}`}
-                                                >
-                                                    <input
-                                                        type="text"
-                                                        value={day.breakHours[0]}
-                                                        onChange={(e) => setBreakHour(dayIndex, 0, e.target.value)}
-                                                        className={`w-20 sm:w-24 px-3 py-1.5 border rounded-[8px] text-sm bg-gray-50 ${isOpeningHourValueInvalid(day.breakHours[0]) ? 'border-[#EB5757] ring-1 ring-[#EB5757]/30' : 'border-[#E8E8E8]'}`}
-                                                    />
-                                                    <span className="text-[#9CA3AF]">-</span>
-                                                    <input
-                                                        type="text"
-                                                        value={day.breakHours[1]}
-                                                        onChange={(e) => setBreakHour(dayIndex, 1, e.target.value)}
-                                                        className={`w-20 sm:w-24 px-3 py-1.5 border rounded-[8px] text-sm bg-gray-50 ${isOpeningHourValueInvalid(day.breakHours[1]) ? 'border-[#EB5757] ring-1 ring-[#EB5757]/30' : 'border-[#E8E8E8]'}`}
-                                                    />
+                                                <div className="flex h-[34px] w-[168px] shrink-0 items-center gap-2 sm:w-[184px]">
+                                                    {day.hasBreak && day.isOpen ? (
+                                                        <>
+                                                            <input
+                                                                type="text"
+                                                                value={day.breakHours[0]}
+                                                                onChange={(e) => setBreakHour(dayIndex, 0, e.target.value)}
+                                                                className={`w-20 shrink-0 rounded-[8px] border bg-gray-50 px-2 py-1.5 text-sm sm:w-24 ${isOpeningHourValueInvalid(day.breakHours[0]) ? 'border-[#EB5757] ring-1 ring-[#EB5757]/30' : 'border-[#E8E8E8]'}`}
+                                                            />
+                                                            <span className="shrink-0 text-[#9CA3AF]">-</span>
+                                                            <input
+                                                                type="text"
+                                                                value={day.breakHours[1]}
+                                                                onChange={(e) => setBreakHour(dayIndex, 1, e.target.value)}
+                                                                className={`w-20 shrink-0 rounded-[8px] border bg-gray-50 px-2 py-1.5 text-sm sm:w-24 ${isOpeningHourValueInvalid(day.breakHours[1]) ? 'border-[#EB5757] ring-1 ring-[#EB5757]/30' : 'border-[#E8E8E8]'}`}
+                                                            />
+                                                        </>
+                                                    ) : null}
                                                 </div>
                                             </div>
-                                            */}
                                         </div>
                                     </div>
                                 ))}

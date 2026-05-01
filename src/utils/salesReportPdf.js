@@ -7,19 +7,85 @@ export const REPORTS_API_BASE = 'https://api.baaie.com';
 
 export const PDF_PRIMARY = [221, 47, 38]; // #DD2F26
 
+/** UI `serviceType` → API `order_type` (delivery, pickup, dine-in). */
+function serviceTypeToOrderType(serviceType) {
+    if (!serviceType || serviceType === 'all') return null;
+    if (serviceType === 'dine_in') return 'dine-in';
+    return serviceType;
+}
+
+/** UI payment dropdown → API `payment_method` strings. */
+function paymentMethodToApiQueryValue(paymentMethod) {
+    if (!paymentMethod || paymentMethod === 'all') return null;
+    if (paymentMethod === 'card') return 'credit card';
+    return paymentMethod;
+}
+
 export const DEFAULT_SALES_FILTERS = {
     serviceType: 'delivery',
     paymentMethod: 'card',
-    platform: 'ubereats',
     dateRange: 'last-30',
 };
 
 export function buildSalesReportQuery(f) {
     const p = new URLSearchParams();
     p.set('days', String(dateRangeToDays(f.dateRange)));
-    p.set('service_type', f.serviceType);
-    p.set('payment_method', f.paymentMethod);
-    p.set('platform', f.platform);
+    const orderType = serviceTypeToOrderType(f.serviceType);
+    if (orderType) p.set('order_type', orderType);
+    const payment = paymentMethodToApiQueryValue(f.paymentMethod);
+    if (payment) p.set('payment_method', payment);
+    return p.toString();
+}
+
+function formatLocalYMD(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+/** Inclusive window for the last N calendar days ending today (local). */
+export function breakdownDateWindowFromDays(dayCount) {
+    const n = Math.max(1, Number(dayCount) || 1);
+    const end = new Date();
+    const start = new Date(end);
+    start.setDate(start.getDate() - (n - 1));
+    return { from_date: formatLocalYMD(start), to_date: formatLocalYMD(end) };
+}
+
+/**
+ * Query string for GET /api/v1/reports/sales-report/breakdown
+ * @param {typeof DEFAULT_SALES_FILTERS} salesFilters — last-applied page filters (date range, service type, payment)
+ * @param {{ orderStatus: Record<string, boolean>, payment: Record<string, boolean> }} breakdownFilters — modal (repeatable order_status / payment_method)
+ */
+export function buildSalesReportBreakdownQuery(salesFilters, breakdownFilters) {
+    const p = new URLSearchParams();
+    const days = dateRangeToDays(salesFilters.dateRange);
+    p.set('days', String(days));
+    p.set('granularity', 'day');
+    const { from_date, to_date } = breakdownDateWindowFromDays(days);
+    p.set('from_date', from_date);
+    p.set('to_date', to_date);
+    const orderType = serviceTypeToOrderType(salesFilters.serviceType);
+    if (orderType) p.set('order_type', orderType);
+
+    const os = breakdownFilters.orderStatus;
+    if (!os.all) {
+        if (os.completed) p.append('order_status', 'completed');
+        if (os.cancelled) p.append('order_status', 'cancelled');
+        if (os.refunded) p.append('order_status', 'refunded');
+    }
+
+    const pm = breakdownFilters.payment;
+    if (!pm.all) {
+        if (pm.card) p.append('payment_method', 'credit card');
+        if (pm.cash) p.append('payment_method', 'cash');
+        if (pm.contactless) p.append('payment_method', 'contactless');
+    } else {
+        const pay = paymentMethodToApiQueryValue(salesFilters.paymentMethod);
+        if (pay) p.append('payment_method', pay);
+    }
+
     return p.toString();
 }
 
