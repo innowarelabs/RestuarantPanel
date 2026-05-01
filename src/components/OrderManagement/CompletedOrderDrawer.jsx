@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { X, ChevronDown, ChevronUp, CircleCheckBig, Printer, RefreshCcw } from 'lucide-react';
+import { X, ChevronDown, ChevronUp, CircleCheckBig, Printer } from 'lucide-react';
 import { mapApiTimelineToDisplayEvents } from './orderTimelineUtils';
 import OrderApiTimelineList from './OrderApiTimelineList';
 
@@ -33,7 +33,7 @@ function labelPaymentMethod(paymentMethod, orderType) {
 /**
  * Completed order: timeline (Order Placed + Delivered), items, pricing, print / refund.
  */
-export default function CompletedOrderDrawer({ isOpen, onClose, order, onPrintReceipt, onIssueRefund }) {
+export default function CompletedOrderDrawer({ isOpen, onClose, order, onPrintReceipt }) {
     const [openSections, setOpenSections] = useState({
         timeline: true,
         items: true,
@@ -330,23 +330,23 @@ export default function CompletedOrderDrawer({ isOpen, onClose, order, onPrintRe
                     </div>
                 </div>
 
-                <div className="flex gap-3 border-t border-gray-100 bg-white p-4">
+                <div className="border-t border-gray-100 bg-white p-4">
                     <button
                         type="button"
                         onClick={() => onPrintReceipt && onPrintReceipt(order)}
-                        className="flex flex-1 items-center justify-center gap-2 rounded-[8px] border border-gray-100 bg-white py-2.5 text-[14px] font-medium text-[#0F1724] transition-colors hover:bg-gray-50"
+                        className="flex w-full items-center justify-center gap-2 rounded-[8px] border border-gray-100 bg-white py-2.5 text-[14px] font-medium text-[#0F1724] transition-colors hover:bg-gray-50"
                     >
                         <Printer size={18} strokeWidth={2} className="shrink-0" />
                         Print Receipt
                     </button>
-                    <button
+                    {/* <button
                         type="button"
                         onClick={() => onIssueRefund && onIssueRefund(order)}
                         className="flex flex-1 items-center justify-center gap-2 rounded-[8px] border border-gray-100 bg-white py-2.5 text-[14px] font-medium text-[#0F1724] transition-colors hover:bg-gray-50"
                     >
                         <RefreshCcw size={18} strokeWidth={2} className="shrink-0" />
                         Issue Refund
-                    </button>
+                    </button> */}
                 </div>
             </div>
         </div>

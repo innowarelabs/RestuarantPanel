@@ -1,7 +1,14 @@
 import React from 'react';
 import { Search, Filter, Plus } from 'lucide-react';
 
-const SupportHeader = ({ activeTab, onTabChange, onNewTicket, onFilter }) => {
+const SupportHeader = ({
+    activeTab,
+    onTabChange,
+    onNewTicket,
+    onFilter,
+    ticketSearchQuery = '',
+    onTicketSearchChange,
+}) => {
     const subtitle = "Manage customer issues or raise tickets to the platform.";
 
     return (
@@ -19,8 +26,11 @@ const SupportHeader = ({ activeTab, onTabChange, onNewTicket, onFilter }) => {
                         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input
                             type="text"
-                            placeholder="Search ticket ID…"
+                            placeholder="Search by Ticket ID"
+                            value={ticketSearchQuery}
+                            onChange={(e) => onTicketSearchChange?.(e.target.value)}
                             className="w-full pl-9 pr-4 py-2 bg-white border border-[#E5E7EB] rounded-[8px] text-[13px] focus:outline-none focus:ring-1 focus:ring-[#DD2F26]/20 placeholder:text-gray-400"
+                            aria-label="Search by ticket ID"
                         />
                     </div>
 

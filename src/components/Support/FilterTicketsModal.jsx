@@ -7,26 +7,39 @@ const FILTER_PRIORITY_LABELS = ['Low', 'Medium', 'High'];
 
 const ASSIGNED_TO_LABELS = ['Restaurant', 'Admin Team'];
 
-const FilterTicketsModal = ({ isOpen, onClose }) => {
-    const [selectedFilters, setSelectedFilters] = useState({
-        status: [],
-        priority: [],
-        /** At most one: `'Restaurant' | 'Admin Team' | null` */
-        assignedTo: null,
-    });
+const emptyFilters = () => ({
+    status: [],
+    priority: [],
+    assignedTo: [],
+    fromDate: '',
+    toDate: '',
+});
+
+function normalizeAssignedToList(value) {
+    if (Array.isArray(value)) return [...value];
+    if (value === 'Restaurant' || value === 'Admin Team') return [value];
+    return [];
+}
+
+function mergeInitialFilters(initialFilters) {
+    const init = initialFilters && typeof initialFilters === 'object' ? initialFilters : emptyFilters();
+    return {
+        status: Array.isArray(init.status) ? [...init.status] : [],
+        priority: Array.isArray(init.priority) ? [...init.priority] : [],
+        assignedTo: normalizeAssignedToList(init.assignedTo),
+        fromDate: typeof init.fromDate === 'string' ? init.fromDate : '',
+        toDate: typeof init.toDate === 'string' ? init.toDate : '',
+    };
+}
+
+const FilterTicketsModal = ({ isOpen, onClose, initialFilters, onApply }) => {
+    const [selectedFilters, setSelectedFilters] = useState(() => mergeInitialFilters(initialFilters));
 
     if (!isOpen) return null;
 
     const toggleFilter = (category, value) => {
-        if (category === 'assignedTo') {
-            setSelectedFilters((prev) => ({
-                ...prev,
-                assignedTo: prev.assignedTo === value ? null : value,
-            }));
-            return;
-        }
         setSelectedFilters((prev) => {
-            const current = prev[category] || [];
+            const current = Array.isArray(prev[category]) ? prev[category] : [];
             if (current.includes(value)) {
                 return { ...prev, [category]: current.filter((v) => v !== value) };
             }
@@ -35,8 +48,8 @@ const FilterTicketsModal = ({ isOpen, onClose }) => {
     };
 
     const FilterPill = ({ category, label }) => {
-        const isActive =
-            category === 'assignedTo' ? selectedFilters.assignedTo === label : selectedFilters[category]?.includes(label);
+        const list = selectedFilters[category];
+        const isActive = Array.isArray(list) && list.includes(label);
         return (
             <button
                 type="button"
@@ -53,11 +66,20 @@ const FilterTicketsModal = ({ isOpen, onClose }) => {
     };
 
     const resetFilters = () => {
-        setSelectedFilters({
-            status: [],
-            priority: [],
-            assignedTo: null,
-        });
+        setSelectedFilters(emptyFilters());
+    };
+
+    const handleApply = () => {
+        if (onApply) {
+            onApply({
+                status: selectedFilters.status,
+                priority: selectedFilters.priority,
+                assignedTo: selectedFilters.assignedTo,
+                fromDate: selectedFilters.fromDate || '',
+                toDate: selectedFilters.toDate || '',
+            });
+        }
+        onClose();
     };
 
     return (
@@ -107,8 +129,11 @@ const FilterTicketsModal = ({ isOpen, onClose }) => {
                                     From
                                 </span>
                                 <input
-                                    type="text"
-                                    placeholder="DD/MM/YYYY"
+                                    type="date"
+                                    value={selectedFilters.fromDate || ''}
+                                    onChange={(e) =>
+                                        setSelectedFilters((prev) => ({ ...prev, fromDate: e.target.value }))
+                                    }
                                     className="w-full rounded-[8px] border border-gray-200 bg-white px-4 py-2 text-[13px] font-medium transition-all focus:border-[#DD2F26] focus:outline-none focus:ring-2 focus:ring-[#DD2F26]/10"
                                 />
                             </div>
@@ -117,8 +142,11 @@ const FilterTicketsModal = ({ isOpen, onClose }) => {
                                     To
                                 </span>
                                 <input
-                                    type="text"
-                                    placeholder="DD/MM/YYYY"
+                                    type="date"
+                                    value={selectedFilters.toDate || ''}
+                                    onChange={(e) =>
+                                        setSelectedFilters((prev) => ({ ...prev, toDate: e.target.value }))
+                                    }
                                     className="w-full rounded-[8px] border border-gray-200 bg-white px-4 py-2 text-[13px] font-medium transition-all focus:border-[#DD2F26] focus:outline-none focus:ring-2 focus:ring-[#DD2F26]/10"
                                 />
                             </div>
@@ -145,7 +173,7 @@ const FilterTicketsModal = ({ isOpen, onClose }) => {
                     </button>
                     <button
                         type="button"
-                        onClick={onClose}
+                        onClick={handleApply}
                         className="rounded-[8px] bg-[#DD2F26] px-6 py-2.5 text-[14px] font-[600] text-white shadow-sm shadow-[#DD2F26]/10 transition-colors hover:bg-[#C52820]"
                     >
                         Apply Filters

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import { ChevronDown, Eye } from 'lucide-react';
+import { buildTicketsListSearchParams } from './ticketListQueryParams';
 
 const PRIORITY_OPTIONS = [
     { label: 'High', value: 'high' },
@@ -37,7 +38,7 @@ const formatPatchError = (json) => {
     return 'Update failed';
 };
 
-const AdminSupportTickets = ({ onViewTicket, refreshKey }) => {
+const AdminSupportTickets = ({ onViewTicket, refreshKey, listFilters = {} }) => {
     const accessToken = useSelector((state) => state.auth.accessToken);
     const user = useSelector((state) => state.auth.user);
 
@@ -331,7 +332,8 @@ const AdminSupportTickets = ({ onViewTicket, refreshKey }) => {
                 const baseUrl = import.meta.env.VITE_BACKEND_URL;
                 if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
 
-                const url = `${baseUrl.replace(/\/$/, '')}/api/v1/tickets/`;
+                const query = buildTicketsListSearchParams(listFilters);
+                const url = `${baseUrl.replace(/\/$/, '')}/api/v1/tickets/?${query.toString()}`;
 
                 const headers = {
                     'Content-Type': 'application/json',
@@ -415,7 +417,7 @@ const AdminSupportTickets = ({ onViewTicket, refreshKey }) => {
         };
 
         fetchTickets();
-    }, [accessToken, restaurantId, refreshKey]);
+    }, [accessToken, restaurantId, refreshKey, listFilters]);
 
     return (
         <>

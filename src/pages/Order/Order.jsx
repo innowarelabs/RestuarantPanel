@@ -9,6 +9,7 @@ import CompletedOrderDrawer from '../../components/OrderManagement/CompletedOrde
 import CancelledOrderDrawer from '../../components/OrderManagement/CancelledOrderDrawer';
 import AcceptOrderModal from '../../components/OrderManagement/AcceptOrderModal';
 import RejectOrderModal from '../../components/OrderManagement/RejectOrderModal';
+import { printCompletedOrderReceiptPdf } from '../../utils/completedOrderReceiptPdf';
 
 /** Relative time from `created_at` (ISO), e.g. "2 mins ago", "3 days ago" */
 function formatTimeAgoFromCreated(iso) {
@@ -734,12 +735,7 @@ export default function OrderManagement() {
                 isOpen={completedDrawerOpen}
                 onClose={() => setCompletedDrawerOpen(false)}
                 order={selectedOrder}
-                onPrintReceipt={() => {
-                    toast('Print receipt will be available soon');
-                }}
-                onIssueRefund={() => {
-                    toast('Issue refund will be available soon');
-                }}
+                onPrintReceipt={(ord) => printCompletedOrderReceiptPdf(ord)}
             />
 
             <CancelledOrderDrawer
