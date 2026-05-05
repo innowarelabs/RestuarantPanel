@@ -22,6 +22,7 @@ import toast from 'react-hot-toast';
 
 import Toggle from './Toggle';
 import { setOnboardingStep } from '../../redux/store';
+import { mergeOpeningHours as mergeOpeningHoursRecord } from '../../utils/restaurantOperatingHours';
 
 const steps = [
     { id: 1, name: 'Account Setup', icon: User },
@@ -420,13 +421,13 @@ export default function OnboardingStep() {
         postalCode: '',
         country: 'USA',
         openingHours: {
-            monday: { open: '', close: '' },
-            tuesday: { open: '', close: '' },
-            wednesday: { open: '', close: '' },
-            thursday: { open: '', close: '' },
-            friday: { open: '', close: '' },
-            saturday: { open: '', close: '' },
-            sunday: { open: '', close: '' },
+            monday: { open: '', close: '', break_start: '', break_end: '' },
+            tuesday: { open: '', close: '', break_start: '', break_end: '' },
+            wednesday: { open: '', close: '', break_start: '', break_end: '' },
+            thursday: { open: '', close: '', break_start: '', break_end: '' },
+            friday: { open: '', close: '', break_start: '', break_end: '' },
+            saturday: { open: '', close: '', break_start: '', break_end: '' },
+            sunday: { open: '', close: '', break_start: '', break_end: '' },
         },
         prepTime: '15 minutes',
         enableDelivery: true,
@@ -481,28 +482,13 @@ export default function OnboardingStep() {
         pos_key: '',
     };
 
-    const mergeOpeningHours = (saved) => {
-        const merged = { ...defaultFormData.openingHours };
-        const source = saved && typeof saved === 'object' ? saved : {};
-        for (const key of Object.keys(merged)) {
-            const day = source[key];
-            if (day && typeof day === 'object') {
-                merged[key] = {
-                    open: typeof day.open === 'string' ? day.open : merged[key].open,
-                    close: typeof day.close === 'string' ? day.close : merged[key].close,
-                };
-            }
-        }
-        return merged;
-    };
-
     const [formData, setFormData] = useState(() => {
         const saved = readJson(LS_FORM_DATA);
         if (!saved || typeof saved !== 'object') return defaultFormData;
         return {
             ...defaultFormData,
             ...saved,
-            openingHours: mergeOpeningHours(saved.openingHours),
+            openingHours: mergeOpeningHoursRecord(saved.openingHours),
         };
     });
 

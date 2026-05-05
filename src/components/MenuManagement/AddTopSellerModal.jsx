@@ -4,7 +4,6 @@ import { X } from 'lucide-react';
 export default function AddTopSellerModal({ isOpen, onClose, categories, accessToken, onSuccess }) {
     const [selectedCategoryId, setSelectedCategoryId] = useState('');
     const [selectedItemId, setSelectedItemId] = useState('');
-    const [isBestSeller, setIsBestSeller] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
 
@@ -20,14 +19,12 @@ export default function AddTopSellerModal({ isOpen, onClose, categories, accessT
     useEffect(() => {
         if (!isOpen) return;
         setSelectedItemId('');
-        setIsBestSeller(true);
         setError('');
     }, [selectedCategoryId, isOpen]);
 
     const resetModal = () => {
         setSelectedCategoryId('');
         setSelectedItemId('');
-        setIsBestSeller(true);
         setError('');
         setSaving(false);
     };
@@ -55,7 +52,7 @@ export default function AddTopSellerModal({ isOpen, onClose, categories, accessT
                     'Content-Type': 'application/json',
                     ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
                 },
-                body: JSON.stringify({ is_best_seller: !!isBestSeller }),
+                body: JSON.stringify({ is_best_seller: true }),
             });
             const contentType = res.headers.get('content-type');
             const data = contentType?.includes('application/json') ? await res.json() : await res.text();
@@ -145,13 +142,13 @@ export default function AddTopSellerModal({ isOpen, onClose, categories, accessT
                                 <h4 className="text-[14px] font-[600] text-[#1A1A1A]">Best Seller</h4>
                                 <p className="text-[12px] text-[#6B7280]">Mark item as top seller</p>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => setIsBestSeller((prev) => !prev)}
-                                className={`w-[44px] h-[24px] rounded-full p-1 transition-colors ${isBestSeller ? 'bg-[#DD2F26]' : 'bg-gray-300'}`}
+                            <div
+                                className="w-[44px] h-[24px] rounded-full p-1 bg-[#DD2F26] cursor-default select-none pointer-events-none"
+                                role="presentation"
+                                title="Best seller is always on for Add Top Seller"
                             >
-                                <div className={`w-[16px] h-[16px] bg-white rounded-full shadow-sm transform transition-transform ${isBestSeller ? 'translate-x-[20px]' : 'translate-x-0'}`} />
-                            </button>
+                                <div className="w-[16px] h-[16px] bg-white rounded-full shadow-sm transform transition-transform translate-x-[20px]" />
+                            </div>
                         </div>
                     </div>
 

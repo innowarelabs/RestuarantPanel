@@ -317,7 +317,8 @@ export default function Sidebar({ isCollapsed, onToggleCollapse }) {
                             <div className="bg-white rounded-[12px] p-5 shadow-lg">
                                 <p className="text-[#4A5565] text-[14px] mb-2 font-medium">Need help?</p>
                                 <button
-                                    onClick={() => navigate('/supports')}
+                                    type="button"
+                                    onClick={() => navigate('/supports?tab=admin')}
                                     className="text-primary text-[15px] font-bold hover:underline transition-all flex items-center gap-1"
                                 >
                                     Contact Support

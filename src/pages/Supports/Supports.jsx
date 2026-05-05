@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import SupportHeader from '../../components/Support/SupportHeader';
 
 import AdminSupportTickets from '../../components/Support/AdminSupportTickets';
@@ -8,7 +9,10 @@ import FilterTicketsModal from '../../components/Support/FilterTicketsModal';
 import TicketDetailsModal from '../../components/Support/TicketDetailsModal';
 
 const Supports = () => {
-    const [activeTab, setActiveTab] = useState('customer');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [activeTab, setActiveTab] = useState(() =>
+        searchParams.get('tab') === 'admin' ? 'admin' : 'customer'
+    );
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
     const [filterModalSession, setFilterModalSession] = useState(0);
@@ -29,6 +33,24 @@ const Supports = () => {
         }, 400);
         return () => clearTimeout(id);
     }, [ticketSearchInput]);
+
+    useEffect(() => {
+        const tab = searchParams.get('tab');
+        if (tab === 'admin') setActiveTab('admin');
+        else setActiveTab('customer');
+    }, [searchParams]);
+
+    const handleTabChange = useCallback(
+        (tab) => {
+            setActiveTab(tab);
+            if (tab === 'admin') {
+                setSearchParams({ tab: 'admin' }, { replace: true });
+            } else {
+                setSearchParams({}, { replace: true });
+            }
+        },
+        [setSearchParams]
+    );
 
     const listFiltersForApi = useMemo(
         () => ({
@@ -54,18 +76,18 @@ const Supports = () => {
     const handleApplyTicketFilters = useCallback(
         (filters) => {
             if (Array.isArray(filters?.assignedTo) && filters.assignedTo.includes('Admin Team') && activeTab === 'customer') {
-                setActiveTab('admin');
+                handleTabChange('admin');
             }
             setAppliedTicketFilters(filters);
         },
-        [activeTab],
+        [activeTab, handleTabChange],
     );
 
     return (
         <div className="max-w-[1600px] mx-auto pb-12">
             <SupportHeader
                 activeTab={activeTab}
-                onTabChange={setActiveTab}
+                onTabChange={handleTabChange}
                 onNewTicket={() => setIsCreateModalOpen(true)}
                 ticketSearchQuery={ticketSearchInput}
                 onTicketSearchChange={setTicketSearchInput}

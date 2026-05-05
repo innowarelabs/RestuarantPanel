@@ -2,36 +2,14 @@ import { AlertCircle, ChevronDown, ChevronLeft, ChevronRight, Image } from 'luci
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 
+import WeeklyHoursEditor from '../../components/WeeklyHoursEditor';
 import Toggle from './Toggle';
-
-/** Rejects invalid 12h times (e.g. 13 AM) and invalid 24h; allows 1–12 with AM/PM or HH:MM (0–23). */
-function isValidOpeningHourTime(raw) {
-    const s = typeof raw === 'string' ? raw.trim() : '';
-    if (!s) return false;
-    const normalized = s.replace(/\./g, '').trim();
-
-    const twelve = /^(\d{1,2})(:(\d{2}))?\s*(am|pm)$/i.exec(normalized);
-    if (twelve) {
-        const hour = parseInt(twelve[1], 10);
-        const minute = twelve[3] !== undefined ? parseInt(twelve[3], 10) : 0;
-        if (!Number.isFinite(hour) || !Number.isFinite(minute)) return false;
-        if (hour < 1 || hour > 12) return false;
-        if (minute < 0 || minute > 59) return false;
-        return true;
-    }
-
-    const twentyFour = /^(\d{1,2}):(\d{2})$/i.exec(normalized);
-    if (twentyFour) {
-        const hour = parseInt(twentyFour[1], 10);
-        const minute = parseInt(twentyFour[2], 10);
-        if (!Number.isFinite(hour) || !Number.isFinite(minute)) return false;
-        if (hour < 0 || hour > 23) return false;
-        if (minute < 0 || minute > 59) return false;
-        return true;
-    }
-
-    return false;
-}
+import {
+    daysToStep2OpeningHours,
+    isValidOpeningHourTime,
+    mergeOpeningHours,
+    openingHoursRecordToDays,
+} from '../../utils/restaurantOperatingHours';
 
 export default function Step2({
     formData,
@@ -129,28 +107,28 @@ export default function Step2({
         return uploadedUrl;
     };
 
-    const openingHours = formData.openingHours || {};
-    const requiredDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-    const openingHoursValid = requiredDays.every((day) => {
-        const entry = openingHours[day] || {};
-        const open = entry.open?.trim() ?? '';
-        const close = entry.close?.trim() ?? '';
+    const [days, setDays] = useState(() =>
+        openingHoursRecordToDays(mergeOpeningHours(formData.openingHours)),
+    );
+
+    useEffect(() => {
+        const oh = daysToStep2OpeningHours(days);
+        setFormData((prev) => ({ ...prev, openingHours: oh }));
+    }, [days, setFormData]);
+
+    const openingHoursValid = days.every((day) => {
+        if (!day.isOpen) return true;
+        const open = day.hours[0]?.trim() ?? '';
+        const close = day.hours[1]?.trim() ?? '';
         if (!open || !close) return false;
-        return isValidOpeningHourTime(open) && isValidOpeningHourTime(close);
-    });
-
-    const isOpeningHourValueInvalid = (value) => {
-        const t = typeof value === 'string' ? value.trim() : '';
-        if (!t) return false;
-        return !isValidOpeningHourTime(t);
-    };
-
-    const openingHoursHasFormatError = requiredDays.some((day) => {
-        const entry = openingHours[day] || {};
-        return (
-            isOpeningHourValueInvalid(entry.open) ||
-            isOpeningHourValueInvalid(entry.close)
-        );
+        if (!isValidOpeningHourTime(open) || !isValidOpeningHourTime(close)) return false;
+        if (day.hasBreak) {
+            const b1 = day.breakHours[0]?.trim() ?? '';
+            const b2 = day.breakHours[1]?.trim() ?? '';
+            if (!b1 || !b2) return false;
+            if (!isValidOpeningHourTime(b1) || !isValidOpeningHourTime(b2)) return false;
+        }
+        return true;
     });
 
     const headerOk = !!formData.websiteHeaderUrl?.trim() || !!brandingFiles.websiteHeader;
@@ -258,7 +236,8 @@ export default function Step2({
                     website_header_images: [headerUrl],
                     website_footer_images: [footerLeftUrl, footerRightUrl],
                     alternate_contact: formData.altPhone,
-                    opening_hours: openingHours,
+                    opening_hours: daysToStep2OpeningHours(days),
+                    special_days: [],
                     average_preparation_time: formData.prepTime,
                     enable_delivery: !!formData.enableDelivery,
                     enable_pickup: !!formData.enablePickup,
@@ -467,80 +446,9 @@ export default function Step2({
             </div>
             <div>
                 <label className="block text-[14px] font-[500] text-[#1A1A1A] mb-3">Opening Hours</label>
-                <div className="space-y-3 bg-[#F9FAFB]/50 p-4 rounded-[8px] border border-[#E5E7EB]">
-                    {[
-                        { label: 'Monday', key: 'monday' },
-                        { label: 'Tuesday', key: 'tuesday' },
-                        { label: 'Wednesday', key: 'wednesday' },
-                        { label: 'Thursday', key: 'thursday' },
-                        { label: 'Friday', key: 'friday' },
-                        { label: 'Saturday', key: 'saturday' },
-                        { label: 'Sunday', key: 'sunday' },
-                    ].map((day) => {
-                        const openVal = openingHours?.[day.key]?.open || '';
-                        const closeVal = openingHours?.[day.key]?.close || '';
-                        const openInvalid = isOpeningHourValueInvalid(openVal);
-                        const closeInvalid = isOpeningHourValueInvalid(closeVal);
-                        const fieldBorder = (invalid) =>
-                            invalid
-                                ? 'border-[#EB5757] ring-1 ring-[#EB5757]/30'
-                                : 'border-gray-200';
-                        return (
-                            <div key={day.key} className="grid grid-cols-12 items-center gap-4">
-                                <span className="col-span-6 text-[13px] text-[#1A1A1A] font-[500]">{day.label}</span>
-                                <div className="col-span-6 flex items-center gap-2">
-                                    <input
-                                        type="text"
-                                        value={openVal}
-                                        onChange={(e) =>
-                                            setFormData((prev) => ({
-                                                ...prev,
-                                                openingHours: {
-                                                    ...(prev.openingHours || {}),
-                                                    [day.key]: {
-                                                        open: e.target.value,
-                                                        close: prev.openingHours?.[day.key]?.close || '',
-                                                    },
-                                                },
-                                            }))
-                                        }
-                                        aria-invalid={openInvalid}
-                                        className={`h-9 w-full bg-white border rounded-lg px-2 text-[12px] text-center ${fieldBorder(openInvalid)}`}
-                                        placeholder="--:--"
-                                    />
-                                    <span className="text-gray-400">—</span>
-                                    <input
-                                        type="text"
-                                        value={closeVal}
-                                        onChange={(e) =>
-                                            setFormData((prev) => ({
-                                                ...prev,
-                                                openingHours: {
-                                                    ...(prev.openingHours || {}),
-                                                    [day.key]: {
-                                                        open: prev.openingHours?.[day.key]?.open || '',
-                                                        close: e.target.value,
-                                                    },
-                                                },
-                                            }))
-                                        }
-                                        aria-invalid={closeInvalid}
-                                        className={`h-9 w-full bg-white border rounded-lg px-2 text-[12px] text-center ${fieldBorder(closeInvalid)}`}
-                                        placeholder="--:--"
-                                    />
-                                </div>
-                            </div>
-                        );
-                    })}
+                <div className="bg-white rounded-[12px] border border-[#E5E7EB] p-4">
+                    <WeeklyHoursEditor days={days} setDays={setDays} />
                 </div>
-                {openingHoursHasFormatError && (
-                    <div className="mt-2 flex items-start gap-2 rounded-lg border border-[#F7515133] bg-[#F7515114] px-3 py-2">
-                        <AlertCircle size={16} className="text-[#EB5757] shrink-0 mt-0.5" aria-hidden />
-                        <p className="text-[12px] text-[#47464A] leading-snug">
-                            Invalid time. Use 1–12 with AM or PM (for example 9:00 AM), or 24-hour format (for example 14:00). Values like 13 AM are not valid.
-                        </p>
-                    </div>
-                )}
             </div>
             <div>
                 <label className="block text-[14px] font-[500] text-[#1A1A1A] mb-2">Average Preparation Time <span className="text-red-500">*</span></label>
