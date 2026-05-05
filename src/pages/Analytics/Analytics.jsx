@@ -3,8 +3,6 @@ import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import { ShoppingBag, DollarSign, Target, Users, RefreshCcw, XCircle } from 'lucide-react';
 
-const API_BASE = 'https://api.baaie.com';
-
 import { ANALYTICS_NO_DATA } from '../../components/Analytics/analyticsCopy';
 import AnalyticsHeader from '../../components/Analytics/AnalyticsHeader';
 import AnalyticsStatCard from '../../components/Analytics/AnalyticsStatCard';
@@ -20,6 +18,15 @@ import PlatformPerformance from '../../components/Analytics/PlatformPerformance'
 import { fetchTopSellingItems, mapTopItemsToExportRows } from '../../components/Analytics/topSellingItemsApi';
 import { buildExportPayload, downloadAnalyticsCsv, downloadAnalyticsPdf } from '../../utils/analyticsExport';
 
+const API_BASE = 'https://api.baaie.com';
+
+/** Matches GET /api/v1/analytics/restaurant/analytics query: days ∈ {7,30,60} */
+export const ANALYTICS_PERIOD_OPTIONS = [
+    { days: 7, label: 'Last 7 days' },
+    { days: 30, label: 'Last 30 days' },
+    { days: 60, label: 'Last 60 days' },
+];
+
 const formatMoney = (n) => {
     if (n == null || Number.isNaN(Number(n))) return '$0';
     return `$${Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
@@ -28,6 +35,103 @@ const formatMoney = (n) => {
 const formatPct = (n, digits = 1) => {
     if (n == null || Number.isNaN(Number(n))) return '0';
     return Number(n).toFixed(digits);
+};
+
+/** API may return one object or an array for low performers. */
+const normalizeLowPerformingList = (raw) => {
+    if (raw == null) return [];
+    if (Array.isArray(raw)) return raw.filter((x) => x != null);
+    if (typeof raw === 'object') return [raw];
+    return [];
+};
+
+const extractLowPerformingRaw = (data) => {
+    if (!data || typeof data !== 'object') return null;
+    return (
+        data.low_performing_items ??
+        data.lowPerformingItems ??
+        data.performance?.low_performing_items ??
+        data.performance?.lowPerformingItems ??
+        data.orders?.low_performing_items ??
+        data.menu?.low_performing_items ??
+        null
+    );
+};
+
+const mapLowPerformingApiRow = (row, formatMoneyFn) => {
+    if (!row || typeof row !== 'object') return null;
+    const name =
+        (typeof row.item_name === 'string' && row.item_name.trim()) ||
+        (typeof row.name === 'string' && row.name.trim()) ||
+        (typeof row.dish_name === 'string' && row.dish_name.trim()) ||
+        '—';
+    const category =
+        (typeof row.category === 'string' && row.category.trim()) ||
+        (typeof row.category_name === 'string' && row.category_name.trim()) ||
+        (typeof row.menu_category === 'string' && row.menu_category.trim()) ||
+        '—';
+    let orders = row.orders ?? row.order_count ?? row.total_orders;
+    if (orders != null && typeof orders !== 'string') orders = String(orders);
+    if (orders == null || orders === '') orders = '—';
+    const revRaw = row.revenue ?? row.revenue_amount ?? row.total_revenue;
+    let revenue = '—';
+    if (revRaw != null && revRaw !== '') {
+        const n = Number(revRaw);
+        revenue = !Number.isNaN(n) ? formatMoneyFn(n) : String(revRaw);
+    }
+    const recommendation =
+        (typeof row.recommendation === 'string' && row.recommendation.trim()) ||
+        (typeof row.insight === 'string' && row.insight.trim()) ||
+        (typeof row.action === 'string' && row.action.trim()) ||
+        'Review visibility & pricing';
+    const sev = typeof row.severity === 'string' ? row.severity.toLowerCase() : '';
+    const color =
+        sev === 'high' || sev === 'critical'
+            ? 'bg-red-50 text-red-700 border-red-100'
+            : sev === 'medium' || sev === 'warn'
+              ? 'bg-amber-50 text-amber-800 border-amber-100'
+              : 'bg-gray-50 text-gray-600 border-gray-100';
+    return { name, category, orders, revenue, recommendation, color };
+};
+
+/** When menu-level rows are missing, surface weakest venue metric from dashboard payload. */
+const mapWorstPerformerFallback = (wp, formatMoneyFn) => {
+    if (!wp || typeof wp !== 'object') return null;
+    const metric = typeof wp.metric === 'string' ? wp.metric : 'metric';
+    const name =
+        (typeof wp.restaurant_name === 'string' && wp.restaurant_name.trim()) ||
+        (typeof wp.item_name === 'string' && wp.item_name.trim()) ||
+        'Venue';
+    let orders = wp.orders ?? wp.order_count;
+    if (orders != null && typeof orders !== 'string') orders = String(orders);
+    if (orders == null || orders === '') orders = '—';
+    const v = wp.value ?? wp.rating;
+    let revenue = '—';
+    if (metric === 'revenue' && v != null && !Number.isNaN(Number(v))) {
+        revenue = formatMoneyFn(Number(v));
+    } else if (metric === 'orders' && v != null) {
+        revenue = String(v);
+    } else if (metric === 'rating' && v != null) {
+        revenue = `${Number(v).toFixed(1)} ★`;
+    } else if (v != null && v !== '') {
+        revenue = String(v);
+    }
+    const recommendation =
+        metric === 'rating'
+            ? 'Improve ratings & guest satisfaction'
+            : metric === 'revenue'
+              ? 'Review pricing and promotions'
+              : metric === 'orders'
+                ? 'Drive repeat visits & marketing'
+                : 'Review operational metrics';
+    return {
+        name,
+        category: `Weakest · ${metric}`,
+        orders,
+        revenue,
+        recommendation,
+        color: 'bg-amber-50 text-amber-800 border-amber-100',
+    };
 };
 
 const buildSalesChartSeries = (data) => {
@@ -145,6 +249,7 @@ export default function Analytics() {
 
     const [analyticsData, setAnalyticsData] = useState(null);
     const [analyticsLoading, setAnalyticsLoading] = useState(true);
+    const [analyticsPeriodDays, setAnalyticsPeriodDays] = useState(30);
     const [topItemsPeriod, setTopItemsPeriod] = useState('30d');
     const [exporting, setExporting] = useState(false);
     const exportInFlight = useRef(false);
@@ -154,7 +259,9 @@ export default function Analytics() {
         try {
             const baseUrl = (import.meta.env.VITE_BACKEND_URL || API_BASE).replace(/\/$/, '');
             const restaurantId = user?.restaurant_id || localStorage.getItem('restaurant_id') || '';
-            const url = `${baseUrl}/api/v1/analytics/restaurant/analytics`;
+            const params = new URLSearchParams();
+            params.set('days', String(analyticsPeriodDays));
+            const url = `${baseUrl}/api/v1/analytics/restaurant/analytics?${params.toString()}`;
             const res = await fetch(url, {
                 method: 'GET',
                 headers: {
@@ -176,7 +283,7 @@ export default function Analytics() {
         } finally {
             setAnalyticsLoading(false);
         }
-    }, [accessToken, user?.restaurant_id]);
+    }, [accessToken, user?.restaurant_id, analyticsPeriodDays]);
 
     useEffect(() => {
         fetchRestaurantAnalytics();
@@ -290,14 +397,19 @@ export default function Analytics() {
     const weekdaySeries = useMemo(() => buildOrderTrendByWeekday(analyticsData), [analyticsData]);
     const weekdayPeak = useMemo(() => peakDaySummaryFromWeekday(weekdaySeries), [weekdaySeries]);
 
+    const lowPerformingRows = useMemo(() => {
+        const raw = extractLowPerformingRaw(analyticsData);
+        const fromApi = normalizeLowPerformingList(raw)
+            .map((r) => mapLowPerformingApiRow(r, formatMoney))
+            .filter(Boolean);
+        if (fromApi.length > 0) return fromApi;
+        const wp = analyticsData?.performance?.worst_performer;
+        const fallback = mapWorstPerformerFallback(wp, formatMoney);
+        return fallback ? [fallback] : [];
+    }, [analyticsData]);
+
     const orderBreakdown = analyticsData?.orders?.order_breakdown || null;
     const performance = analyticsData?.performance || null;
-
-    const mainPeriodLabel = useMemo(() => {
-        const d = analyticsData;
-        const days = d?.orders?.period_days ?? d?.revenue?.period_days;
-        return days != null ? `Last ${days} days` : 'Last 30 days';
-    }, [analyticsData]);
 
     const runExport = useCallback(
         async (kind) => {
@@ -365,7 +477,9 @@ export default function Analytics() {
     return (
         <div className="max-w-[1600px] mx-auto animate-in fade-in duration-500">
             <AnalyticsHeader
-                mainPeriodLabel={mainPeriodLabel}
+                periodOptions={ANALYTICS_PERIOD_OPTIONS}
+                selectedDays={analyticsPeriodDays}
+                onDaysChange={setAnalyticsPeriodDays}
                 exporting={exporting}
                 onExportCsv={handleExportCsv}
                 onExportPdf={handleExportPdf}
@@ -388,7 +502,7 @@ export default function Analytics() {
                 </div>
             </div>
 
-            <LowPerformingTable rows={[]} loading={analyticsLoading} />
+            <LowPerformingTable rows={lowPerformingRows} loading={analyticsLoading} />
 
             <PeakOrderingTimesChart
                 hourlyData={peakHourly}

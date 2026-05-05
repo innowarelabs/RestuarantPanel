@@ -1,14 +1,17 @@
 import React from 'react';
 import { ANALYTICS_NO_DATA } from './analyticsCopy';
 
-export default function LowPerformingTable({ rows = [], loading = false }) {
+export default function LowPerformingTable({ rows = [], loading = false, subtitle }) {
     const items = Array.isArray(rows) ? rows : [];
+    const hint =
+        subtitle ||
+        'Uses low_performing_items from analytics when present (single object or array). If omitted, the weakest venue metric may show as a fallback.';
 
     return (
         <div className="bg-white rounded-[16px] border border-[#00000033]  mb-6 overflow-hidden">
             <div className="p-6 border-b border-[#F3F4F6]">
                 <h3 className="analytics-section-title">Low Performing Items</h3>
-                <p className="text-[12px] text-gray-500 mt-1">Requires menu-level analytics from the API; table stays empty until available.</p>
+                <p className="text-[12px] text-gray-500 mt-1">{hint}</p>
             </div>
             <div className="overflow-x-auto">
                 {loading && <div className="p-8 text-center text-[13px] text-gray-500">Loading…</div>}

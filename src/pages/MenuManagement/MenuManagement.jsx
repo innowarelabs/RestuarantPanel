@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Search, Plus, MoreVertical, Edit2, Trash2, X, Eye, Copy, DollarSign, TrendingUp, Package } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Search, Plus, MoreVertical, Edit2, Trash2, X, Eye, Copy, DollarSign, TrendingUp, Package, Upload, Download, FileText } from 'lucide-react';
 import AddMenuItemModal from '../../components/Header/AddMenuItemModal';
 import EditMenuItemModal from '../../components/MenuManagement/EditMenuItemModal';
 import MenuPreviewModal from '../../components/MenuManagement/MenuPreviewModal';
@@ -122,6 +122,58 @@ const toFiniteNumber = (value) => {
         return Number.isFinite(parsed) ? parsed : null;
     }
     return null;
+};
+
+/** Resolve CSV text from GET /api/v1/dishes/import-export/template JSON shapes */
+const extractCsvFromImportTemplatePayload = (payload) => {
+    if (payload == null) return '';
+    if (typeof payload === 'string') return payload;
+    if (typeof payload !== 'object') return '';
+    const inner = payload.data;
+    if (typeof inner === 'string') return inner;
+    if (inner && typeof inner === 'object') {
+        if (typeof inner.csv === 'string') return inner.csv;
+        if (typeof inner.template_csv === 'string') return inner.template_csv;
+        if (typeof inner.template === 'string') return inner.template;
+        if (typeof inner.content === 'string') return inner.content;
+        if (typeof inner.file_content === 'string') return inner.file_content;
+        if (typeof inner.text === 'string') return inner.text;
+        const nested = inner.data;
+        if (typeof nested === 'string') return nested;
+        if (nested && typeof nested === 'object' && typeof nested.csv === 'string') return nested.csv;
+    }
+    if (typeof payload.csv === 'string') return payload.csv;
+    if (typeof payload.template_csv === 'string') return payload.template_csv;
+    if (typeof payload.template === 'string') return payload.template;
+    if (typeof payload.content === 'string') return payload.content;
+    return '';
+};
+
+const parseFilenameFromContentDisposition = (header) => {
+    if (!header || typeof header !== 'string') return '';
+    const utf8 = header.match(/filename\*=UTF-8''([^;\s]+)/i);
+    if (utf8?.[1]) {
+        try {
+            return decodeURIComponent(utf8[1]);
+        } catch {
+            return utf8[1];
+        }
+    }
+    const quoted = header.match(/filename="([^"]+)"/i);
+    if (quoted?.[1]) return quoted[1];
+    const plain = header.match(/filename=([^;\s]+)/i);
+    return plain?.[1] ? plain[1].replace(/["']/g, '') : '';
+};
+
+const triggerCsvDownload = (csvText, filename = 'menu-import-template.csv') => {
+    const safeName = filename.endsWith('.csv') ? filename : `${filename}.csv`;
+    const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = safeName;
+    a.click();
+    URL.revokeObjectURL(url);
 };
 
 /** Stable key for matching a catering package line item when deleting/updating. */
@@ -534,6 +586,9 @@ export default function MenuManagement() {
         return fromUser.trim();
     }, [user]);
 
+    const dishesCsvFileInputRef = useRef(null);
+    const [uploadingDishesCsv, setUploadingDishesCsv] = useState(false);
+
     const [activeCategory, setActiveCategory] = useState('');
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
@@ -864,6 +919,138 @@ export default function MenuManagement() {
             setCateringPackagesLoading(false);
         }
     }, [accessToken]);
+
+    const fetchDishesImportExportTemplate = useCallback(async () => {
+        const baseUrl = getBackendBaseUrl();
+        if (!baseUrl) {
+            toast.error('API base URL is not configured');
+            return;
+        }
+        const url = `${baseUrl.replace(/\/$/, '')}/api/v1/dishes/import-export/template`;
+        try {
+            const res = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    Accept: 'text/csv, application/json, */*',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                },
+            });
+            const disposition = res.headers.get('content-disposition');
+            let filename = parseFilenameFromContentDisposition(disposition) || 'menu-import-template.csv';
+
+            const rawText = await res.text();
+            if (!res.ok) {
+                try {
+                    const errJson = JSON.parse(rawText);
+                    const msg =
+                        typeof errJson?.message === 'string'
+                            ? errJson.message
+                            : typeof errJson?.detail === 'string'
+                              ? errJson.detail
+                              : null;
+                    toast.error(msg || 'Could not download template');
+                } catch {
+                    toast.error('Could not download template');
+                }
+                return;
+            }
+
+            const ct = (res.headers.get('content-type') || '').toLowerCase();
+            let csvText = '';
+
+            if (ct.includes('text/csv') || ct.includes('application/csv')) {
+                csvText = rawText;
+            } else if (ct.includes('application/json') || rawText.trimStart().startsWith('{')) {
+                try {
+                    const json = JSON.parse(rawText);
+                    csvText = extractCsvFromImportTemplatePayload(json);
+                    if (!csvText.trim() && json?.data != null && typeof json.data === 'object') {
+                        csvText = extractCsvFromImportTemplatePayload(json.data);
+                    }
+                } catch {
+                    csvText = rawText;
+                }
+            } else {
+                csvText = rawText;
+            }
+
+            if (!csvText.trim()) {
+                toast.error('No CSV found in template response');
+                return;
+            }
+
+            triggerCsvDownload(csvText, filename);
+            toast.success('Template downloaded');
+        } catch (e) {
+            console.error('GET /api/v1/dishes/import-export/template', e);
+            toast.error('Failed to download template');
+        }
+    }, [accessToken]);
+
+    const uploadDishesImportCsv = useCallback(
+        async (file) => {
+            if (!file) return;
+            if (!restaurantId) {
+                toast.error('Restaurant not found. Please sign in again.');
+                return;
+            }
+            const baseUrl = getBackendBaseUrl();
+            if (!baseUrl) {
+                toast.error('API base URL is not configured');
+                return;
+            }
+            const params = new URLSearchParams({ restaurant_id: restaurantId });
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/dishes/import-export/upload-csv?${params.toString()}`;
+            const formData = new FormData();
+            formData.append('file', file);
+            setUploadingDishesCsv(true);
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    },
+                    body: formData,
+                });
+                const contentType = res.headers.get('content-type');
+                const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+
+                if (!res.ok || isErrorPayload(data)) {
+                    const lines = typeof data === 'object' && data ? toValidationErrorLines(data) : [];
+                    if (lines.length) {
+                        toast.error(lines[0]);
+                    } else if (data && typeof data === 'object') {
+                        const msg =
+                            typeof data.message === 'string'
+                                ? data.message
+                                : typeof data.error === 'string'
+                                  ? data.error
+                                  : 'Upload failed';
+                        toast.error(msg);
+                    } else if (typeof data === 'string' && data.trim()) {
+                        toast.error(data.trim());
+                    } else {
+                        toast.error('Upload failed');
+                    }
+                    return;
+                }
+
+                const successMsg =
+                    data && typeof data === 'object' && typeof data.message === 'string' && data.message.trim()
+                        ? data.message.trim()
+                        : 'CSV uploaded successfully';
+                toast.success(successMsg);
+                await fetchCategories();
+            } catch (e) {
+                console.error('POST /api/v1/dishes/import-export/upload-csv', e);
+                toast.error('Failed to upload CSV');
+            } finally {
+                setUploadingDishesCsv(false);
+                if (dishesCsvFileInputRef.current) dishesCsvFileInputRef.current.value = '';
+            }
+        },
+        [accessToken, restaurantId, fetchCategories]
+    );
 
     const confirmDeleteCateringPackage = async () => {
         if (!deleteCateringPackageTarget || deletingCateringPackage) return;
@@ -2227,7 +2414,7 @@ export default function MenuManagement() {
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
+                            </div>
                         </div>
                     </div>
                 </>
@@ -2513,6 +2700,67 @@ export default function MenuManagement() {
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="mt-6 min-w-0 rounded-[12px] border border-[#00000033] bg-white p-6">
+                <div className="flex items-center gap-2 mb-6">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#FEF2F2] text-[#DD2F26]">
+                        <FileText size={18} strokeWidth={2.25} aria-hidden />
+                    </div>
+                    <h2 className="text-[18px] font-bold text-[#111827]">Import / Export</h2>
+                </div>
+                <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-10">
+                    <div className="space-y-5">
+                        <div>
+                            <input
+                                ref={dishesCsvFileInputRef}
+                                type="file"
+                                accept=".csv,text/csv,text/plain"
+                                className="hidden"
+                                onChange={(e) => {
+                                    const f = e.target.files?.[0];
+                                    if (f) void uploadDishesImportCsv(f);
+                                }}
+                            />
+                            <button
+                                type="button"
+                                disabled={uploadingDishesCsv}
+                                onClick={() => dishesCsvFileInputRef.current?.click()}
+                                className="w-full inline-flex items-center justify-center gap-2 rounded-[10px] border border-[#DD2F26] bg-[#FEF2F2] px-4 py-3.5 text-[14px] font-[600] text-[#DD2F26] transition-colors hover:bg-[#FEE2E2] disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                                <Upload size={18} strokeWidth={2.25} aria-hidden />
+                                {uploadingDishesCsv ? 'Uploading…' : 'Upload CSV'}
+                            </button>
+                            <p className="mt-2 text-[12px] text-[#6B7280]">
+                                Upload a CSV file to bulk import menu items
+                            </p>
+                        </div>
+                        <div>
+                            <button
+                                type="button"
+                                onClick={() => void fetchDishesImportExportTemplate()}
+                                className="w-full inline-flex items-center justify-center gap-2 rounded-[10px] border border-[#E5E7EB] bg-white px-4 py-3.5 text-[14px] font-[600] text-[#111827] transition-colors hover:bg-gray-50"
+                            >
+                                <Download size={18} strokeWidth={2.25} aria-hidden />
+                                Download Template
+                            </button>
+                            <p className="mt-2 text-[12px] text-[#6B7280]">
+                                Get a CSV template with correct columns
+                            </p>
+                        </div>
+                    </div>
+                    <div className="rounded-[12px] bg-[#F9FAFB] border border-[#F3F4F6] p-5">
+                        <p className="text-[13px] font-[600] text-[#374151] mb-3">Required Columns:</p>
+                        <ul className="list-disc pl-5 space-y-1.5 text-[13px] text-[#6B7280]">
+                            <li>Item Name</li>
+                            <li>Category</li>
+                            <li>Price</li>
+                            <li>Description (optional)</li>
+                            <li>Prep Time (optional)</li>
+                            <li>Available (Yes/No)</li>
+                        </ul>
                     </div>
                 </div>
             </div>
