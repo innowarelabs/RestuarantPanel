@@ -418,6 +418,20 @@ export default function OrderManagement() {
         }
     };
 
+    /** List pill: `mark_as_ready` → "Ready" (not "Mark as ready"). */
+    const formatOrderStatusLabel = (raw) => {
+        const n = String(raw || '')
+            .trim()
+            .toLowerCase()
+            .replace(/[\s-]+/g, '_');
+        if (n === 'mark_as_ready' || n === 'markasready') {
+            return 'ready';
+        }
+        return String(raw || '')
+            .replace(/_/g, ' ')
+            .toLowerCase();
+    };
+
     const updateOrderStatus = async (
         orderId,
         newStatus,
@@ -559,9 +573,7 @@ export default function OrderManagement() {
                                     <span
                                         className={`px-3 py-1 rounded-[8px] text-[12px] font-medium border capitalize ${getStatusColor(order.status)}`}
                                     >
-                                        {String(order.status || '')
-                                            .replace(/_/g, ' ')
-                                            .toLowerCase()}
+                                        {formatOrderStatusLabel(order.status)}
                                     </span>
                                     <div className="flex min-w-0 flex-1 items-center gap-1.5 text-gray-500 text-[13px]">
                                         <Clock size={16} className="mt-[1px] shrink-0" />
