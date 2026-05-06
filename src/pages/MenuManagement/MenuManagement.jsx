@@ -2571,7 +2571,12 @@ export default function MenuManagement() {
                                 </div>
 
                                 <div className="flex items-center gap-2 relative shrink-0">
-                                    {/* <Eye size={16} className={`cursor-pointer ${cat.visible ? 'text-[#DD2F26]' : 'text-gray-300'}`} /> */}
+                                    <span
+                                        className="inline-flex shrink-0 text-primary pointer-events-none"
+                                        aria-hidden="true"
+                                    >
+                                        <Eye size={16} strokeWidth={2} />
+                                    </span>
                                     <div className="relative">
                                         <MoreVertical
                                             size={16}
