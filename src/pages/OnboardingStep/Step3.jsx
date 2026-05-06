@@ -238,11 +238,8 @@ const buildItemFormFromDish = (dish, fallbackCategoryId) => {
         tags,
         tagInput: '',
         isAvailable: dish.is_available !== false,
-        catering: !!dish.catering,
-        cateringMinimumOrder:
-            dish.catering_minimum_order === 0 || dish.catering_minimum_order != null
-                ? String(dish.catering_minimum_order)
-                : '0',
+        catering: false,
+        cateringMinimumOrder: '0',
     };
 };
 
@@ -824,17 +821,12 @@ export default function Step3({
             }
             const stockValue = Number(itemForm.stockQuantity);
             const lowStockValue = Number(itemForm.lowStockAlert);
-            const cateringMinValue = Number(itemForm.cateringMinimumOrder);
             if (itemForm.trackInventory && itemForm.stockQuantity?.trim() && !Number.isFinite(stockValue)) {
                 setErrorLines(['Stock quantity must be a number']);
                 return;
             }
             if (itemForm.trackInventory && itemForm.lowStockAlert?.trim() && !Number.isFinite(lowStockValue)) {
                 setErrorLines(['Low stock alert must be a number']);
-                return;
-            }
-            if (itemForm.catering && itemForm.cateringMinimumOrder?.trim() && !Number.isFinite(cateringMinValue)) {
-                setErrorLines(['Catering minimum order must be a number']);
                 return;
             }
             const cleanedVariants = hasVariants
@@ -891,8 +883,8 @@ export default function Step3({
                 low_stock_alert: itemForm.trackInventory && Number.isFinite(lowStockValue) ? Math.trunc(lowStockValue) : 10,
                 number_of_orders: 0,
                 is_available: itemForm.isAvailable !== false,
-                catering: !!itemForm.catering,
-                catering_minimum_order: itemForm.catering && Number.isFinite(cateringMinValue) ? Math.trunc(cateringMinValue) : 0,
+                catering: false,
+                catering_minimum_order: 0,
                 is_best_seller: false,
                 is_todays_deal: false,
                 deal_starts_at: null,
@@ -1589,36 +1581,6 @@ export default function Step3({
                                                 className="onboarding-input !h-[56px] !rounded-[12px]"
                                             />
                                         </div>
-                                    </div>
-                                )}
-
-                                <div className="flex items-center justify-between bg-[#F6F8F9] rounded-[12px] p-4">
-                                    <div>
-                                        <h4 className={STEP3_LABEL_LEAD}>Catering</h4>
-                                        <p className="text-[12px] text-[#6B7280]">Enable minimum order for catering</p>
-                                    </div>
-                                    <Toggle
-                                        active={!!itemForm.catering}
-                                        onClick={() =>
-                                            setItemForm((prev) => ({
-                                                ...prev,
-                                                catering: !prev.catering,
-                                                cateringMinimumOrder: !prev.catering ? prev.cateringMinimumOrder : '0',
-                                            }))
-                                        }
-                                    />
-                                </div>
-
-                                {itemForm.catering && (
-                                    <div className="space-y-2">
-                                        <label className={STEP3_FIELD_LABEL}>Minimum Order</label>
-                                        <input
-                                            type="text"
-                                            placeholder="0"
-                                            value={itemForm.cateringMinimumOrder}
-                                            onChange={(e) => setItemForm((prev) => ({ ...prev, cateringMinimumOrder: e.target.value }))}
-                                            className="onboarding-input !h-[56px] !rounded-[12px]"
-                                        />
                                     </div>
                                 )}
 
