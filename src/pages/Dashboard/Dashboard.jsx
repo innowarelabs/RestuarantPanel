@@ -101,7 +101,7 @@ export default function AdminDashboard() {
         return [
             {
                 Icon: ShoppingBag,
-                title: 'New Orders This Week',
+                title: 'New Orders',
                 value: s.new_orders_this_week ?? 0,
                 change: `${s.new_orders_pct_change ?? 0}%`,
                 growthValue: s.new_orders_pct_change ?? 0,
@@ -115,7 +115,7 @@ export default function AdminDashboard() {
             },
             {
                 Icon: CheckCircle,
-                title: 'Completed This Week',
+                title: 'Completed',
                 value: s.completed_this_week ?? 0,
                 change: `${s.completed_pct_change ?? 0}%`,
                 growthValue: s.completed_pct_change ?? 0,
