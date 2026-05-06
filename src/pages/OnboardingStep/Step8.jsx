@@ -2,10 +2,31 @@ import { AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
 
+import { isValidOpeningHourTime } from '../../utils/restaurantOperatingHours';
+
 /** Field labels — match Step 5 / Step 7 */
 const STEP8_FIELD_LABEL_BLOCK = 'block font-sans text-[14px] font-medium leading-[21px] tracking-normal text-[#374151]';
 /** Preview card title */
 const STEP8_SECTION_TITLE = 'font-sans text-[16px] font-bold leading-[19.2px] tracking-normal text-[#0F1724]';
+
+/** Optional `start - end`; empty OK. Returns a specific message or null when valid. */
+function getChatHoursFieldError(raw) {
+    const s = typeof raw === 'string' ? raw.trim() : '';
+    if (!s) return null;
+    const parts = s.split(/\s*-\s*/).map((p) => p.trim()).filter(Boolean);
+    if (parts.length !== 2) {
+        return 'Use two times with a dash between (e.g. 9:00 AM - 10:00 PM).';
+    }
+    const [start, end] = parts;
+    const startOk = isValidOpeningHourTime(start);
+    const endOk = isValidOpeningHourTime(end);
+    if (!startOk && !endOk) {
+        return 'Invalid time. Use 1–12 with AM or PM (e.g. 9:00 AM), or 24-hour format (e.g. 14:00).';
+    }
+    if (!startOk) return 'Start time is not valid.';
+    if (!endOk) return 'End time is not valid.';
+    return null;
+}
 
 export default function Step8({ formData, setFormData, handlePrev, handleNext }) {
     const accessToken = useSelector((state) => state.auth.accessToken);
@@ -34,13 +55,18 @@ export default function Step8({ formData, setFormData, handlePrev, handleNext })
         return code.includes('ERROR') || code.endsWith('_400') || code.endsWith('_401') || code.endsWith('_403') || code.endsWith('_404') || code.endsWith('_500');
     };
 
+    const chatHoursFieldError = getChatHoursFieldError(formData.chatHours ?? '');
+    const chatHoursValid = chatHoursFieldError === null;
+    const chatHoursShowError = chatHoursFieldError !== null;
+
     const restaurantId = formData.restaurantId?.trim();
     const canSubmit =
         !!restaurantId &&
         !!formData.supportEmail?.trim() &&
         !!formData.supportPhone?.trim() &&
         !!formData.autoReply?.trim() &&
-        !!formData.chatGreeting?.trim();
+        !!formData.chatGreeting?.trim() &&
+        chatHoursValid;
 
     const handleSubmitStep8 = async () => {
         if (!canSubmit || submitting) return;
@@ -158,8 +184,14 @@ export default function Step8({ formData, setFormData, handlePrev, handleNext })
                     value={formData.chatHours}
                     onChange={(e) => setFormData({ ...formData, chatHours: e.target.value })}
                     placeholder="9:00 AM - 10:00 PM"
-                    className="onboarding-input"
+                    className={`onboarding-input ${chatHoursShowError ? 'border-[#EB5757] ring-1 ring-[#EB5757]/30' : ''}`}
                 />
+                {chatHoursShowError && chatHoursFieldError ? (
+                    <div className="mt-2 flex items-start gap-2 rounded-lg border border-[#F7515133] bg-[#F7515114] px-3 py-2">
+                        <AlertCircle size={16} className="text-[#EB5757] shrink-0 mt-0.5" aria-hidden />
+                        <p className="text-[12px] text-[#47464A] leading-snug">{chatHoursFieldError}</p>
+                    </div>
+                ) : null}
             </div>
 
             <div className="bg-[#DD2F2626] border border-primary p-5 rounded-[12px] mt-4 space-y-3">
