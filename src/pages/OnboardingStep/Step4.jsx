@@ -48,7 +48,8 @@ export default function Step4({ formData, setFormData, handlePrev, handleNext })
             const baseUrl = import.meta.env.VITE_BACKEND_URL;
             if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
 
-            const orderCancelTimeout = Number(formData.timeLimit?.trim());
+            const timeLimitDigits = String(formData.timeLimit ?? '').replace(/\D/g, '');
+            const orderCancelTimeout = Number(timeLimitDigits);
             const orderCancelTimeoutMins = Number.isFinite(orderCancelTimeout) ? Math.trunc(orderCancelTimeout) : 1;
 
             const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step4`;
@@ -124,7 +125,19 @@ export default function Step4({ formData, setFormData, handlePrev, handleNext })
             </div>
             <div className="bg-[#DD2F2626] p-5 rounded-[8px] border-l-2 border-l-primary border-y-0 border-r-0 border-solid space-y-3">
                 <label className="block text-[14px] font-[500] text-[#1A1A1A]">Accept Order Time Limit (minutes)</label>
-                <input type="text" value={formData.timeLimit} onChange={(e) => setFormData({ ...formData, timeLimit: e.target.value })} className="onboarding-input h-11" />
+                <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    value={String(formData.timeLimit ?? '').replace(/\D/g, '')}
+                    onChange={(e) =>
+                        setFormData({
+                            ...formData,
+                            timeLimit: e.target.value.replace(/\D/g, ''),
+                        })
+                    }
+                    className="onboarding-input h-11"
+                />
                 <p className="text-[12px] text-[#6B7280]">Orders will be auto-cancelled if not accepted within this time</p>
             </div>
             <div>
