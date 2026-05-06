@@ -191,7 +191,16 @@ export default function OnboardingStep() {
             URL.revokeObjectURL(categoryImagePreviewUrl);
         }
         setCategoryImage(file);
-        setCategoryImagePreviewUrl(file ? URL.createObjectURL(file) : '');
+        if (file) {
+            setCategoryImagePreviewUrl(URL.createObjectURL(file));
+        } else if (editingCategoryId) {
+            const cat = categories.find((c) => String(c.id) === String(editingCategoryId));
+            const remote =
+                cat && typeof cat.imageUrl === 'string' && cat.imageUrl.trim() ? cat.imageUrl.trim() : '';
+            setCategoryImagePreviewUrl(remote);
+        } else {
+            setCategoryImagePreviewUrl('');
+        }
     };
 
     const setItemImageFile = (file) => {

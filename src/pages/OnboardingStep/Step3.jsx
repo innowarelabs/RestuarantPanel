@@ -296,7 +296,8 @@ export default function Step3({
     const categoryImageInputRef = useRef(null);
 
     const restaurantId = formData.restaurantId?.trim();
-    const editingCategory = categories.find((c) => c.id === editingCategoryId) || null;
+    const editingCategory =
+        categories.find((c) => String(c.id) === String(editingCategoryId ?? '')) || null;
     const categoryOptions = categories.map((c) => ({ id: c.id, name: c.name }));
     const canSaveCategory = formData.categoryName.trim() && (editingCategoryId ? true : !!categoryImage);
     const canOpenAddItem = categories.length > 0;
@@ -491,6 +492,7 @@ export default function Step3({
             deleteCategory(deleteCategoryTarget.id);
             setDeleteCategoryTarget(null);
             await fetchCategories();
+            await fetchMenuItems();
         } catch (e) {
             const message = typeof e?.message === 'string' ? e.message : 'Failed to delete category';
             setDeleteCategoryErrorLines([message]);
@@ -619,12 +621,19 @@ export default function Step3({
                 if (categoryImage) {
                     imageUrl = await uploadImage(categoryImage, baseUrl);
                 }
+                if (!imageUrl && typeof categoryImagePreviewUrl === 'string') {
+                    const prev = categoryImagePreviewUrl.trim();
+                    if (prev && !prev.startsWith('blob:')) {
+                        imageUrl = normalizeUrl(prev);
+                    }
+                }
                 if (!imageUrl) {
                     setErrorLines(['Please keep or upload a category image.']);
                     return;
                 }
 
-                const putUrl = `${baseUrl.replace(/\/$/, '')}/api/v1/categories/${encodeURIComponent(editingCategoryId)}`;
+                const categoryIdStr = String(editingCategoryId);
+                const putUrl = `${baseUrl.replace(/\/$/, '')}/api/v1/categories/${encodeURIComponent(categoryIdStr)}`;
                 const res = await fetch(putUrl, {
                     method: 'PUT',
                     headers: {
@@ -663,38 +672,42 @@ export default function Step3({
                 }
 
                 const desiredActive = formData.categoryVisible !== false;
-                const toggleUrl = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step3/category/${encodeURIComponent(editingCategoryId)}/toggle?is_active=${desiredActive ? 'true' : 'false'}`;
-                const toggleRes = await fetch(toggleUrl, {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-                    },
-                });
-                const toggleContentType = toggleRes.headers.get('content-type');
-                const toggleData =
-                    toggleContentType?.includes('application/json') ? await toggleRes.json() : await toggleRes.text();
-                if (!toggleRes.ok || isErrorPayload(toggleData)) {
-                    const lines = toValidationErrorLines(toggleData);
-                    if (lines.length) {
-                        setErrorLines(['Category was updated, but visibility could not be saved.', ...lines]);
-                    } else if (toggleData && typeof toggleData === 'object') {
-                        const message =
-                            typeof toggleData.message === 'string'
-                                ? toggleData.message
-                                : typeof toggleData.error === 'string'
-                                    ? toggleData.error
-                                    : 'Visibility update failed';
-                        setErrorLines(['Category was updated, but visibility could not be saved.', message]);
-                    } else if (typeof toggleData === 'string' && toggleData.trim()) {
-                        setErrorLines(['Category was updated, but visibility could not be saved.', toggleData.trim()]);
-                    } else {
-                        setErrorLines(['Category was updated, but visibility could not be saved.']);
+                const wasActive = editingCategory?.visible !== false;
+                if (desiredActive !== wasActive) {
+                    const toggleUrl = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step3/category/${encodeURIComponent(categoryIdStr)}/toggle?is_active=${desiredActive ? 'true' : 'false'}`;
+                    const toggleRes = await fetch(toggleUrl, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                        },
+                    });
+                    const toggleContentType = toggleRes.headers.get('content-type');
+                    const toggleData =
+                        toggleContentType?.includes('application/json') ? await toggleRes.json() : await toggleRes.text();
+                    if (!toggleRes.ok || isErrorPayload(toggleData)) {
+                        const lines = toValidationErrorLines(toggleData);
+                        if (lines.length) {
+                            setErrorLines(['Category was updated, but visibility could not be saved.', ...lines]);
+                        } else if (toggleData && typeof toggleData === 'object') {
+                            const message =
+                                typeof toggleData.message === 'string'
+                                    ? toggleData.message
+                                    : typeof toggleData.error === 'string'
+                                        ? toggleData.error
+                                        : 'Visibility update failed';
+                            setErrorLines(['Category was updated, but visibility could not be saved.', message]);
+                        } else if (typeof toggleData === 'string' && toggleData.trim()) {
+                            setErrorLines(['Category was updated, but visibility could not be saved.', toggleData.trim()]);
+                        } else {
+                            setErrorLines(['Category was updated, but visibility could not be saved.']);
+                        }
                     }
                 }
 
                 resetCategoryForm();
                 await fetchCategories();
+                await fetchMenuItems();
                 return;
             }
 
