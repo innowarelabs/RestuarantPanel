@@ -60,14 +60,14 @@ export default function PeakOrderingTimesChart({
                     <button
                         type="button"
                         onClick={() => setView('hourly')}
-                        className={`px-4 py-1.5 rounded-md text-[13px] font-medium transition-all cursor-pointer ${view === 'hourly' ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                        className={`px-4 py-1.5 rounded-md text-[13px] font-medium transition-all cursor-pointer ${view === 'hourly' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                     >
                         Hourly View
                     </button>
                     <button
                         type="button"
                         onClick={() => setView('daily')}
-                        className={`px-4 py-1.5 rounded-md text-[13px] font-medium transition-all cursor-pointer ${view === 'daily' ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                        className={`px-4 py-1.5 rounded-md text-[13px] font-medium transition-all cursor-pointer ${view === 'daily' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                     >
                         Day of Week
                     </button>

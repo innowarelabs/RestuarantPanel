@@ -631,7 +631,9 @@ export default function MenuManagement() {
     const [bestSellers, setBestSellers] = useState([]);
     const [bestSellersLoading, setBestSellersLoading] = useState(false);
     const [updatingBestSellerIds, setUpdatingBestSellerIds] = useState([]);
+    /* Catering Items card (commented out below)
     const [updatingCateringIds, setUpdatingCateringIds] = useState([]);
+    */
     const [cateringPackages, setCateringPackages] = useState([]);
     const [cateringPackagesLoading, setCateringPackagesLoading] = useState(false);
     const [cateringPackagesError, setCateringPackagesError] = useState('');
@@ -1523,6 +1525,7 @@ export default function MenuManagement() {
         }
     }, [accessToken, fetchBestSellers]);
 
+    /* Catering Items card (commented out)
     const disableCateringItem = useCallback(async (dishId) => {
         if (!dishId) return;
         setUpdatingCateringIds((prev) => [...prev, dishId]);
@@ -1551,6 +1554,7 @@ export default function MenuManagement() {
             setUpdatingCateringIds((prev) => prev.filter((id) => id !== dishId));
         }
     }, [accessToken, fetchCategories]);
+    */
 
     useEffect(() => {
         const handleRefresh = () => {
@@ -1902,6 +1906,7 @@ export default function MenuManagement() {
         return mapped;
     }, [activeCategoryData, categoriesLoading]);
 
+    /* Catering Items card (commented out)
     const cateringItems = useMemo(() => {
         const list = [];
         categories.forEach((category) => {
@@ -1925,6 +1930,7 @@ export default function MenuManagement() {
         });
         return list;
     }, [categories]);
+    */
 
     const cateringCategoriesSidebarRows = useMemo(() => {
         return cateringPackages
@@ -3030,6 +3036,7 @@ export default function MenuManagement() {
                 </div>
             </div>
 
+            {/* Catering Items card — commented out
             <div className="mt-6 min-w-0 rounded-[12px] border border-[#00000033] bg-white p-6">
                 <div className="flex items-center justify-between gap-4">
                     <h3 className="text-[16px] font-[800] text-[#111827]">Catering Items</h3>
@@ -3118,6 +3125,7 @@ export default function MenuManagement() {
                     </div>
                 </div>
             </div>
+            */}
                 </>
             )}
 
