@@ -599,7 +599,7 @@ export default function MenuManagement() {
     const [uploadingDishesCsv, setUploadingDishesCsv] = useState(false);
     const [previewMenuLoading, setPreviewMenuLoading] = useState(false);
 
-    const [activeCategory, setActiveCategory] = useState('');
+    const [activeCategoryId, setActiveCategoryId] = useState('');
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
     const [isAddCategoryModalOpen, setIsAddCategoryModalOpen] = useState(false);
@@ -1568,12 +1568,12 @@ export default function MenuManagement() {
 
     useEffect(() => {
         if (!categories.length) {
-            setActiveCategory('');
+            setActiveCategoryId('');
             return;
         }
-        const stillExists = categories.some((c) => c.name === activeCategory);
-        if (!activeCategory || !stillExists) setActiveCategory(categories[0].name);
-    }, [activeCategory, categories]);
+        const stillExists = categories.some((c) => c.id === activeCategoryId);
+        if (!activeCategoryId || !stillExists) setActiveCategoryId(categories[0].id);
+    }, [activeCategoryId, categories]);
 
     const uploadImage = async (file) => {
         if (!file) throw new Error('Image file is missing');
@@ -1665,7 +1665,7 @@ export default function MenuManagement() {
         }
     };
 
-    const handleUpdateCategory = async ({ name, isVisible }) => {
+    const handleUpdateCategory = async ({ name, isVisible, imageFile, existingImageUrl }) => {
         const cat = selectedCategory;
         if (!restaurantId) {
             setUpdatingCategoryErrorLines(['Restaurant not found. Please login again.']);
@@ -1677,6 +1677,12 @@ export default function MenuManagement() {
             setUpdatingCategoryErrorLines(['Category name is required']);
             return;
         }
+        const reusedUrl =
+            typeof existingImageUrl === 'string' && existingImageUrl.trim() ? existingImageUrl.trim() : '';
+        if (!imageFile && !reusedUrl) {
+            setUpdatingCategoryErrorLines(['Please upload a category image.']);
+            return;
+        }
         if (updatingCategory) return;
 
         setUpdatingCategory(true);
@@ -1684,6 +1690,8 @@ export default function MenuManagement() {
         try {
             const baseUrl = import.meta.env.VITE_BACKEND_URL;
             if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+
+            const imageUrl = imageFile ? await uploadImage(imageFile) : reusedUrl;
 
             const url = `${baseUrl.replace(/\/$/, '')}/api/v1/categories/${encodeURIComponent(cat.id)}`;
             const res = await fetch(url, {
@@ -1696,7 +1704,7 @@ export default function MenuManagement() {
                     restaurant_id: restaurantId,
                     name: trimmed,
                     description: typeof cat.description === 'string' ? cat.description : '',
-                    image_url: typeof cat.imageUrl === 'string' ? cat.imageUrl : '',
+                    image_url: imageUrl,
                 }),
             });
 
@@ -1880,9 +1888,9 @@ export default function MenuManagement() {
     }, [categories, categoryMenu]);
 
     const activeCategoryData = useMemo(() => {
-        if (!activeCategory) return null;
-        return categories.find((c) => c.name === activeCategory) || null;
-    }, [activeCategory, categories]);
+        if (!activeCategoryId) return null;
+        return categories.find((c) => c.id === activeCategoryId) || null;
+    }, [activeCategoryId, categories]);
 
     const itemsLoading = categoriesLoading;
 
@@ -2545,11 +2553,11 @@ export default function MenuManagement() {
                             <div
                                 key={cat.id}
                                 onClick={() => {
-                                    setActiveCategory(cat.name);
+                                    setActiveCategoryId(cat.id);
                                     setCategoryMenu(null);
                                 }}
                                 className={`group flex items-center justify-between p-3 rounded-[8px] cursor-pointer border transition-all
-                                ${activeCategory === cat.name
+                                ${activeCategoryId === cat.id
                                         ? 'bg-[#FEF2F2] border-[#DD2F26]'
                                         : 'bg-white border-transparent hover:bg-gray-50'
                                     }`}
@@ -2567,7 +2575,7 @@ export default function MenuManagement() {
                                     <div className="min-w-0">
                                         <h3
                                             className={`text-[16px] font-[400] flex items-center gap-2 ${
-                                                activeCategory === cat.name ? 'text-[#111827]' : 'text-[#374151]'
+                                                activeCategoryId === cat.id ? 'text-[#111827]' : 'text-[#374151]'
                                             }`}
                                         >
                                             {cat.name}

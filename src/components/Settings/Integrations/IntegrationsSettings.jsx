@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
-import { AlertCircle, CreditCard } from 'lucide-react';
+import { AlertCircle, Check, Circle, CreditCard } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 /** Same list as onboarding Step9 */
@@ -76,17 +76,52 @@ const toValidationErrorLines = (data) => {
         .filter(Boolean);
 };
 
-const isErrorPayload = (data) => {
-    if (!data || typeof data !== 'object') return false;
-    if (typeof data.code !== 'string') return false;
-    const code = data.code.trim().toUpperCase();
-    if (!code) return false;
-    if (code.startsWith('SUCCESS_')) return false;
-    if (code.startsWith('ERROR_')) return true;
-    if (code.endsWith('_400') || code.endsWith('_401') || code.endsWith('_403') || code.endsWith('_404') || code.endsWith('_422') || code.endsWith('_500')) return true;
-    if (data.data === null && typeof data.message === 'string' && data.message.trim()) return true;
-    return false;
+const isSuccessCode = (code) => {
+    if (typeof code !== 'string') return true;
+    const normalized = code.trim().toUpperCase();
+    return normalized.endsWith('_200') || normalized.endsWith('_201') || normalized.endsWith('_202');
 };
+
+/** Mask saved secret: fixed asterisks + last 4 chars (when longer than 4). */
+function maskSecretTail4(plain) {
+    const t = String(plain ?? '').trim();
+    if (!t) return '';
+    if (t.length <= 4) return '********';
+    return `${'*'.repeat(8)}${t.slice(-4)}`;
+}
+
+function IntegrationsSkeleton() {
+    return (
+        <div className="space-y-10" role="status" aria-label="Loading integrations">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:max-w-none max-w-3xl">
+                {[0, 1].map((i) => (
+                    <div
+                        key={i}
+                        className="flex flex-col justify-between space-y-4 rounded-[12px] border border-[#E5E7EB] bg-white p-6"
+                    >
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="flex min-w-0 items-center gap-3">
+                                    <div className="h-12 w-12 shrink-0 animate-pulse rounded-[8px] bg-[#E8E8E8]" />
+                                    <div className="h-5 w-32 max-w-[60%] animate-pulse rounded bg-[#E8E8E8]" />
+                                </div>
+                                <div className="h-9 w-[88px] shrink-0 animate-pulse rounded-[8px] bg-[#F3F4F6]" />
+                            </div>
+                            <div className="space-y-2 pt-1">
+                                <div className="h-3 w-full animate-pulse rounded bg-[#F3F4F6]" />
+                                <div className="h-3 w-[92%] animate-pulse rounded bg-[#F3F4F6]" />
+                                <div className="h-3 w-[70%] animate-pulse rounded bg-[#F3F4F6]" />
+                            </div>
+                            <div className="h-[44px] w-full animate-pulse rounded-[8px] bg-[#E8E8E8]" />
+                        </div>
+                        <div className="h-[45px] w-full animate-pulse rounded-[8px] bg-[#E8E8E8]" />
+                    </div>
+                ))}
+            </div>
+            <div className="h-[45px] w-[min(100%,200px)] max-w-[200px] animate-pulse rounded-[8px] bg-[#E8E8E8]" />
+        </div>
+    );
+}
 
 const IntegrationsSettings = () => {
     const accessToken = useSelector((state) => state.auth.accessToken);
@@ -105,6 +140,8 @@ const IntegrationsSettings = () => {
 
     const [submitting, setSubmitting] = useState(false);
     const [errorLines, setErrorLines] = useState([]);
+    const [doorDashFieldFocused, setDoorDashFieldFocused] = useState(false);
+    const [posFieldFocused, setPosFieldFocused] = useState(false);
 
     useEffect(() => {
         if (!accessToken) {
@@ -207,7 +244,7 @@ const IntegrationsSettings = () => {
         });
     };
 
-    const submitStep9 = async (doordash_info, pos_key) => {
+    const saveRestaurantIntegrations = async ({ enable_doordash, doordash_info, pos_key }) => {
         if (!restaurantId) {
             setErrorLines(['Restaurant not found. Sign in again or finish onboarding.']);
             return false;
@@ -220,7 +257,7 @@ const IntegrationsSettings = () => {
             const baseUrl = import.meta.env.VITE_BACKEND_URL;
             if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
 
-            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step9`;
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/${encodeURIComponent(restaurantId)}`;
             const res = await fetch(url, {
                 method: 'PUT',
                 headers: {
@@ -228,7 +265,7 @@ const IntegrationsSettings = () => {
                     ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
                 },
                 body: JSON.stringify({
-                    restaurant_id: restaurantId,
+                    enable_doordash: !!enable_doordash,
                     doordash_info: typeof doordash_info === 'string' ? doordash_info : '',
                     pos_key: typeof pos_key === 'string' ? pos_key : '',
                 }),
@@ -237,31 +274,36 @@ const IntegrationsSettings = () => {
             const contentType = res.headers.get('content-type');
             const data = contentType?.includes('application/json') ? await res.json() : await res.text();
 
-            if (!res.ok || isErrorPayload(data)) {
+            if (!res.ok) {
                 const lines = toValidationErrorLines(data);
-                if (lines.length) {
-                    setErrorLines(lines);
-                } else if (typeof data === 'string' && data.trim()) {
-                    setErrorLines([data.trim()]);
-                } else if (data && typeof data === 'object') {
-                    const message =
-                        typeof data.message === 'string'
-                            ? data.message
-                            : typeof data.error === 'string'
-                              ? data.error
-                              : 'Request failed';
-                    setErrorLines([message]);
-                } else {
-                    setErrorLines(['Request failed']);
-                }
+                setErrorLines(
+                    lines.length
+                        ? lines
+                        : [
+                              typeof data === 'object' && data?.message
+                                  ? data.message
+                                  : typeof data === 'string' && data.trim()
+                                    ? data.trim()
+                                    : `Update failed (${res.status})`,
+                          ],
+                );
                 return false;
             }
 
-            if (data && typeof data === 'object' && typeof data.message === 'string' && data.message.trim()) {
-                toast.success(data.message.trim());
-            } else {
-                toast.success('Integrations saved');
+            if (data && typeof data === 'object' && typeof data.code === 'string' && !isSuccessCode(data.code)) {
+                setErrorLines([
+                    typeof data.message === 'string' && data.message.trim()
+                        ? data.message.trim()
+                        : data.code.trim() || 'Update failed',
+                ]);
+                return false;
             }
+
+            const rawMsg =
+                data && typeof data === 'object' && typeof data.message === 'string' ? data.message.trim() : '';
+            toast.success(
+                rawMsg ? `Integrations updated — ${rawMsg}` : 'Integrations updated successfully.',
+            );
             return true;
         } catch (e) {
             const message = typeof e?.message === 'string' ? e.message : 'Request failed';
@@ -288,17 +330,10 @@ const IntegrationsSettings = () => {
         const doordash_info = formData.doorDashConnected ? String(formData.doordash_info ?? '').trim() : '';
         const pos_key = formData.posConnected ? String(formData.pos_key ?? '').trim() : '';
 
-        await submitStep9(doordash_info, pos_key);
-    };
-
-    const handleClearAll = async () => {
-        const ok = await submitStep9('', '');
-        if (!ok) return;
-        setFormData({
-            doorDashConnected: false,
-            posConnected: false,
-            doordash_info: '',
-            pos_key: '',
+        await saveRestaurantIntegrations({
+            enable_doordash: formData.doorDashConnected,
+            doordash_info,
+            pos_key,
         });
     };
 
@@ -306,10 +341,10 @@ const IntegrationsSettings = () => {
         <div className="space-y-6">
             <div>
                 <h2 className="text-[28px] font-bold text-[#1A1A1A]">Integrations</h2>
-                <p className="text-[#6B6B6B] text-[14px]">Same flow as onboarding: connect integrations, then save (or clear all).</p>
+                <p className="text-[#6B6B6B] text-[14px]">Connect DoorDash and POS, then save your integration credentials.</p>
             </div>
 
-            {loading && <p className="text-[14px] text-[#6B6B6B]">Loading…</p>}
+            {loading && <IntegrationsSkeleton />}
             {!loading && loadError && (
                 <div className="rounded-lg border border-[#F7515133] bg-[#F7515114] px-3 py-2 text-[13px] text-[#47464A]">{loadError}</div>
             )}
@@ -321,6 +356,13 @@ const IntegrationsSettings = () => {
                             const connected = !!formData[item.key];
                             const fieldValue = String(formData[item.fieldKey] ?? '');
                             const inputId = `settings-integrations-${item.fieldKey}`;
+                            const hasStoredValue = connected && fieldValue.trim() !== '';
+                            const isFocused =
+                                item.fieldKey === 'doordash_info' ? doorDashFieldFocused : posFieldFocused;
+                            const displayValue =
+                                hasStoredValue && !isFocused ? maskSecretTail4(fieldValue) : fieldValue;
+                            const setFocused =
+                                item.fieldKey === 'doordash_info' ? setDoorDashFieldFocused : setPosFieldFocused;
                             return (
                                 <div
                                     key={item.key}
@@ -339,11 +381,23 @@ const IntegrationsSettings = () => {
                                                 <h4 className="text-[16px] font-[600] text-[#111111] truncate">{item.title}</h4>
                                             </div>
                                             <span
-                                                className={`shrink-0 text-[12px] font-[500] px-2.5 py-2 rounded-[8px] ${
-                                                    connected ? 'text-emerald-700 bg-emerald-50' : 'text-[#64748B] bg-[#F3F4F6]'
+                                                className={`inline-flex shrink-0 items-center gap-1 rounded-[8px] px-2.5 py-2 font-sans text-[12px] font-medium not-italic leading-[18px] tracking-normal [leading-trim:none] ${
+                                                    connected
+                                                        ? 'bg-[#DD2F2626] text-primary'
+                                                        : 'bg-[#F3F4F6] text-[#64748B]'
                                                 }`}
                                             >
-                                                {connected ? 'Connected' : 'Not Connected'}
+                                                {connected ? (
+                                                    <>
+                                                        <Check className="h-3.5 w-3.5 shrink-0 stroke-[2.5]" aria-hidden />
+                                                        Connected
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Circle className="h-[13px] w-[13px] shrink-0 stroke-[2]" aria-hidden />
+                                                        Not Connected
+                                                    </>
+                                                )}
                                             </span>
                                         </div>
                                         <p className="text-[14px] text-[#64748B] leading-[1.5]">{item.desc}</p>
@@ -355,19 +409,31 @@ const IntegrationsSettings = () => {
                                                 <input
                                                     id={inputId}
                                                     type="text"
-                                                    value={fieldValue}
+                                                    value={displayValue}
+                                                    readOnly={hasStoredValue && !isFocused}
+                                                    onFocus={() => setFocused(true)}
+                                                    onBlur={() => setFocused(false)}
                                                     onChange={(e) =>
                                                         setFormData((prev) => ({ ...prev, [item.fieldKey]: e.target.value }))
                                                     }
                                                     placeholder={item.inputPlaceholder}
-                                                    className="w-full h-[44px] rounded-[8px] border border-[#E5E7EB] bg-white px-4 text-[13px] font-[500] text-[#111827] outline-none transition focus:border-[#DD2F26] focus:ring-1 focus:ring-[#DD2F26]/20 sm:text-[14px]"
+                                                    autoComplete="off"
+                                                    spellCheck={false}
+                                                    className="w-full h-[44px] rounded-[8px] border border-[#E5E7EB] bg-white px-4 text-[13px] font-[500] text-[#111827] outline-none transition read-only:cursor-default read-only:bg-[#F9FAFB] read-only:text-[#374151] focus:border-[#DD2F26] focus:ring-1 focus:ring-[#DD2F26]/20 sm:text-[14px]"
                                                 />
                                             </div>
                                         ) : null}
                                     </div>
                                     <button
                                         type="button"
-                                        onClick={() => toggleIntegration(item.key, item.fieldKey)}
+                                        onClick={() => {
+                                            const wasConnected = !!formData[item.key];
+                                            toggleIntegration(item.key, item.fieldKey);
+                                            if (wasConnected) {
+                                                if (item.fieldKey === 'doordash_info') setDoorDashFieldFocused(false);
+                                                else setPosFieldFocused(false);
+                                            }
+                                        }}
                                         className={`w-full h-[45px] rounded-[8px] font-[500] text-[16px] transition-all ${
                                             connected
                                                 ? 'border border-[#E5E7EB] bg-white text-[#64748B] hover:bg-[#F9FAFB]'
@@ -396,22 +462,14 @@ const IntegrationsSettings = () => {
                         </div>
                     )}
 
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end max-w-3xl sm:max-w-none">
-                        <button
-                            type="button"
-                            disabled={submitting || !restaurantId}
-                            onClick={() => void handleClearAll()}
-                            className="h-[45px] text-[14px] font-[500] text-[#6B7280] hover:underline disabled:opacity-50 disabled:no-underline sm:order-1"
-                        >
-                            Clear all integrations
-                        </button>
+                    <div className="flex justify-start max-w-3xl sm:max-w-none">
                         <button
                             type="button"
                             disabled={submitting || !restaurantId}
                             onClick={() => void handleSave()}
-                            className="flex h-[45px] min-w-[160px] items-center justify-center gap-2 rounded-[8px] bg-[#DD2F26] px-6 text-[14px] font-[500] text-white transition hover:bg-[#C52820] disabled:cursor-not-allowed disabled:bg-[#E5E7EB] disabled:text-[#6B7280] disabled:hover:bg-[#E5E7EB] sm:order-2"
+                            className="flex h-[45px] min-w-[160px] items-center justify-center gap-2 rounded-[8px] bg-[#DD2F26] px-6 text-[14px] font-[500] text-white transition hover:bg-[#C52820] disabled:cursor-not-allowed disabled:bg-[#E5E7EB] disabled:text-[#6B7280] disabled:hover:bg-[#E5E7EB]"
                         >
-                            {submitting ? 'Saving...' : 'Save integrations'}
+                            {submitting ? 'Saving...' : 'Save Integrations'}
                         </button>
                     </div>
                 </div>
