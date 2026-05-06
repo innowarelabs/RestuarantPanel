@@ -79,16 +79,17 @@ export default function WeeklyHoursEditor({ days, setDays }) {
     return (
         <>
             <div className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar">
-                <div className="min-w-[760px] space-y-0">
+                <div className="space-y-0">
                     {days.map((day, dayIndex) => (
                         <div
                             key={day.name}
-                            className="flex items-center gap-3 border-b border-[#F3F4F6] py-4 last:border-0 sm:gap-4"
+                            className="flex min-w-[660px] flex-nowrap items-center gap-x-2 border-b border-[#F3F4F6] py-4 last:border-0 sm:gap-x-3"
                         >
-                            <div className="w-32 flex-shrink-0">
-                                <span className="font-[500] text-[14px] text-[#1A1A1A]">{day.name}</span>
-                            </div>
-                            <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+                            {/* Day label + open toggle — tight gap */}
+                            <div className="flex shrink-0 items-center gap-[10px]">
+                                <span className="w-[72px] shrink-0 font-[500] text-[14px] text-[#1A1A1A] sm:w-[80px]">
+                                    {day.name}
+                                </span>
                                 <button
                                     type="button"
                                     onClick={() => toggleDayOpen(dayIndex)}
@@ -98,63 +99,67 @@ export default function WeeklyHoursEditor({ days, setDays }) {
                                         className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${day.isOpen ? 'translate-x-6' : 'translate-x-1'}`}
                                     />
                                 </button>
+                            </div>
 
+                            {/* Fixed slot: main hours always occupy this band so Break stays aligned */}
+                            <div className="flex h-[34px] w-[212px] shrink-0 items-center justify-start sm:w-[228px]">
                                 {day.isOpen ? (
-                                    <div className="flex shrink-0 items-center gap-2">
+                                    <div className="flex items-center gap-2">
                                         <input
                                             type="text"
                                             value={day.hours[0]}
                                             onChange={(e) => setMainHour(dayIndex, 0, e.target.value)}
-                                            className={`w-20 sm:w-24 px-2 py-1 border rounded-[8px] text-[14px] text-center focus:outline-none focus:ring-1 focus:ring-[#DD2F26] ${isOpeningHourValueInvalid(day.hours[0]) ? 'border-[#EB5757] ring-1 ring-[#EB5757]/30' : 'border-[#E8E8E8]'}`}
+                                            className={`w-[76px] shrink-0 rounded-[8px] border px-2 py-1 text-[14px] text-center focus:outline-none focus:ring-1 focus:ring-[#DD2F26] sm:w-20 ${isOpeningHourValueInvalid(day.hours[0]) ? 'border-[#EB5757] ring-1 ring-[#EB5757]/30' : 'border-[#E8E8E8]'}`}
                                         />
-                                        <span className="text-[#9CA3AF]">-</span>
+                                        <span className="shrink-0 text-[#9CA3AF]">-</span>
                                         <input
                                             type="text"
                                             value={day.hours[1]}
                                             onChange={(e) => setMainHour(dayIndex, 1, e.target.value)}
-                                            className={`w-20 sm:w-24 px-3 py-1 border rounded-[8px] text-[14px] text-center focus:outline-none focus:ring-1 focus:ring-[#DD2F26] ${isOpeningHourValueInvalid(day.hours[1]) ? 'border-[#EB5757] ring-1 ring-[#EB5757]/30' : 'border-[#E8E8E8]'}`}
+                                            className={`w-[76px] shrink-0 rounded-[8px] border px-2 py-1 text-[14px] text-center focus:outline-none focus:ring-1 focus:ring-[#DD2F26] sm:w-24 ${isOpeningHourValueInvalid(day.hours[1]) ? 'border-[#EB5757] ring-1 ring-[#EB5757]/30' : 'border-[#E8E8E8]'}`}
                                         />
                                     </div>
                                 ) : (
-                                    <span className="shrink-0 text-sm text-[#9CA3AF]">Closed</span>
+                                    <span className="text-sm text-[#9CA3AF]">Closed</span>
                                 )}
+                            </div>
 
-                                <div className="ml-auto mr-[20px] flex shrink-0 items-center gap-3 sm:gap-4">
-                                    <div className="flex w-[128px] shrink-0 -translate-x-[20px] items-center gap-2 sm:w-[136px]">
-                                        <button
-                                            type="button"
-                                            onClick={() => toggleDayBreak(dayIndex)}
-                                            disabled={!day.isOpen}
-                                            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${day.hasBreak ? 'bg-[#DD2F26]' : 'bg-gray-200'}`}
-                                        >
-                                            <span
-                                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${day.hasBreak ? 'translate-x-6' : 'translate-x-1'}`}
-                                            />
-                                        </button>
-                                        <span className="min-w-0 flex-1 truncate text-[14px] text-[#9CA3AF]">
-                                            {day.hasBreak ? 'Break' : 'No break'}
-                                        </span>
-                                    </div>
-                                    <div className="flex h-[34px] w-[168px] shrink-0 items-center gap-2 sm:w-[184px]">
-                                        {day.hasBreak && day.isOpen ? (
-                                            <>
-                                                <input
-                                                    type="text"
-                                                    value={day.breakHours[0]}
-                                                    onChange={(e) => setBreakHour(dayIndex, 0, e.target.value)}
-                                                    className={`w-20 shrink-0 rounded-[8px] border bg-gray-50 px-2 py-1.5 text-sm sm:w-24 ${isOpeningHourValueInvalid(day.breakHours[0]) ? 'border-[#EB5757] ring-1 ring-[#EB5757]/30' : 'border-[#E8E8E8]'}`}
-                                                />
-                                                <span className="shrink-0 text-[#9CA3AF]">-</span>
-                                                <input
-                                                    type="text"
-                                                    value={day.breakHours[1]}
-                                                    onChange={(e) => setBreakHour(dayIndex, 1, e.target.value)}
-                                                    className={`w-20 shrink-0 rounded-[8px] border bg-gray-50 px-2 py-1.5 text-sm sm:w-24 ${isOpeningHourValueInvalid(day.breakHours[1]) ? 'border-[#EB5757] ring-1 ring-[#EB5757]/30' : 'border-[#E8E8E8]'}`}
-                                                />
-                                            </>
-                                        ) : null}
-                                    </div>
-                                </div>
+                            {/* Break toggle + label — always after the main-hours slot */}
+                            <div className="flex shrink-0 items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => toggleDayBreak(dayIndex)}
+                                    disabled={!day.isOpen}
+                                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${day.hasBreak ? 'bg-[#DD2F26]' : 'bg-gray-200'}`}
+                                >
+                                    <span
+                                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${day.hasBreak ? 'translate-x-6' : 'translate-x-1'}`}
+                                    />
+                                </button>
+                                <span className="w-[72px] shrink-0 text-[14px] text-[#9CA3AF] sm:w-[76px]">
+                                    {day.hasBreak ? 'Break' : 'No break'}
+                                </span>
+                            </div>
+
+                            {/* Break time inputs */}
+                            <div className="flex h-[34px] min-w-[168px] shrink-0 items-center gap-2 sm:min-w-[184px]">
+                                {day.hasBreak && day.isOpen ? (
+                                    <>
+                                        <input
+                                            type="text"
+                                            value={day.breakHours[0]}
+                                            onChange={(e) => setBreakHour(dayIndex, 0, e.target.value)}
+                                            className={`w-[76px] shrink-0 rounded-[8px] border bg-gray-50 px-2 py-1.5 text-sm sm:w-20 ${isOpeningHourValueInvalid(day.breakHours[0]) ? 'border-[#EB5757] ring-1 ring-[#EB5757]/30' : 'border-[#E8E8E8]'}`}
+                                        />
+                                        <span className="shrink-0 text-[#9CA3AF]">-</span>
+                                        <input
+                                            type="text"
+                                            value={day.breakHours[1]}
+                                            onChange={(e) => setBreakHour(dayIndex, 1, e.target.value)}
+                                            className={`w-[76px] shrink-0 rounded-[8px] border bg-gray-50 px-2 py-1.5 text-sm sm:w-24 ${isOpeningHourValueInvalid(day.breakHours[1]) ? 'border-[#EB5757] ring-1 ring-[#EB5757]/30' : 'border-[#E8E8E8]'}`}
+                                        />
+                                    </>
+                                ) : null}
                             </div>
                         </div>
                     ))}

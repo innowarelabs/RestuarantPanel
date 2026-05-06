@@ -206,3 +206,40 @@ export function buildSalesReportPdf(data) {
 
     return doc;
 }
+
+/**
+ * Build a client-side sales PDF from the Sales Reports page state (for upload / email flows).
+ * @param {{
+ *   reportData: object | null,
+ *   salesTrendRows: Array<{ label?: string, date?: string, value?: number, orders?: number }>,
+ *   breakdownDailyRows: unknown[],
+ *   salesTrendDateRangeLabel?: string,
+ *   breakdownDateRangeLabel?: string,
+ * }} params
+ */
+export function createSalesReportPdfFromPageState({
+    reportData,
+    salesTrendRows,
+    breakdownDailyRows,
+    salesTrendDateRangeLabel,
+    breakdownDateRangeLabel,
+}) {
+    const pdfData = {
+        restaurant_name:
+            reportData && typeof reportData.restaurant_name === 'string' ? reportData.restaurant_name : '',
+        date_range_label:
+            (reportData && typeof reportData.date_range_label === 'string' && reportData.date_range_label) ||
+            (typeof salesTrendDateRangeLabel === 'string' ? salesTrendDateRangeLabel : '') ||
+            (typeof breakdownDateRangeLabel === 'string' ? breakdownDateRangeLabel : '') ||
+            '',
+        stats: reportData?.stats ?? null,
+        sales_trend: (salesTrendRows || []).map((r) => ({
+            label: r.label,
+            date: r.date,
+            sales: r.value,
+            orders: r.orders,
+        })),
+        daily_breakdown: Array.isArray(breakdownDailyRows) ? breakdownDailyRows : [],
+    };
+    return buildSalesReportPdf(pdfData);
+}

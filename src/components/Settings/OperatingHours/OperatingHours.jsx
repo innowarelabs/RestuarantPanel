@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 
 import WeeklyHoursEditor from '../../WeeklyHoursEditor';
 import AddSpecialDayModal from './AddSpecialDayModal';
+import DeleteSpecialDayModal from './DeleteSpecialDayModal';
 import {
     daysToStep2OpeningHours,
     defaultDaysUi,
@@ -60,6 +61,115 @@ const normalizeSpecialDayRow = (row) => {
     };
 };
 
+const OperatingHoursWeeklySkeleton = () => (
+    <div
+        className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar"
+        role="status"
+        aria-label="Loading weekly hours"
+    >
+        <div className="space-y-0">
+            {Array.from({ length: 7 }).map((_, i) => (
+                <div
+                    key={`week-skel-${i}`}
+                    className="flex min-w-[660px] flex-nowrap items-center gap-x-2 border-b border-[#F3F4F6] py-4 last:border-0 sm:gap-x-3"
+                >
+                    <div className="flex shrink-0 items-center gap-[10px]">
+                        <div className="h-4 w-[72px] animate-pulse rounded bg-[#E8E8E8] sm:w-[80px]" />
+                        <div className="h-6 w-11 shrink-0 animate-pulse rounded-full bg-[#E8E8E8]" />
+                    </div>
+                    <div className="flex h-[34px] w-[212px] shrink-0 items-center gap-2 sm:w-[228px]">
+                        <div className="h-8 w-[76px] animate-pulse rounded-[8px] bg-[#E8E8E8] sm:w-20" />
+                        <div className="h-8 w-[76px] animate-pulse rounded-[8px] bg-[#E8E8E8] sm:w-24" />
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                        <div className="h-6 w-11 shrink-0 animate-pulse rounded-full bg-[#E8E8E8]" />
+                        <div className="h-4 w-[72px] animate-pulse rounded bg-[#E8E8E8] sm:w-[76px]" />
+                    </div>
+                    <div className="flex min-w-[168px] shrink-0 items-center gap-2 sm:min-w-[184px]">
+                        <div className="h-8 w-[76px] animate-pulse rounded-[8px] bg-[#F3F4F6] sm:w-20" />
+                        <div className="h-8 w-[76px] animate-pulse rounded-[8px] bg-[#F3F4F6] sm:w-24" />
+                    </div>
+                </div>
+            ))}
+        </div>
+    </div>
+);
+
+const OperatingHoursSpecialSkeleton = () => (
+    <div className="bg-white rounded-[12px] border border-[#E8E8E8] p-5" role="status" aria-label="Loading special holidays">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="space-y-2">
+                <div className="h-6 w-[180px] animate-pulse rounded bg-[#E8E8E8]" />
+                <div className="h-3 w-[min(100%,320px)] max-w-md animate-pulse rounded bg-[#F3F4F6]" />
+            </div>
+            <div className="h-10 w-[160px] animate-pulse rounded-[8px] bg-[#E8E8E8]" />
+        </div>
+        <ul className="space-y-3">
+            {[0, 1, 2].map((i) => (
+                <li
+                    key={`spec-skel-${i}`}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-[#F3F4F6] bg-[#FAFAFA] px-4 py-3"
+                >
+                    <div className="min-w-0 flex-1 space-y-2">
+                        <div className="h-4 w-[120px] animate-pulse rounded bg-[#E8E8E8]" />
+                        <div className="h-3 w-[min(100%,260px)] animate-pulse rounded bg-[#F3F4F6]" />
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                        <div className="h-9 w-9 animate-pulse rounded-[8px] bg-[#E8E8E8]" />
+                        <div className="h-9 w-9 animate-pulse rounded-[8px] bg-[#E8E8E8]" />
+                    </div>
+                </li>
+            ))}
+        </ul>
+    </div>
+);
+
+/** GET /api/v1/restaurants/{id} returns `opening_hours`, `special_days`, and/or nested `business_hours.{opening_hours,special_days}`. */
+const parseRestaurantOperatingFromDetail = (detail) => {
+    let merged = mergeOpeningHours(null);
+    let loadedSpecial = [];
+
+    if (!detail || typeof detail !== 'object') {
+        return { merged, loadedSpecial };
+    }
+
+    const rootOh = detail.opening_hours;
+    const hasRootOh = rootOh && typeof rootOh === 'object';
+
+    if (hasRootOh) {
+        merged = mergeOpeningHours(rootOh);
+    }
+
+    const bh = detail.business_hours;
+
+    if (!hasRootOh && typeof bh === 'string' && bh.trim()) {
+        try {
+            const parsed = JSON.parse(bh);
+            if (parsed?.opening_hours && typeof parsed.opening_hours === 'object') {
+                merged = mergeOpeningHours(parsed.opening_hours);
+            } else if (parsed && typeof parsed === 'object') {
+                merged = mergeOpeningHours(parsed);
+            }
+        } catch {
+            /* ignore */
+        }
+    } else if (!hasRootOh && bh && typeof bh === 'object') {
+        if (bh.opening_hours && typeof bh.opening_hours === 'object') {
+            merged = mergeOpeningHours(bh.opening_hours);
+        } else {
+            merged = mergeOpeningHours(bh);
+        }
+    }
+
+    if (Array.isArray(detail.special_days)) {
+        loadedSpecial = detail.special_days.map(normalizeSpecialDayRow).filter(Boolean);
+    } else if (bh && typeof bh === 'object' && Array.isArray(bh.special_days)) {
+        loadedSpecial = bh.special_days.map(normalizeSpecialDayRow).filter(Boolean);
+    }
+
+    return { merged, loadedSpecial };
+};
+
 const OperatingHours = () => {
     const accessToken = useSelector((state) => state.auth.accessToken);
     const authUser = useSelector((state) => state.auth.user);
@@ -69,9 +179,12 @@ const OperatingHours = () => {
     const [specialDays, setSpecialDays] = useState([]);
     const [specialModalOpen, setSpecialModalOpen] = useState(false);
     const [editingSpecialDay, setEditingSpecialDay] = useState(null);
+    const [specialDayDeleteTarget, setSpecialDayDeleteTarget] = useState(null);
+    const [deleteConfirmPending, setDeleteConfirmPending] = useState(false);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState('');
-    const [saving, setSaving] = useState(false);
+    const [savingWeekly, setSavingWeekly] = useState(false);
+    const [savingSpecial, setSavingSpecial] = useState(false);
     const [saveErrors, setSaveErrors] = useState([]);
 
     const openingHoursValid = days.every((day) => {
@@ -157,43 +270,33 @@ const OperatingHours = () => {
                     }
                 }
 
-                if (!hoursSource) {
-                    const detailUrl = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/${encodeURIComponent(resolvedId)}`;
-                    const resDetail = await fetch(detailUrl, {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            Authorization: `Bearer ${accessToken}`,
-                        },
-                    });
-                    const ctDetail = resDetail.headers.get('content-type');
-                    const rawDetail = ctDetail?.includes('application/json')
-                        ? await resDetail.json()
-                        : await resDetail.text();
+                const detailUrl = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/${encodeURIComponent(resolvedId)}`;
+                const resDetail = await fetch(detailUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${accessToken}`,
+                    },
+                });
+                const ctDetail = resDetail.headers.get('content-type');
+                const rawDetail = ctDetail?.includes('application/json')
+                    ? await resDetail.json()
+                    : await resDetail.text();
 
-                    if (!resDetail.ok) {
-                        const msg =
-                            typeof rawDetail === 'object' && rawDetail?.message
-                                ? rawDetail.message
-                                : typeof rawDetail === 'string'
-                                  ? rawDetail
-                                  : 'Failed to load restaurant';
-                        setLoadError(msg);
-                        return;
-                    }
-
+                if (resDetail.ok) {
                     const detail = extractPayload(rawDetail);
-                    const bh = detail?.business_hours;
-                    if (typeof bh === 'string' && bh.trim()) {
-                        try {
-                            const parsed = JSON.parse(bh);
-                            if (parsed && typeof parsed === 'object') merged = mergeOpeningHours(parsed);
-                        } catch {
-                            merged = mergeOpeningHours(null);
-                        }
-                    } else if (bh && typeof bh === 'object') {
-                        merged = mergeOpeningHours(bh);
-                    }
+                    const parsed = parseRestaurantOperatingFromDetail(detail);
+                    merged = parsed.merged;
+                    loadedSpecial = parsed.loadedSpecial;
+                } else if (!hoursSource) {
+                    const msg =
+                        typeof rawDetail === 'object' && rawDetail?.message
+                            ? rawDetail.message
+                            : typeof rawDetail === 'string'
+                              ? rawDetail
+                              : 'Failed to load restaurant';
+                    setLoadError(msg);
+                    return;
                 }
 
                 setDays(openingHoursRecordToDays(merged));
@@ -219,12 +322,20 @@ const OperatingHours = () => {
             if (typeof bh === 'string' && bh.trim()) {
                 try {
                     const parsed = JSON.parse(bh);
-                    if (parsed && typeof parsed === 'object') openingHoursObj = parsed;
+                    if (parsed?.opening_hours && typeof parsed.opening_hours === 'object') {
+                        openingHoursObj = parsed.opening_hours;
+                    } else if (parsed && typeof parsed === 'object') {
+                        openingHoursObj = parsed;
+                    }
                 } catch {
                     /* ignore */
                 }
             } else if (bh && typeof bh === 'object') {
-                openingHoursObj = bh;
+                if (bh.opening_hours && typeof bh.opening_hours === 'object') {
+                    openingHoursObj = bh.opening_hours;
+                } else {
+                    openingHoursObj = bh;
+                }
             }
         }
         if (openingHoursObj) {
@@ -232,22 +343,29 @@ const OperatingHours = () => {
         }
         if (Array.isArray(payload.special_days)) {
             setSpecialDays(payload.special_days.map(normalizeSpecialDayRow).filter(Boolean));
+        } else if (
+            payload.business_hours &&
+            typeof payload.business_hours === 'object' &&
+            Array.isArray(payload.business_hours.special_days)
+        ) {
+            setSpecialDays(payload.business_hours.special_days.map(normalizeSpecialDayRow).filter(Boolean));
         }
     };
 
-    const handleSave = async () => {
-        if (!openingHoursValid || saving || !restaurantId || !accessToken) return;
-        setSaving(true);
+    const persistRestaurantHours = async (opening_hours, specialDaysPayload, successMessage) => {
+        if (!restaurantId || !accessToken) {
+            setSaveErrors(['Sign in required']);
+            return false;
+        }
         setSaveErrors([]);
         try {
             const baseUrl = import.meta.env.VITE_BACKEND_URL;
             if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
 
-            const opening_hours = daysToStep2OpeningHours(days);
             const putUrl = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/${encodeURIComponent(restaurantId)}`;
             const body = {
                 opening_hours,
-                special_days: Array.isArray(specialDays) ? specialDays : [],
+                special_days: Array.isArray(specialDaysPayload) ? specialDaysPayload : [],
             };
 
             const res = await fetch(putUrl, {
@@ -276,7 +394,7 @@ const OperatingHours = () => {
                                     : 'Update failed',
                           ],
                 );
-                return;
+                return false;
             }
 
             if (data && typeof data === 'object' && typeof data.code === 'string' && !isSuccessCode(data.code)) {
@@ -285,15 +403,26 @@ const OperatingHours = () => {
                         ? data.message.trim()
                         : data.code.trim() || 'Update failed',
                 ]);
-                return;
+                return false;
             }
 
-            toast.success('Operating hours saved');
+            toast.success(successMessage);
             applySaveResponsePayload(extractPayload(data));
+            return true;
         } catch (e) {
             setSaveErrors([e?.message || 'Update failed']);
+            return false;
+        }
+    };
+
+    const saveWeeklyHours = async () => {
+        if (!openingHoursValid || savingWeekly || savingSpecial || !restaurantId || !accessToken) return;
+        setSavingWeekly(true);
+        try {
+            const opening_hours = daysToStep2OpeningHours(days);
+            await persistRestaurantHours(opening_hours, specialDays, 'Weekly hours saved');
         } finally {
-            setSaving(false);
+            setSavingWeekly(false);
         }
     };
 
@@ -312,20 +441,55 @@ const OperatingHours = () => {
         setEditingSpecialDay(null);
     };
 
-    const handleSpecialSave = (row) => {
-        setSpecialDays((prev) => {
-            const idx = prev.findIndex((p) => p.id === row.id);
-            if (idx >= 0) {
-                const next = [...prev];
-                next[idx] = row;
-                return next;
-            }
-            return [...prev, row];
-        });
+    const handleSpecialSave = async (row) => {
+        const idx = specialDays.findIndex((p) => p.id === row.id);
+        const nextSpecial =
+            idx >= 0 ? specialDays.map((p) => (p.id === row.id ? row : p)) : [...specialDays, row];
+        const prevSpecial = specialDays;
+        setSpecialDays(nextSpecial);
+        setSavingSpecial(true);
+        setSaveErrors([]);
+        try {
+            const ok = await persistRestaurantHours(
+                daysToStep2OpeningHours(days),
+                nextSpecial,
+                idx >= 0 ? 'Special day updated' : 'Special day added'
+            );
+            if (!ok) setSpecialDays(prevSpecial);
+            return ok;
+        } finally {
+            setSavingSpecial(false);
+        }
     };
 
-    const deleteSpecialDay = (id) => {
-        setSpecialDays((prev) => prev.filter((p) => p.id !== id));
+    const deleteSpecialDay = async (id) => {
+        const prevSpecial = specialDays;
+        const nextSpecial = specialDays.filter((p) => p.id !== id);
+        setSpecialDays(nextSpecial);
+        setSavingSpecial(true);
+        setSaveErrors([]);
+        try {
+            const ok = await persistRestaurantHours(
+                daysToStep2OpeningHours(days),
+                nextSpecial,
+                'Special day removed'
+            );
+            if (!ok) setSpecialDays(prevSpecial);
+            return ok;
+        } finally {
+            setSavingSpecial(false);
+        }
+    };
+
+    const handleConfirmDeleteSpecialDay = async () => {
+        if (!specialDayDeleteTarget?.id) return;
+        setDeleteConfirmPending(true);
+        try {
+            const ok = await deleteSpecialDay(specialDayDeleteTarget.id);
+            if (ok) setSpecialDayDeleteTarget(null);
+        } finally {
+            setDeleteConfirmPending(false);
+        }
     };
 
     return (
@@ -335,12 +499,37 @@ const OperatingHours = () => {
                 <p className="text-[#6B6B6B] text-[14px]">Set your restaurant&apos;s opening hours and special days</p>
             </div>
 
+            {!!saveErrors.length && (
+                <div className="bg-[#F751511F] rounded-[12px] py-[10px] px-[12px]">
+                    <div className="flex items-start gap-2">
+                        <AlertCircle size={18} className="text-[#EB5757] mt-[2px]" />
+                        <div className="space-y-1">
+                            {saveErrors.map((line, idx) => (
+                                <p key={idx} className="text-[12px] text-[#47464A]">
+                                    {line}
+                                </p>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="bg-white rounded-[12px] border border-[#E8E8E8] p-5">
                 <h3 className="mb-4 font-sans text-[18px] font-bold leading-[21.6px] tracking-normal text-[#0F1724]">
                     Weekly Hours
                 </h3>
 
-                {loading && <p className="text-[14px] text-[#6B6B6B]">Loading…</p>}
+                {loading && (
+                    <>
+                        <OperatingHoursWeeklySkeleton />
+                        <div className="mt-6 flex justify-end border-t border-[#F3F4F6] pt-5">
+                            <div
+                                className="h-10 w-[148px] animate-pulse rounded-[8px] bg-[#E8E8E8]"
+                                aria-hidden
+                            />
+                        </div>
+                    </>
+                )}
                 {!loading && loadError && (
                     <div className="rounded-lg border border-[#F7515133] bg-[#F7515114] px-3 py-2 text-[13px] text-[#47464A]">{loadError}</div>
                 )}
@@ -348,24 +537,40 @@ const OperatingHours = () => {
                 {!loading && !loadError && (
                     <>
                         <WeeklyHoursEditor days={days} setDays={setDays} />
+                        <div className="mt-6 flex justify-end border-t border-[#F3F4F6] pt-5">
+                            <button
+                                type="button"
+                                disabled={!openingHoursValid || savingWeekly || savingSpecial || !restaurantId || !accessToken}
+                                onClick={() => void saveWeeklyHours()}
+                                className="inline-flex items-center justify-center gap-2 rounded-[8px] bg-primary px-6 py-2.5 text-[14px] font-[600] text-white shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                <Save className="h-4 w-4 shrink-0" aria-hidden />
+                                {savingWeekly ? 'Saving…' : 'Save Hours'}
+                            </button>
+                        </div>
                     </>
                 )}
             </div>
+
+            {loading && <OperatingHoursSpecialSkeleton />}
 
             {!loading && !loadError && (
                 <div className="bg-white rounded-[12px] border border-[#E8E8E8] p-5">
                     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                         <div>
                             <h3 className="font-sans text-[18px] font-bold leading-[21.6px] text-[#0F1724]">Special holidays</h3>
-                            <p className="text-[13px] text-[#6B6B6B] mt-1">Overrides for specific dates. Saved via your restaurant profile (same request as weekly hours).</p>
+                            <p className="text-[13px] text-[#6B6B6B] mt-1">
+                                Overrides for specific dates. Changes save when you add, edit, or remove a day.
+                            </p>
                         </div>
                         <button
                             type="button"
+                            disabled={savingSpecial || savingWeekly || !restaurantId || !accessToken}
                             onClick={openAddSpecial}
-                            className="inline-flex items-center gap-2 rounded-[8px] border border-[#E8E8E8] bg-white px-4 py-2 text-[14px] font-[500] text-[#1A1A1A] hover:bg-[#F9FAFB]"
+                            className="inline-flex items-center gap-2 rounded-[8px] bg-primary px-4 py-2.5 text-[14px] font-[600] text-white shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                            <Plus className="h-4 w-4" />
-                            Add day
+                            <Plus className="h-4 w-4 shrink-0" aria-hidden />
+                            Add Special Day
                         </button>
                     </div>
 
@@ -394,16 +599,23 @@ const OperatingHours = () => {
                                     <div className="flex items-center gap-2">
                                         <button
                                             type="button"
+                                            disabled={savingSpecial}
                                             onClick={() => openEditSpecial(row)}
-                                            className="inline-flex h-9 w-9 items-center justify-center rounded-[8px] border border-[#E8E8E8] bg-white text-[#374151] hover:bg-[#F3F4F6]"
+                                            className="inline-flex h-9 w-9 items-center justify-center rounded-[8px] border border-[#E8E8E8] bg-white text-[#374151] hover:bg-[#F3F4F6] disabled:opacity-50"
                                             aria-label="Edit special day"
                                         >
                                             <Pencil className="h-4 w-4" />
                                         </button>
                                         <button
                                             type="button"
-                                            onClick={() => deleteSpecialDay(row.id)}
-                                            className="inline-flex h-9 w-9 items-center justify-center rounded-[8px] border border-[#F7515133] bg-white text-[#EB5757] hover:bg-[#FEF2F2]"
+                                            disabled={savingSpecial}
+                                            onClick={() =>
+                                                setSpecialDayDeleteTarget({
+                                                    id: row.id,
+                                                    date: row.date,
+                                                })
+                                            }
+                                            className="inline-flex h-9 w-9 items-center justify-center rounded-[8px] border border-[#F7515133] bg-white text-[#EB5757] hover:bg-[#FEF2F2] disabled:opacity-50"
                                             aria-label="Remove special day"
                                         >
                                             <Trash2 className="h-4 w-4" />
@@ -416,41 +628,21 @@ const OperatingHours = () => {
                 </div>
             )}
 
-            {!loading && !loadError && (
-                <div className="space-y-4">
-                    {!!saveErrors.length && (
-                        <div className="bg-[#F751511F] rounded-[12px] py-[10px] px-[12px]">
-                            <div className="flex items-start gap-2">
-                                <AlertCircle size={18} className="text-[#EB5757] mt-[2px]" />
-                                <div className="space-y-1">
-                                    {saveErrors.map((line, idx) => (
-                                        <p key={idx} className="text-[12px] text-[#47464A]">
-                                            {line}
-                                        </p>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                    <div className="flex justify-end">
-                        <button
-                            type="button"
-                            disabled={!openingHoursValid || saving || !restaurantId}
-                            onClick={handleSave}
-                            className="flex items-center gap-2 bg-[#DD2F26] text-white text-[14px] px-6 py-2.5 rounded-[8px] font-[500] hover:bg-[#C52820] transition disabled:opacity-50"
-                        >
-                            <Save className="w-4 h-4" />
-                            {saving ? 'Saving…' : 'Save operating hours'}
-                        </button>
-                    </div>
-                </div>
-            )}
-
             <AddSpecialDayModal
                 isOpen={specialModalOpen}
                 onClose={handleSpecialModalClose}
                 onSave={handleSpecialSave}
                 initial={editingSpecialDay}
+            />
+
+            <DeleteSpecialDayModal
+                isOpen={!!specialDayDeleteTarget}
+                onClose={() => {
+                    if (!deleteConfirmPending) setSpecialDayDeleteTarget(null);
+                }}
+                dateLabel={specialDayDeleteTarget?.date ?? ''}
+                pending={deleteConfirmPending}
+                onConfirm={handleConfirmDeleteSpecialDay}
             />
         </div>
     );

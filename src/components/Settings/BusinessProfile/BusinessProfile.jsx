@@ -1,12 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AlertCircle, Image, Save, Upload } from 'lucide-react';
-import QRCode from 'qrcode';
 import toast from 'react-hot-toast';
 
 import { setRestaurantName } from '../../../redux/store';
-import OTPInput from '../../../elements/OTPInput';
-import NotificationToggle from '../../../pages/OnboardingStep/NotificationToggle';
 
 const WEBSITE_HEADER_REQUIRED_PX = { width: 1440, height: 495 };
 const WEBSITE_FOOTER_LEFT_REQUIRED_PX = { width: 604, height: 425 };
@@ -84,7 +81,7 @@ const isErrorPayload = (data) => {
 const isSuccessCode = (code) => {
     if (typeof code !== 'string') return true;
     const normalized = code.trim().toUpperCase();
-    return normalized.endsWith('_200') || normalized.endsWith('_201');
+    return normalized.endsWith('_200') || normalized.endsWith('_201') || normalized.endsWith('_202');
 };
 
 const getRestaurantIdFromUser = (user) => {
@@ -124,7 +121,6 @@ const BusinessProfile = () => {
     const [email, setEmail] = useState('');
     const [contact, setContact] = useState('');
     const [companyLogoUrl, setCompanyLogoUrl] = useState('');
-    const [is2faEnabled, setIs2faEnabled] = useState(false);
     const [ownerFullNameRaw, setOwnerFullNameRaw] = useState(null);
 
     const [companyLocation, setCompanyLocation] = useState('');
@@ -166,13 +162,6 @@ const BusinessProfile = () => {
     const [savingOperational, setSavingOperational] = useState(false);
     const [identityErrors, setIdentityErrors] = useState([]);
     const [operationalErrors, setOperationalErrors] = useState([]);
-
-    const [is2FAModalOpen, setIs2FAModalOpen] = useState(false);
-    const [setupOtp, setSetupOtp] = useState(['', '', '', '', '', '']);
-    const [setupQrCodeUrl, setSetupQrCodeUrl] = useState(null);
-    const [setupLoadingQR, setSetupLoadingQR] = useState(false);
-    const [setupLoading, setSetupLoading] = useState(false);
-    const [setupError, setSetupError] = useState('');
 
     const companyLogoPreviewUrl = brandingFiles.companyLogoPreviewUrl || normalizeUrl(companyLogoUrl);
     const websiteHeaderPreviewUrl = brandingFiles.websiteHeaderPreviewUrl || normalizeUrl(websiteHeaderUrl);
@@ -323,13 +312,6 @@ const BusinessProfile = () => {
         if (typeof r.owner_full_name === 'string') setOwnerFullNameRaw(r.owner_full_name);
         else if (r.owner_full_name === null) setOwnerFullNameRaw(null);
 
-        const owner2fa = r.owner && typeof r.owner === 'object' ? r.owner.is_2fa_enabled : undefined;
-        if (typeof owner2fa === 'boolean') setIs2faEnabled(owner2fa);
-        else {
-            const nb = normalizeBool(r.is_2fa_enabled);
-            if (typeof nb === 'boolean') setIs2faEnabled(nb);
-        }
-
         if (typeof r.street_address === 'string') setAddress(r.street_address);
         if (typeof r.city === 'string') setCompanyLocation(r.city);
         if (typeof r.state === 'string') setStateRegion(r.state);
@@ -437,14 +419,6 @@ const BusinessProfile = () => {
                             typeof detail.phone_number === 'string' ? detail.phone_number.trim() : '';
                         const nextOwnerFn =
                             typeof detail.owner_full_name === 'string' ? detail.owner_full_name : null;
-                        const owner2fa =
-                            detail.owner && typeof detail.owner === 'object'
-                                ? detail.owner.is_2fa_enabled
-                                : undefined;
-                        const next2fa =
-                            typeof owner2fa === 'boolean'
-                                ? owner2fa
-                                : normalizeBool(detail.is_2fa_enabled);
 
                         prefilledStep1Ref.current = true;
                         initialStep1Ref.current = {
@@ -452,7 +426,6 @@ const BusinessProfile = () => {
                             companyLogoUrl: nextLogo,
                             ownerFullNameRaw: nextOwnerFn,
                             ownerPhone: nextPhone,
-                            is2faEnabled: typeof next2fa === 'boolean' ? next2fa : null,
                         };
 
                         if (nextCompanyName) dispatch(setRestaurantName(nextCompanyName));
@@ -467,7 +440,6 @@ const BusinessProfile = () => {
                     const nextCompanyName = typeof step1.company_name === 'string' ? step1.company_name : '';
                     const nextEmail = typeof step1.email === 'string' ? step1.email : '';
                     const nextCompanyLogoUrl = normalizeUrl(step1.company_logo);
-                    const next2FAEnabled = normalizeBool(step1.is_2fa_enabled);
 
                     setRestaurantId(nextRestaurantId);
                     setOwnerFullNameRaw(nextOwnerFullNameRaw);
@@ -475,7 +447,6 @@ const BusinessProfile = () => {
                     setEmail(nextEmail);
                     setContact(typeof nextOwnerPhoneRaw === 'string' ? nextOwnerPhoneRaw : '');
                     setCompanyLogoUrl(nextCompanyLogoUrl);
-                    if (typeof next2FAEnabled === 'boolean') setIs2faEnabled(next2FAEnabled);
 
                     if (!prefilledStep1Ref.current) {
                         prefilledStep1Ref.current = true;
@@ -484,7 +455,6 @@ const BusinessProfile = () => {
                             companyLogoUrl: nextCompanyLogoUrl,
                             ownerFullNameRaw: nextOwnerFullNameRaw,
                             ownerPhone: typeof nextOwnerPhoneRaw === 'string' ? nextOwnerPhoneRaw.trim() : '',
-                            is2faEnabled: typeof next2FAEnabled === 'boolean' ? next2FAEnabled : null,
                         };
                     }
 
@@ -520,146 +490,19 @@ const BusinessProfile = () => {
         load();
     }, [accessToken, dispatch, authUser]);
 
-    const getUserIdForAccountUpdate = async (baseUrl) => {
-        const fromState = typeof authUser?.id === 'string' ? authUser.id.trim() : '';
-        if (fromState) return fromState;
-        if (!accessToken) return '';
-        const meUrl = `${baseUrl.replace(/\/$/, '')}/api/v1/users/me`;
-        const res = await fetch(meUrl, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${accessToken}`,
-            },
-        });
-        const contentType = res.headers.get('content-type');
-        const data = contentType?.includes('application/json') ? await res.json() : await res.text();
-        if (!res.ok) return '';
-        const payload = extractPayload(data);
-        return typeof payload?.id === 'string' ? payload.id.trim() : '';
-    };
-
-    const updateAccount2FAFlag = async (baseUrl, enabled) => {
-        const userId = await getUserIdForAccountUpdate(baseUrl);
-        if (!userId) {
-            setIdentityErrors(['User ID not found for 2FA update']);
-            return false;
-        }
-        const patchUrl = `${baseUrl.replace(/\/$/, '')}/api/v1/users/${userId}`;
-        const res = await fetch(patchUrl, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-                ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-            },
-            body: JSON.stringify({ is_2fa_enabled: !!enabled }),
-        });
-        const contentType = res.headers.get('content-type');
-        const data = contentType?.includes('application/json') ? await res.json() : await res.text();
-        if (!res.ok) {
-            const lines = toValidationErrorLines(data);
-            setIdentityErrors(lines.length ? lines : [typeof data === 'string' && data.trim() ? data.trim() : 'Request failed']);
-            return false;
-        }
-        if (isErrorPayload(data)) {
-            setIdentityErrors([
-                typeof data.message === 'string' && data.message.trim()
-                    ? data.message.trim()
-                    : typeof data.code === 'string'
-                      ? data.code.trim()
-                      : 'Request failed',
-            ]);
-            return false;
-        }
-        return true;
-    };
-
-    const open2FAModal = async (baseUrl) => {
-        const userId = typeof authUser?.id === 'string' && authUser.id.trim() ? authUser.id.trim() : '';
-        setIs2FAModalOpen(true);
-        setSetupError('');
-        setSetupOtp(['', '', '', '', '', '']);
-        setSetupQrCodeUrl(null);
-        setSetupLoadingQR(true);
-        try {
-            const setupUrl = userId
-                ? `${baseUrl.replace(/\/$/, '')}/api/v1/2fa/setup/${userId}`
-                : `${baseUrl.replace(/\/$/, '')}/api/v1/2fa/setup`;
-            const res = await fetch(setupUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-                },
-            });
-            const contentType = res.headers.get('content-type');
-            const data = contentType?.includes('application/json') ? await res.json() : await res.text();
-            if (!res.ok) {
-                const message =
-                    typeof data === 'string' ? data : data?.message || data?.error || 'Failed to load QR code. Please try again.';
-                throw new Error(message);
-            }
-            const payload = extractPayload(data);
-            const otpAuthUrl = payload?.qr_code_url || payload?.qrCodeUrl || payload?.qr_code;
-            if (!otpAuthUrl) throw new Error('QR code URL not found in response');
-            const dataUrl = await QRCode.toDataURL(otpAuthUrl);
-            setSetupQrCodeUrl(dataUrl);
-        } catch (e) {
-            setSetupError(e?.message || 'Failed to load QR code. Please try again.');
-        } finally {
-            setSetupLoadingQR(false);
-        }
-    };
-
-    const handle2FAVerify = async () => {
-        if (setupLoading) return;
-        const baseUrl = import.meta.env.VITE_BACKEND_URL;
-        if (!baseUrl) {
-            setSetupError('VITE_BACKEND_URL is missing');
-            return;
-        }
-        const userId = typeof authUser?.id === 'string' && authUser.id.trim() ? authUser.id.trim() : '';
-        if (!userId) {
-            setSetupError('User not found. Please login again.');
-            return;
-        }
-        setSetupLoading(true);
-        setSetupError('');
-        try {
-            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/2fa/verify/${userId}`;
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-                },
-                body: JSON.stringify({ totp_code: setupOtp.join('') }),
-            });
-            const contentType = res.headers.get('content-type');
-            const data = contentType?.includes('application/json') ? await res.json() : await res.text();
-            if (!res.ok) {
-                const message = typeof data === 'string' ? data : data?.message || data?.error || 'Invalid Code';
-                throw new Error(message);
-            }
-            setIs2faEnabled(true);
-            setIs2FAModalOpen(false);
-            toast.success('Two-factor authentication enabled');
-        } catch (e) {
-            setSetupError(e?.message || 'Invalid Code');
-        } finally {
-            setSetupLoading(false);
-        }
-    };
-
     const handleSaveIdentity = async () => {
         if (!identityValid || savingIdentity) return;
+        if (!resolvedRestaurantId) {
+            setIdentityErrors(['Restaurant not found. Sign in again or finish onboarding.']);
+            return;
+        }
         setSavingIdentity(true);
         setIdentityErrors([]);
         try {
             const baseUrl = import.meta.env.VITE_BACKEND_URL;
             if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
 
-            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step1`;
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/${encodeURIComponent(resolvedRestaurantId)}`;
             const nextLogoUrl = companyLogoUrl?.trim() || (await uploadCompanyLogo(brandingFiles.companyLogo, baseUrl));
             if (!companyLogoUrl?.trim()) setCompanyLogoUrl(nextLogoUrl);
 
@@ -668,19 +511,15 @@ const BusinessProfile = () => {
                 companyLogoUrl: '',
                 ownerFullNameRaw: null,
                 ownerPhone: '',
-                is2faEnabled: null,
             };
             const nextCompanyName = companyName.trim();
             const nextCompanyLogoUrl = normalizeUrl(nextLogoUrl);
             const nextOwnerPhone = contact.trim();
-            const next2FAEnabled = !!is2faEnabled;
 
             const hasCompanyNameChanged = !baseline.companyName || nextCompanyName !== baseline.companyName;
             const hasLogoChanged = !baseline.companyLogoUrl || nextCompanyLogoUrl !== baseline.companyLogoUrl;
             const hasOwnerPhoneChanged = !baseline.ownerPhone || nextOwnerPhone !== baseline.ownerPhone;
-            const baseline2fa = typeof baseline.is2faEnabled === 'boolean' ? baseline.is2faEnabled : null;
-            const has2faChanged = baseline2fa === null ? true : next2FAEnabled !== baseline2fa;
-            const hasUpdates = hasCompanyNameChanged || hasLogoChanged || hasOwnerPhoneChanged || has2faChanged;
+            const hasUpdates = hasCompanyNameChanged || hasLogoChanged || hasOwnerPhoneChanged;
 
             if (!hasUpdates) {
                 toast.success('No identity changes to save');
@@ -695,11 +534,10 @@ const BusinessProfile = () => {
                       : null;
 
             const updates = {
-                company_name: nextCompanyName,
+                name: nextCompanyName,
                 owner_full_name: ownerFullNameToSend,
                 ...(hasLogoChanged ? { company_logo: nextCompanyLogoUrl } : {}),
-                ...(hasOwnerPhoneChanged ? { owner_phone: nextOwnerPhone } : {}),
-                ...(has2faChanged ? { is_2fa_enabled: next2FAEnabled } : {}),
+                ...(hasOwnerPhoneChanged ? { phone_number: nextOwnerPhone } : {}),
             };
 
             const res = await fetch(url, {
@@ -741,24 +579,14 @@ const BusinessProfile = () => {
                 return;
             }
 
-            const updated = await updateAccount2FAFlag(baseUrl, next2FAEnabled);
-            if (!updated) return;
-
             initialStep1Ref.current = {
                 companyName: nextCompanyName,
                 companyLogoUrl: nextCompanyLogoUrl,
                 ownerFullNameRaw,
                 ownerPhone: nextOwnerPhone,
-                is2faEnabled: next2FAEnabled,
             };
 
             dispatch(setRestaurantName(nextCompanyName));
-
-            if (has2faChanged && next2FAEnabled) {
-                await open2FAModal(baseUrl);
-                toast.success('Scan the QR code to finish enabling 2FA');
-                return;
-            }
 
             toast.success('Business identity saved');
         } catch (e) {
@@ -774,7 +602,7 @@ const BusinessProfile = () => {
 
         const rid = resolvedRestaurantId;
         if (!rid) {
-            setOperationalErrors(['Restaurant not found. Complete onboarding step 1 first.']);
+            setOperationalErrors(['Restaurant not found. Sign in again or finish onboarding.']);
             return false;
         }
 
@@ -789,7 +617,7 @@ const BusinessProfile = () => {
         setWebsiteFooterLeftUrl(footerLeftUrl);
         setWebsiteFooterRightUrl(footerRightUrl);
 
-        const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step2`;
+        const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/${encodeURIComponent(rid)}`;
         const res = await fetch(url, {
             method: 'PUT',
             headers: {
@@ -797,7 +625,6 @@ const BusinessProfile = () => {
                 ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
             },
             body: JSON.stringify({
-                restaurant_id: rid,
                 street_address: address,
                 city: companyLocation,
                 state: stateRegion || '',
@@ -810,7 +637,6 @@ const BusinessProfile = () => {
                 average_preparation_time: prepTime,
                 enable_delivery: !!enableDelivery,
                 enable_pickup: !!enablePickup,
-                goto: 'step3',
             }),
         });
 
@@ -883,7 +709,7 @@ const BusinessProfile = () => {
             <div>
                 <h2 className="text-[28px] font-bold text-[#1A1A1A]">Business Profile</h2>
                 <p className="text-[#6B6B6B] text-[14px]">
-                    Restaurant identity (step 1), then website and operations (step 2). Address fields are in the Business Address card below.
+                    Updates save to your restaurant profile via PUT (same pattern as Operating Hours). Address fields are in the Business Address card below.
                 </p>
             </div>
 
@@ -931,12 +757,6 @@ const BusinessProfile = () => {
                                 className="w-full px-4 py-2 bg-white text-[14px] border border-[#E5E7EB] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#DD2F26]/20 focus:border-[#DD2F26] transition"
                             />
                         </div>
-                        <NotificationToggle
-                            title="Enable two-factor authentication"
-                            desc="Extra security for your account (optional)"
-                            active={!!is2faEnabled}
-                            onClick={() => setIs2faEnabled((prev) => !prev)}
-                        />
                     </div>
 
                     <div>
@@ -1002,7 +822,7 @@ const BusinessProfile = () => {
                         Website &amp; operations
                     </h3>
                     <p className="text-[13px] text-[#6B7280] mb-6">
-                        Onboarding step 2 fields except address (use the Business Address card for location).
+                        Header/footer images, alternate phone, prep time, and delivery toggles (address lives in Business Address below).
                     </p>
 
                     <div className="space-y-4">
@@ -1165,7 +985,7 @@ const BusinessProfile = () => {
                     Business Address
                 </h3>
                 <p className="text-[13px] text-[#6B7280] mb-6">
-                    Onboarding step 2 location fields only. Updates use the same step 2 API together with your website and operations data above.
+                    Street and location fields. Saving address uses the same restaurant profile PUT as website &amp; operations above.
                 </p>
                 <div className="space-y-4">
                     <div>
@@ -1232,63 +1052,6 @@ const BusinessProfile = () => {
                     </button>
                 </div>
             </div>
-
-            {is2FAModalOpen && (
-                <div
-                    className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20"
-                    onClick={() => {
-                        if (setupLoading || setupLoadingQR) return;
-                        setIs2FAModalOpen(false);
-                    }}
-                >
-                    <div
-                        className="relative bg-white w-full max-w-[680px] rounded-2xl shadow-xl overflow-hidden flex flex-col border border-black/10"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="px-6 py-5 border-b border-gray-100 flex items-start justify-between shrink-0">
-                            <div>
-                                <h2 className="text-[20px] font-bold text-[#111827]">Set up two-factor authentication</h2>
-                                <p className="text-[13px] text-gray-500 mt-1">Scan the QR code and enter the 6-digit code.</p>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    if (setupLoading || setupLoadingQR) return;
-                                    setIs2FAModalOpen(false);
-                                }}
-                                className="p-2 hover:bg-gray-100 rounded-full text-gray-400"
-                            >
-                                ✕
-                            </button>
-                        </div>
-                        <div className="p-6 space-y-6">
-                            {setupError && (
-                                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                                    <p className="text-red-600 text-sm">{setupError}</p>
-                                </div>
-                            )}
-                            <div className="flex flex-col items-center gap-6">
-                                <div className="p-1 shadow-md bg-white rounded-2xl border border-gray-200">
-                                    {setupLoadingQR ? (
-                                        <div className="w-48 h-48 bg-gray-100 rounded-2xl flex items-center justify-center">
-                                            <span className="text-gray-500 text-sm">Loading QR…</span>
-                                        </div>
-                                    ) : setupQrCodeUrl ? (
-                                        <img src={setupQrCodeUrl} alt="2FA QR" className="w-48 h-48 rounded-2xl" />
-                                    ) : (
-                                        <div className="w-48 h-48 bg-gray-100 rounded-2xl flex items-center justify-center">
-                                            <span className="text-red-500 text-sm text-center px-2">Could not load QR</span>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="w-full max-w-[420px]">
-                                    <OTPInput otp={setupOtp} setOtp={setSetupOtp} onSubmit={handle2FAVerify} loading={setupLoading} error={setupError} />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

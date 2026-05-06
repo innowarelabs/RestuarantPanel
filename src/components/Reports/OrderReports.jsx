@@ -14,48 +14,51 @@ import {
 
 const CHART_COLORS = ['#DD2F26', '#4F46E5', '#F59E0B', '#94A3B8', '#EF4444', '#8B5CF6'];
 
-function recentOrderRowMatchesFilter(row, f) {
-    if (!f?.orderStatus?.all) {
-        const s = (row.rawStatus || row.status || '').toLowerCase();
-        const match =
-            (f.orderStatus.completed && s.includes('complet')) ||
-            (f.orderStatus.cancelled && s.includes('cancel')) ||
-            (f.orderStatus.refunded && s.includes('refund'));
-        if (!match) return false;
-    }
-    if (!f?.orderSource?.all) {
-        const src = (row.source || '').toLowerCase();
-        const match =
-            (f.orderSource.uberEats && (src.includes('uber') || /eats/i.test(row.source || ''))) ||
-            (f.orderSource.app && src.includes('app') && !src.includes('uber') && !src.includes('eats')) ||
-            (f.orderSource.deliveroo && src.includes('deliveroo')) ||
-            (f.orderSource.walkIn && (src.includes('walk') || src.includes('dine') || src.includes('in-store') || src.includes('counter')));
-        if (!match) return false;
-    }
-    if (!f?.payment?.all) {
-        const p = (row.rawPayment || '').toLowerCase();
-        if (p) {
-            const match =
-                (f.payment.card && p.includes('card')) ||
-                (f.payment.cash && p.includes('cash')) ||
-                (f.payment.contactless &&
-                    (p.includes('contactless') || p.includes('wallet') || p.includes('apple') || p.includes('google') || p.includes('tap')));
-            if (!match) return false;
-        }
-    }
-    return true;
+function formatSnakeStatusLabel(raw) {
+    if (!raw || typeof raw !== 'string') return '—';
+    const t = raw.replace(/_/g, ' ');
+    return t.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-const OrderReports = ({ onBack, reportData, loading, error, days, onApplyFilters, onExportPdf, onExportCsv, pdfExporting = false }) => {
+function statusBadgeClassFromRaw(rawLower) {
+    if (rawLower.includes('complet')) return 'bg-green-50 text-green-500';
+    if (rawLower.includes('cancel')) return 'bg-red-50 text-red-500';
+    if (rawLower.includes('refund')) return 'bg-orange-50 text-orange-600';
+    if (rawLower.includes('way') || rawLower.includes('ready') || rawLower.includes('pending'))
+        return 'bg-yellow-50 text-yellow-700';
+    return 'bg-gray-50 text-gray-500';
+}
+
+const OrderReports = ({
+    onBack,
+    reportData,
+    loading,
+    error,
+    days,
+    onApplyFilters,
+    onExportPdf,
+    onExportCsv,
+    pdfExporting = false,
+    onScheduleReportClick,
+    ordersBySourcePeriod = 'monthly',
+    onOrdersBySourcePeriodChange,
+    ordersBySourceData = null,
+    ordersBySourceLoading = false,
+    ordersBySourceError = '',
+    recentOrdersApiData = null,
+    recentOrdersLoading = false,
+    recentOrdersError = '',
+    recentOrdersFilterApplied,
+    onRecentOrdersFiltersApply,
+}) => {
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
     const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
     const [filterDraft, setFilterDraft] = useState(() => ({ ...DEFAULT_ORDER_REPORT_FILTERS }));
     const [recentOrdersFilterDraft, setRecentOrdersFilterDraft] = useState(() => ({
         ...RECENT_ORDERS_FILTER_DEFAULTS,
     }));
-    const [recentOrdersFilterApplied, setRecentOrdersFilterApplied] = useState(() => ({
-        ...RECENT_ORDERS_FILTER_DEFAULTS,
-    }));
+
+    const appliedRecentFilters = recentOrdersFilterApplied ?? RECENT_ORDERS_FILTER_DEFAULTS;
 
     useEffect(() => {
         // Sync date dropdown when parent refetches with new `days` (order type / payment stay local until Apply).
@@ -64,22 +67,24 @@ const OrderReports = ({ onBack, reportData, loading, error, days, onApplyFilters
     }, [days]);
 
     const pieData = useMemo(() => {
-        if (!reportData?.orders_by_source?.length) return [];
-        return reportData.orders_by_source.map((item, index) => ({
-            name: item.source,
-            value: item.percent,
+        const rows = ordersBySourceData?.orders_by_source;
+        if (!rows?.length) return [];
+        return rows.map((item, index) => ({
+            name: typeof item.source === 'string' && item.source.trim() ? item.source : '—',
+            value: Number(item.percent) || 0,
             color: CHART_COLORS[index % CHART_COLORS.length],
-            amount: `$${item.revenue?.toLocaleString() || 0}`
+            amount: `$${Number(item.revenue ?? 0).toLocaleString()}`,
         }));
-    }, [reportData]);
+    }, [ordersBySourceData]);
 
     const barData = useMemo(() => {
-        if (!reportData?.orders_by_source?.length) return [];
-        return reportData.orders_by_source.map(item => ({
-            name: item.source,
-            orders: item.order_count
+        const rows = ordersBySourceData?.orders_by_source;
+        if (!rows?.length) return [];
+        return rows.map((item) => ({
+            name: typeof item.source === 'string' && item.source.trim() ? item.source : '—',
+            orders: typeof item.order_count === 'number' ? item.order_count : Number(item.order_count) || 0,
         }));
-    }, [reportData]);
+    }, [ordersBySourceData]);
 
     const stats = useMemo(() => {
         const s = reportData?.stats || {};
@@ -93,36 +98,35 @@ const OrderReports = ({ onBack, reportData, loading, error, days, onApplyFilters
         ];
     }, [reportData]);
 
-    const recentOrders = useMemo(() => {
-        if (!reportData?.recent_orders?.length) return [];
-        return reportData.recent_orders.map((order) => ({
-            id: order.order_number,
-            customer: order.customer,
-            items: order.items_count,
-            amount: `$${order.amount?.toFixed(2) || '0.00'}`,
-            status: order.status?.charAt(0).toUpperCase() + order.status?.slice(1) || 'Unknown',
-            source: order.source,
-            prep: order.prep_time_min ? `${order.prep_time_min} min` : "--",
-            delivery: order.delivery_time_min ? `${order.delivery_time_min} min` : "--",
-            rawStatus: (order.status || '').toLowerCase(),
-            rawPayment: (order.payment_method != null
-                ? String(order.payment_method)
-                : order.payment != null
-                  ? String(order.payment)
-                  : ""
-            ).toLowerCase(),
-        }));
-    }, [reportData]);
-
-    const filteredRecentOrders = useMemo(() => {
-        return recentOrders.filter((row) => recentOrderRowMatchesFilter(row, recentOrdersFilterApplied));
-    }, [recentOrders, recentOrdersFilterApplied]);
+    const recentOrderTableRows = useMemo(() => {
+        const list = recentOrdersApiData?.recent_orders;
+        if (!Array.isArray(list) || list.length === 0) return [];
+        return list.map((order, idx) => {
+            const rawStatus = String(order.status || '').toLowerCase();
+            const idKey = order.order_id || order.order_number || `row-${idx}`;
+            return {
+                key: idKey,
+                id: order.order_number || order.order_id || '—',
+                customer: order.customer ?? '—',
+                items: order.items_count ?? '—',
+                amount: `$${Number(order.amount ?? 0).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                })}`,
+                statusLabel: formatSnakeStatusLabel(order.status),
+                rawStatus,
+                source: order.source ?? '—',
+                prep: order.prep_time_min != null ? `${order.prep_time_min} min` : '—',
+                delivery: order.delivery_time_min != null ? `${order.delivery_time_min} min` : '—',
+            };
+        });
+    }, [recentOrdersApiData]);
 
     const openRecentOrderFilters = () => {
         setRecentOrdersFilterDraft({
-            orderStatus: { ...recentOrdersFilterApplied.orderStatus },
-            orderSource: { ...recentOrdersFilterApplied.orderSource },
-            payment: { ...recentOrdersFilterApplied.payment },
+            orderStatus: { ...appliedRecentFilters.orderStatus },
+            orderSource: { ...appliedRecentFilters.orderSource },
+            payment: { ...appliedRecentFilters.payment },
         });
         setIsFilterModalOpen(true);
     };
@@ -221,22 +225,49 @@ const OrderReports = ({ onBack, reportData, loading, error, days, onApplyFilters
                 ))}
             </div>
 
-            {/* Charts Section */}
+            {/* Charts Section — data from GET .../orders-by-source?period= */}
             <div className="mb-8">
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="font-sans text-[18px] font-bold leading-[21.6px] tracking-normal text-[#0F1724]">
-                        Orders by Source
-                    </h2>
-                    <div className="flex p-1 bg-gray-100 rounded-[8px]">
-                        <button className="px-4 py-2 bg-primary text-white text-xs  rounded-[8px] shadow-sm">Daily</button>
-                        <button className="px-4 py-1.5 text-gray-500 text-xs  hover:text-gray-700">Weekly</button>
-                        <button className="px-4 py-1.5 text-gray-500 text-xs  hover:text-gray-700">Monthly</button>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-6">
+                    <div className="min-w-0">
+                        <h2 className="font-sans text-[18px] font-bold leading-[21.6px] tracking-normal text-[#0F1724]">
+                            Orders by Source
+                        </h2>
+                        {ordersBySourceData?.date_range_label ? (
+                            <p className="mt-1 text-[13px] text-[#6B7280]">{ordersBySourceData.date_range_label}</p>
+                        ) : null}
+                    </div>
+                    <div className="flex shrink-0 flex-wrap gap-1 rounded-[8px] bg-gray-100 p-1">
+                        {(['daily', 'weekly', 'monthly']).map((p) => {
+                            const active = ordersBySourcePeriod === p;
+                            const label = p === 'daily' ? 'Daily' : p === 'weekly' ? 'Weekly' : 'Monthly';
+                            return (
+                                <button
+                                    key={p}
+                                    type="button"
+                                    onClick={() => onOrdersBySourcePeriodChange?.(p)}
+                                    disabled={ordersBySourceLoading}
+                                    className={`rounded-[8px] px-4 py-2 text-xs font-medium transition-colors disabled:opacity-60 ${
+                                        active
+                                            ? 'bg-primary text-white shadow-sm'
+                                            : 'text-gray-500 hover:text-gray-700'
+                                    }`}
+                                >
+                                    {label}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 
+                {ordersBySourceError ? (
+                    <div className="mb-4 rounded-[10px] border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-900">
+                        {ordersBySourceError}
+                    </div>
+                ) : null}
+
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="bg-white rounded-[16px] border border-[#00000033] p-6 sm:p-8 shadow-sm min-h-[400px] flex flex-col md:flex-row items-center gap-8">
-                        {loading ? (
+                        {ordersBySourceLoading ? (
                             <div className="w-full h-[300px] flex items-center justify-center">
                                 <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
                             </div>
@@ -281,7 +312,7 @@ const OrderReports = ({ onBack, reportData, loading, error, days, onApplyFilters
                     </div>
 
                     <div className="bg-white rounded-[16px] border border-[#00000033] p-8 shadow-sm h-[400px]">
-                        {loading ? (
+                        {ordersBySourceLoading ? (
                             <div className="w-full h-full flex items-center justify-center">
                                 <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
                             </div>
@@ -304,16 +335,20 @@ const OrderReports = ({ onBack, reportData, loading, error, days, onApplyFilters
                 </div>
             </div>
 
-            {/* Recent Orders table */}
             <div className="mb-0 overflow-hidden h-[415px] rounded-[16px] border border-[#00000033] bg-[#FFFFFF] shadow-sm">
-                <div className="flex items-center justify-between gap-3 border-b border-[#E5E7EB] p-5 pb-3">
-                    <h2 className="min-w-0 font-sans text-[18px] font-bold leading-[21.6px] tracking-normal text-[#0F1724]">
-                        Recent Orders
-                    </h2>
+                <div className="flex flex-col gap-1 border-b border-[#E5E7EB] p-5 pb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                    <div className="min-w-0">
+                        <h2 className="min-w-0 font-sans text-[18px] font-bold leading-[21.6px] tracking-normal text-[#0F1724]">
+                            Recent Orders
+                        </h2>
+                        {recentOrdersApiData?.date_range_label ? (
+                            <p className="mt-1 text-[13px] text-[#6B7280]">{recentOrdersApiData.date_range_label}</p>
+                        ) : null}
+                    </div>
                     <button
                         type="button"
                         onClick={openRecentOrderFilters}
-                        className="box-border inline-flex h-[38.33px] min-w-[97.58px] shrink-0 items-center justify-center gap-2 rounded-lg border border-[#E8E8E8] bg-white pl-4 pr-3 text-center font-sans text-[14px] font-normal leading-[21px] tracking-[0] text-[#374151] transition hover:bg-gray-50"
+                        className="box-border inline-flex h-[38.33px] min-w-[97.58px] shrink-0 items-center justify-center gap-2 self-start rounded-lg border border-[#E8E8E8] bg-white pl-4 pr-3 text-center font-sans text-[14px] font-normal leading-[21px] tracking-[0] text-[#374151] transition hover:bg-gray-50 sm:self-center"
                     >
                         <Filter
                             className="h-4 w-4 shrink-0 text-[#374151]"
@@ -323,6 +358,11 @@ const OrderReports = ({ onBack, reportData, loading, error, days, onApplyFilters
                         Filters
                     </button>
                 </div>
+                {recentOrdersError ? (
+                    <div className="mx-5 mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-900">
+                        {recentOrdersError}
+                    </div>
+                ) : null}
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead>
@@ -338,7 +378,7 @@ const OrderReports = ({ onBack, reportData, loading, error, days, onApplyFilters
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
-                            {loading ? (
+                            {recentOrdersLoading ? (
                                 <tr>
                                     <td colSpan={8} className="px-6 py-12 text-center">
                                         <div className="flex items-center justify-center">
@@ -346,21 +386,18 @@ const OrderReports = ({ onBack, reportData, loading, error, days, onApplyFilters
                                         </div>
                                     </td>
                                 </tr>
-                            ) : filteredRecentOrders.length > 0 ? (
-                                filteredRecentOrders.map((order, idx) => (
-                                    <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
+                            ) : recentOrderTableRows.length > 0 ? (
+                                recentOrderTableRows.map((order) => (
+                                    <tr key={order.key} className="hover:bg-gray-50/50 transition-colors">
                                         <td className="px-6 py-4 text-[14px] font-[500] text-nowrap text-primary">{order.id}</td>
                                         <td className="px-6 py-4 text-[14px] font-[500] text-nowrap text-general-text">{order.customer}</td>
                                         <td className="px-6 py-4 text-[14px] font-[500] text-nowrap text-general-text text-center">{order.items}</td>
                                         <td className="px-6 py-4 text-[14px] font-[500] text-nowrap text-general-text">{order.amount}</td>
                                         <td className="px-6 py-4">
-                                            <span className={`px-3 py-1 rounded-[8px] text-[12px] font-[500] ${
-                                                order.status === 'Completed' ? 'bg-green-50 text-green-500' : 
-                                                order.status === 'Cancelled' ? 'bg-red-50 text-red-500' :
-                                                order.status === 'Pending' ? 'bg-yellow-50 text-yellow-600' :
-                                                'bg-gray-50 text-gray-500'
-                                            }`}>
-                                                {order.status}
+                                            <span
+                                                className={`px-3 py-1 rounded-[8px] text-[12px] font-[500] ${statusBadgeClassFromRaw(order.rawStatus)}`}
+                                            >
+                                                {order.statusLabel}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-[14px] font-[500] text-gray-500">{order.source}</td>
@@ -371,9 +408,7 @@ const OrderReports = ({ onBack, reportData, loading, error, days, onApplyFilters
                             ) : (
                                 <tr>
                                     <td colSpan={8} className="px-6 py-12 text-center text-gray-400">
-                                        {recentOrders.length > 0
-                                            ? 'No orders match the selected filters.'
-                                            : 'No orders found.'}
+                                        No orders found.
                                     </td>
                                 </tr>
                             )}
@@ -404,11 +439,17 @@ const OrderReports = ({ onBack, reportData, loading, error, days, onApplyFilters
                 </div>
                 <button
                     type="button"
-                    onClick={() => setIsScheduleModalOpen(true)}
+                    onClick={() => {
+                        if (typeof onScheduleReportClick === 'function') {
+                            onScheduleReportClick();
+                            return;
+                        }
+                        setIsScheduleModalOpen(true);
+                    }}
                     className="inline-flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 font-sans text-[14px] font-normal leading-[21px] text-white shadow-sm transition hover:bg-primary/90 sm:w-auto"
                 >
                     <Calendar className="h-4 w-4 shrink-0" strokeWidth={1.75} aria-hidden />
-                    Schedule Monthly Report
+                    Schedule Report
                 </button>
             </div>
 
@@ -421,18 +462,21 @@ const OrderReports = ({ onBack, reportData, loading, error, days, onApplyFilters
                     setRecentOrdersFilterDraft({ ...RECENT_ORDERS_FILTER_DEFAULTS })
                 }
                 onApply={() => {
-                    setRecentOrdersFilterApplied({
+                    onRecentOrdersFiltersApply?.({
                         orderStatus: { ...recentOrdersFilterDraft.orderStatus },
                         orderSource: { ...recentOrdersFilterDraft.orderSource },
                         payment: { ...recentOrdersFilterDraft.payment },
                     });
                     setIsFilterModalOpen(false);
                 }}
+                hideOrderSource
             />
-            <ScheduleReportModal
-                isOpen={isScheduleModalOpen}
-                onClose={() => setIsScheduleModalOpen(false)}
-            />
+            {typeof onScheduleReportClick !== 'function' && (
+                <ScheduleReportModal
+                    isOpen={isScheduleModalOpen}
+                    onClose={() => setIsScheduleModalOpen(false)}
+                />
+            )}
         </div>
     );
 };

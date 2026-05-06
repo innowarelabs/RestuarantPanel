@@ -1,12 +1,18 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
+import toast from 'react-hot-toast';
 import { ChevronLeft, Calendar, Download, Filter, X, Check } from 'lucide-react';
 import { Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import ScheduleReportModal from '../../components/Reports/ScheduleReportModal';
 import { ReportsFilterSelect } from '../../components/Reports/ReportsFilterSelect';
 import { DATE_RANGE_OPTIONS } from '../../components/Reports/reportsFilterConstants';
-import { buildSalesReportQuery, buildSalesReportBreakdownQuery, DEFAULT_SALES_FILTERS } from '../../utils/salesReportPdf';
+import {
+    buildSalesReportQuery,
+    buildSalesReportBreakdownQuery,
+    DEFAULT_SALES_FILTERS,
+    createSalesReportPdfFromPageState,
+} from '../../utils/salesReportPdf';
 
 const REPORTS_API_BASE = 'https://api.baaie.com';
 
@@ -44,6 +50,34 @@ function triggerCsvFileDownload(csvText, downloadName) {
         a.remove();
         URL.revokeObjectURL(blobUrl);
     }, 250);
+}
+
+/** Parse GET /api/v1/reports/schedule/monthly — flexible envelope + list/object shapes. */
+function extractSalesMonthlySchedule(json) {
+    if (!json || typeof json !== 'object') return null;
+    const inner = json.data !== undefined ? json.data : json;
+    let candidates = [];
+    if (Array.isArray(inner)) candidates = inner;
+    else if (Array.isArray(inner?.items)) candidates = inner.items;
+    else if (Array.isArray(inner?.schedules)) candidates = inner.schedules;
+    else if (inner && typeof inner === 'object' && inner.report_type) candidates = [inner];
+
+    const row =
+        candidates.find((s) => s && typeof s === 'object' && s.report_type === 'sales_report') ||
+        candidates.find((s) => s && typeof s === 'object') ||
+        null;
+    if (!row || typeof row !== 'object') return null;
+    return {
+        delivery_email: typeof row.delivery_email === 'string' ? row.delivery_email : '',
+        is_active: row.is_active !== false && row.is_active !== 'false',
+    };
+}
+
+function apiMessageFromBody(data) {
+    if (!data || typeof data !== 'object') return null;
+    if (typeof data.message === 'string' && data.message.trim()) return data.message.trim();
+    if (typeof data.error === 'string' && data.error.trim()) return data.error.trim();
+    return null;
 }
 
 function triggerPdfFileDownload(blob, downloadName) {
@@ -297,6 +331,11 @@ const SalesReportsPage = () => {
     const [breakdownLoading, setBreakdownLoading] = useState(false);
     const [breakdownError, setBreakdownError] = useState(null);
     const [scheduleReportOpen, setScheduleReportOpen] = useState(false);
+    const [scheduleEmail, setScheduleEmail] = useState('');
+    const [scheduleActive, setScheduleActive] = useState(true);
+    const [scheduleLoading, setScheduleLoading] = useState(false);
+    const [scheduleSaving, setScheduleSaving] = useState(false);
+    const [scheduleLoadError, setScheduleLoadError] = useState('');
     const accessToken = useSelector((state) => state.auth.accessToken);
     const user = useSelector((state) => state.auth.user);
 
@@ -310,6 +349,144 @@ const SalesReportsPage = () => {
         }
         return fromUser || fromStorage;
     }, [user]);
+
+    useEffect(() => {
+        if (!scheduleReportOpen || !accessToken) return;
+        let cancelled = false;
+        (async () => {
+            setScheduleLoading(true);
+            setScheduleLoadError('');
+            try {
+                const baseUrl = (import.meta.env.VITE_BACKEND_URL || REPORTS_API_BASE).replace(/\/$/, '');
+                const restaurantId = getRestaurantId();
+                const url = `${baseUrl}/api/v1/reports/schedule/monthly`;
+                const res = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                        ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
+                    },
+                });
+                const ct = res.headers.get('content-type') || '';
+                const data = ct.includes('application/json') ? await res.json() : null;
+                if (!res.ok) {
+                    const msg = apiMessageFromBody(data) || `Could not load schedule (${res.status})`;
+                    if (!cancelled) setScheduleLoadError(msg);
+                    return;
+                }
+                const extracted = extractSalesMonthlySchedule(data);
+                if (!cancelled && extracted) {
+                    setScheduleEmail(extracted.delivery_email);
+                    setScheduleActive(extracted.is_active);
+                }
+            } catch (e) {
+                if (!cancelled)
+                    setScheduleLoadError(typeof e?.message === 'string' ? e.message : 'Could not load schedule');
+            } finally {
+                if (!cancelled) setScheduleLoading(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [scheduleReportOpen, accessToken, getRestaurantId]);
+
+    const handleScheduleReport = useCallback(async () => {
+        const email = scheduleEmail.trim();
+        if (!email) {
+            toast.error('Enter a delivery email');
+            return;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            toast.error('Enter a valid email address');
+            return;
+        }
+        if (!reportData) {
+            toast.error('Load the sales report first');
+            return;
+        }
+        const baseUrl = (import.meta.env.VITE_BACKEND_URL || REPORTS_API_BASE).replace(/\/$/, '');
+        const restaurantId = getRestaurantId();
+        setScheduleSaving(true);
+        try {
+            const res = await fetch(`${baseUrl}/api/v1/reports/schedule/monthly`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
+                },
+                body: JSON.stringify({
+                    report_type: 'sales_report',
+                    delivery_email: email,
+                    is_active: scheduleActive,
+                }),
+            });
+            const ct = res.headers.get('content-type') || '';
+            const data = ct.includes('application/json') ? await res.json() : null;
+            if (!res.ok) {
+                toast.error(apiMessageFromBody(data) || `Could not save schedule (${res.status})`);
+                return;
+            }
+
+            const doc = createSalesReportPdfFromPageState({
+                reportData,
+                salesTrendRows,
+                breakdownDailyRows,
+                salesTrendDateRangeLabel,
+                breakdownDateRangeLabel,
+            });
+            const pdf_base64 = doc.output('datauristring');
+            const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+            const d = new Date();
+            const file_name = `sales-monthly-${months[d.getMonth()]}-${d.getFullYear()}.pdf`;
+
+            const resPdf = await fetch(`${baseUrl}/api/v1/reports/schedule/monthly/send-pdf`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
+                },
+                body: JSON.stringify({
+                    report_type: 'sales_report',
+                    pdf_base64,
+                    file_name,
+                }),
+            });
+            const ctPdf = resPdf.headers.get('content-type') || '';
+            const dataPdf = ctPdf.includes('application/json') ? await resPdf.json() : null;
+            if (!resPdf.ok) {
+                toast.error(
+                    apiMessageFromBody(dataPdf) ||
+                        'Schedule saved, but the PDF could not be sent. Try again or contact support.',
+                );
+                return;
+            }
+
+            const msg =
+                apiMessageFromBody(dataPdf) ||
+                apiMessageFromBody(data) ||
+                'Report scheduled and PDF sent';
+            toast.success(msg);
+            setScheduleReportOpen(false);
+        } catch (e) {
+            toast.error(typeof e?.message === 'string' ? e.message : 'Could not complete scheduling');
+        } finally {
+            setScheduleSaving(false);
+        }
+    }, [
+        accessToken,
+        getRestaurantId,
+        scheduleEmail,
+        scheduleActive,
+        reportData,
+        salesTrendRows,
+        breakdownDailyRows,
+        salesTrendDateRangeLabel,
+        breakdownDateRangeLabel,
+    ]);
 
     const fetchSalesReport = useCallback(
         async (filterSet) => {
@@ -902,7 +1079,13 @@ const SalesReportsPage = () => {
                             </div>
                             <button
                                 type="button"
-                                onClick={() => setScheduleReportOpen(true)}
+                                onClick={() => {
+                                    if (!accessToken) {
+                                        toast.error('Sign in to schedule reports');
+                                        return;
+                                    }
+                                    setScheduleReportOpen(true);
+                                }}
                                 className="inline-flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 font-sans text-[14px] font-normal leading-[21px] text-white shadow-sm transition hover:bg-primary/90 sm:w-auto"
                             >
                                 <Calendar
@@ -910,7 +1093,7 @@ const SalesReportsPage = () => {
                                     strokeWidth={1.75}
                                     aria-hidden
                                 />
-                                Schedule Monthly Report
+                                Schedule Report
                             </button>
                         </div>
                     </>
@@ -919,6 +1102,15 @@ const SalesReportsPage = () => {
             <ScheduleReportModal
                 isOpen={scheduleReportOpen}
                 onClose={() => setScheduleReportOpen(false)}
+                integratedSalesMonthly
+                deliveryEmail={scheduleEmail}
+                onDeliveryEmailChange={setScheduleEmail}
+                isScheduleActive={scheduleActive}
+                onScheduleActiveChange={setScheduleActive}
+                loadingSchedule={scheduleLoading}
+                savingSchedule={scheduleSaving}
+                onSaveSchedule={handleScheduleReport}
+                scheduleError={scheduleLoadError}
             />
             <DailyBreakdownFiltersModal
                 isOpen={dailyBreakdownFiltersOpen}

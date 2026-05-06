@@ -92,7 +92,7 @@ function togglePayment(prev, k) {
     return { ...prev, payment: { all: true, card: false, cash: false, contactless: false } };
 }
 
-const RecentOrdersFilterModal = ({ isOpen, onClose, draft, onChange, onReset, onApply }) => {
+const RecentOrdersFilterModal = ({ isOpen, onClose, draft, onChange, onReset, onApply, hideOrderSource = false }) => {
     useEffect(() => {
         if (!isOpen) return;
         const onKey = (e) => {
@@ -160,6 +160,7 @@ const RecentOrdersFilterModal = ({ isOpen, onClose, draft, onChange, onReset, on
                             })}
                         </ul>
                     </div>
+                    {!hideOrderSource && (
                     <div className="mt-6">
                         <p className="mb-3 font-sans text-[13px] font-medium leading-[19.5px] tracking-normal text-[#1A1A1A]">Order Source</p>
                         <ul className="space-y-2.5">
@@ -190,6 +191,7 @@ const RecentOrdersFilterModal = ({ isOpen, onClose, draft, onChange, onReset, on
                             })}
                         </ul>
                     </div>
+                    )}
                     <div className="mt-6">
                         <p className="mb-3 font-sans text-[13px] font-medium leading-[19.5px] tracking-normal text-[#1A1A1A]">Payment Method</p>
                         <ul className="space-y-2.5">

@@ -19,6 +19,15 @@ const normalizeUrl = (value) => {
     return value.trim().replace(/^["'`]+|["'`]+$/g, '').trim();
 };
 
+/** Resolve public URL from GET /api/v1/restaurants/{id} JSON (`data` or root). */
+const extractWebsiteOrDomainFromRestaurantResponse = (json) => {
+    if (!json || typeof json !== 'object') return '';
+    const inner = json.data != null && typeof json.data === 'object' ? json.data : json;
+    const w = typeof inner.website === 'string' ? normalizeUrl(inner.website) : '';
+    const d = typeof inner.domain === 'string' ? normalizeUrl(inner.domain) : '';
+    return w || d || '';
+};
+
 const toValidationErrorLines = (data) => {
     if (!data || typeof data !== 'object') return [];
     if (!Array.isArray(data.detail)) return [];
@@ -588,6 +597,7 @@ export default function MenuManagement() {
 
     const dishesCsvFileInputRef = useRef(null);
     const [uploadingDishesCsv, setUploadingDishesCsv] = useState(false);
+    const [previewMenuLoading, setPreviewMenuLoading] = useState(false);
 
     const [activeCategory, setActiveCategory] = useState('');
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -1051,6 +1061,57 @@ export default function MenuManagement() {
         },
         [accessToken, restaurantId, fetchCategories]
     );
+
+    const openCustomerMenuPreview = useCallback(async () => {
+        if (!accessToken) {
+            toast.error('Please sign in to preview your menu');
+            return;
+        }
+        if (!restaurantId) {
+            toast.error('Restaurant not found. Please sign in again.');
+            return;
+        }
+        const baseUrl = getBackendBaseUrl();
+        if (!baseUrl) {
+            toast.error('API base URL is not configured');
+            return;
+        }
+        setPreviewMenuLoading(true);
+        try {
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/${encodeURIComponent(restaurantId)}`;
+            const res = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                },
+            });
+            const data = await res.json().catch(() => null);
+            if (!res.ok || isErrorPayload(data)) {
+                const msg =
+                    data && typeof data === 'object' && typeof data.message === 'string' && data.message.trim()
+                        ? data.message.trim()
+                        : 'Could not load restaurant details';
+                toast.error(msg);
+                return;
+            }
+            const hrefRaw = extractWebsiteOrDomainFromRestaurantResponse(data);
+            if (!hrefRaw) {
+                toast.error('No website or domain is set for this restaurant');
+                return;
+            }
+            let href = hrefRaw;
+            if (!/^https?:\/\//i.test(href)) {
+                href = `https://${href}`;
+            }
+            window.open(href, '_blank', 'noopener,noreferrer');
+        } catch (e) {
+            console.error('GET /api/v1/restaurants/{restaurant_id}', e);
+            toast.error('Could not open menu preview');
+        } finally {
+            setPreviewMenuLoading(false);
+        }
+    }, [accessToken, restaurantId]);
 
     const confirmDeleteCateringPackage = async () => {
         if (!deleteCateringPackageTarget || deletingCateringPackage) return;
@@ -2704,63 +2765,82 @@ export default function MenuManagement() {
                 </div>
             </div>
 
-            <div className="mt-6 min-w-0 rounded-[12px] border border-[#00000033] bg-white p-6">
-                <div className="flex items-center gap-2 mb-6">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#FEF2F2] text-[#DD2F26]">
-                        <FileText size={18} strokeWidth={2.25} aria-hidden />
+            <div className="mt-6 grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
+                <div className="min-w-0 rounded-[12px] border border-[#00000033] bg-white p-6 lg:col-span-8">
+                    <div className="flex items-center gap-2 mb-6">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-[#FEF2F2] text-[#DD2F26]">
+                            <FileText size={18} strokeWidth={2.25} aria-hidden />
+                        </div>
+                        <h2 className="text-[18px] font-bold text-[#111827]">Import / Export</h2>
                     </div>
-                    <h2 className="text-[18px] font-bold text-[#111827]">Import / Export</h2>
+                    <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-10">
+                        <div className="space-y-5">
+                            <div>
+                                <input
+                                    ref={dishesCsvFileInputRef}
+                                    type="file"
+                                    accept=".csv,text/csv,text/plain"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                        const f = e.target.files?.[0];
+                                        if (f) void uploadDishesImportCsv(f);
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    disabled={uploadingDishesCsv}
+                                    onClick={() => dishesCsvFileInputRef.current?.click()}
+                                    className="w-full inline-flex items-center justify-center gap-2 rounded-[10px] border border-[#DD2F26] bg-[#FEF2F2] px-4 py-3.5 text-[14px] font-[600] text-[#DD2F26] transition-colors hover:bg-[#FEE2E2] disabled:opacity-60 disabled:cursor-not-allowed"
+                                >
+                                    <Upload size={18} strokeWidth={2.25} aria-hidden />
+                                    {uploadingDishesCsv ? 'Uploading…' : 'Upload CSV'}
+                                </button>
+                                <p className="mt-2 text-[12px] text-[#6B7280]">
+                                    Upload a CSV file to bulk import menu items
+                                </p>
+                            </div>
+                            <div>
+                                <button
+                                    type="button"
+                                    onClick={() => void fetchDishesImportExportTemplate()}
+                                    className="w-full inline-flex items-center justify-center gap-2 rounded-[10px] border border-[#E5E7EB] bg-white px-4 py-3.5 text-[14px] font-[600] text-[#111827] transition-colors hover:bg-gray-50"
+                                >
+                                    <Download size={18} strokeWidth={2.25} aria-hidden />
+                                    Download Template
+                                </button>
+                                <p className="mt-2 text-[12px] text-[#6B7280]">
+                                    Get a CSV template with correct columns
+                                </p>
+                            </div>
+                        </div>
+                        <div className="rounded-[12px] border border-[#F3F4F6] bg-[#F9FAFB] p-5">
+                            <p className="text-[13px] font-[600] text-[#374151] mb-3">Required Columns:</p>
+                            <ul className="list-disc pl-5 space-y-1.5 text-[13px] text-[#6B7280]">
+                                <li>Item Name</li>
+                                <li>Category</li>
+                                <li>Price</li>
+                                <li>Description (optional)</li>
+                                <li>Prep Time (optional)</li>
+                                <li>Available (Yes/No)</li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
-                <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-10">
-                    <div className="space-y-5">
-                        <div>
-                            <input
-                                ref={dishesCsvFileInputRef}
-                                type="file"
-                                accept=".csv,text/csv,text/plain"
-                                className="hidden"
-                                onChange={(e) => {
-                                    const f = e.target.files?.[0];
-                                    if (f) void uploadDishesImportCsv(f);
-                                }}
-                            />
-                            <button
-                                type="button"
-                                disabled={uploadingDishesCsv}
-                                onClick={() => dishesCsvFileInputRef.current?.click()}
-                                className="w-full inline-flex items-center justify-center gap-2 rounded-[10px] border border-[#DD2F26] bg-[#FEF2F2] px-4 py-3.5 text-[14px] font-[600] text-[#DD2F26] transition-colors hover:bg-[#FEE2E2] disabled:opacity-60 disabled:cursor-not-allowed"
-                            >
-                                <Upload size={18} strokeWidth={2.25} aria-hidden />
-                                {uploadingDishesCsv ? 'Uploading…' : 'Upload CSV'}
-                            </button>
-                            <p className="mt-2 text-[12px] text-[#6B7280]">
-                                Upload a CSV file to bulk import menu items
-                            </p>
-                        </div>
-                        <div>
-                            <button
-                                type="button"
-                                onClick={() => void fetchDishesImportExportTemplate()}
-                                className="w-full inline-flex items-center justify-center gap-2 rounded-[10px] border border-[#E5E7EB] bg-white px-4 py-3.5 text-[14px] font-[600] text-[#111827] transition-colors hover:bg-gray-50"
-                            >
-                                <Download size={18} strokeWidth={2.25} aria-hidden />
-                                Download Template
-                            </button>
-                            <p className="mt-2 text-[12px] text-[#6B7280]">
-                                Get a CSV template with correct columns
-                            </p>
-                        </div>
-                    </div>
-                    <div className="rounded-[12px] bg-[#F9FAFB] border border-[#F3F4F6] p-5">
-                        <p className="text-[13px] font-[600] text-[#374151] mb-3">Required Columns:</p>
-                        <ul className="list-disc pl-5 space-y-1.5 text-[13px] text-[#6B7280]">
-                            <li>Item Name</li>
-                            <li>Category</li>
-                            <li>Price</li>
-                            <li>Description (optional)</li>
-                            <li>Prep Time (optional)</li>
-                            <li>Available (Yes/No)</li>
-                        </ul>
+
+                <div className="flex min-w-0 w-full self-start lg:col-span-4">
+                    <div className="flex w-full flex-col rounded-[12px] border border-[#00000033] bg-white px-6 py-6 text-center shadow-sm">
+                        <button
+                            type="button"
+                            disabled={previewMenuLoading}
+                            onClick={() => void openCustomerMenuPreview()}
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-[10px] bg-[#DD2F26] px-4 py-3.5 font-sans text-[14px] font-[600] text-white shadow-sm transition-colors hover:bg-[#C52820] disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            <Eye size={18} strokeWidth={2.25} className="shrink-0 text-white" aria-hidden />
+                            {previewMenuLoading ? 'Opening…' : 'Preview Menu'}
+                        </button>
+                        <p className="mt-3 text-[14px] leading-snug text-[#666666]">
+                            See how customers view your menu
+                        </p>
                     </div>
                 </div>
             </div>

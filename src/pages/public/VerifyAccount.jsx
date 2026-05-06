@@ -1,8 +1,54 @@
 import React, { useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import toast from "react-hot-toast";
 import AuthSidebar from "../../components/Auth/AuthSidebar";
 import restaurantLogo from "../../assets/restaurant_logo.png";
+import alertIcon from "../../assets/General/alert.svg";
 import Button from "../../elements/Button";
+
+function messageFromApiErrors(errors) {
+    if (!errors || typeof errors !== "object") return "";
+    const parts = [];
+    for (const v of Object.values(errors)) {
+        if (Array.isArray(v)) parts.push(...v.map(String));
+        else if (typeof v === "string") parts.push(v);
+    }
+    return parts.filter(Boolean).join(" ");
+}
+
+/** Same contract as Forgot password: POST /api/v1/auth/forgot-password */
+async function postForgotPassword(email) {
+    const baseUrl = (import.meta.env.VITE_BACKEND_URL || "https://api.baaie.com").replace(/\/$/, "");
+    const url = `${baseUrl}/api/v1/auth/forgot-password`;
+    const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+    });
+
+    const contentType = res.headers.get("content-type");
+    const data = contentType?.includes("application/json") ? await res.json() : null;
+
+    if (!res.ok) {
+        const fromErrors = data && typeof data === "object" ? messageFromApiErrors(data.errors) : "";
+        const message =
+            (data && typeof data === "object" && (data.message || fromErrors)) ||
+            (typeof data === "string" ? data : "") ||
+            `Request failed (${res.status})`;
+        throw new Error(message);
+    }
+
+    if (!data || typeof data !== "object") {
+        throw new Error("Invalid response from server");
+    }
+
+    if (data.code !== "SUCCESS_200") {
+        const fromErrors = messageFromApiErrors(data.errors);
+        throw new Error(data.message || fromErrors || "Could not send code.");
+    }
+
+    return data;
+}
 
 const VerifyAccount = () => {
     const [otp, setOtp] = useState(["", "", "", "", "", ""]);
@@ -10,6 +56,11 @@ const VerifyAccount = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const email = location.state?.email || "******891";
+    const emailForRequest = (location.state?.email || "").trim();
+
+    const [loading, setLoading] = useState(false);
+    const [resendLoading, setResendLoading] = useState(false);
+    const [error, setError] = useState("");
 
     const handleChange = (index, value) => {
         if (isNaN(value)) return;
@@ -28,16 +79,83 @@ const VerifyAccount = () => {
         }
     };
 
-    const handleSubmit = (e) => {
+    const handleResend = async () => {
+        if (!emailForRequest) {
+            setError("Please start again from Forgot password.");
+            return;
+        }
+        setError("");
+        setResendLoading(true);
+        try {
+            const data = await postForgotPassword(emailForRequest);
+            setOtp(["", "", "", "", "", ""]);
+            const apiMessage = typeof data.message === "string" ? data.message.trim() : "";
+            toast.success(apiMessage || "A new verification code has been sent to your email.");
+            inputRefs[0].current?.focus();
+        } catch (err) {
+            setError(err?.message || "Could not resend the code. Please try again.");
+        } finally {
+            setResendLoading(false);
+        }
+    };
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        setError("");
         const otpValue = otp.join("");
-        if (otpValue.length === 6) {
-            console.log("Verifying code", otpValue);
-            navigate("/reset-password", { state: { reset_token: "dummy_token" } });
+        if (otpValue.length !== 6) return;
+
+        if (!emailForRequest) {
+            setError("Please start again from Forgot password.");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const baseUrl = (import.meta.env.VITE_BACKEND_URL || "https://api.baaie.com").replace(/\/$/, "");
+            const url = `${baseUrl}/api/v1/auth/verify-otp`;
+            const res = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: emailForRequest, otp: otpValue }),
+            });
+
+            const contentType = res.headers.get("content-type");
+            const data = contentType?.includes("application/json") ? await res.json() : null;
+
+            if (!res.ok) {
+                const fromErrors = data && typeof data === "object" ? messageFromApiErrors(data.errors) : "";
+                const message =
+                    (data && typeof data === "object" && (data.message || fromErrors)) ||
+                    (typeof data === "string" ? data : "") ||
+                    `Request failed (${res.status})`;
+                throw new Error(message);
+            }
+
+            if (!data || typeof data !== "object") {
+                throw new Error("Invalid response from server");
+            }
+
+            if (data.code !== "SUCCESS_200") {
+                const fromErrors = messageFromApiErrors(data.errors);
+                throw new Error(data.message || fromErrors || "Verification failed.");
+            }
+
+            const resetToken = typeof data.data === "string" ? data.data : "";
+            if (!resetToken) {
+                throw new Error("Invalid verification response.");
+            }
+
+            navigate("/reset-password", { state: { reset_token: resetToken, email: emailForRequest }, replace: true });
+        } catch (err) {
+            setError(err?.message || "Something went wrong. Please try again.");
+        } finally {
+            setLoading(false);
         }
     };
 
     const isComplete = otp.every((v) => v !== "");
+    const canSubmit = isComplete && Boolean(emailForRequest);
 
     return (
         <main className="flex min-h-screen flex-col md:h-screen md:max-h-screen md:flex-row md:overflow-hidden">
@@ -63,7 +181,13 @@ const VerifyAccount = () => {
                                     </div>
 
                                     <form onSubmit={handleSubmit} className="space-y-10">
-                                        <div className="flex justify-between gap-2 sm:gap-3">
+                                        {error && (
+                                            <div className="flex items-center gap-3 rounded-[12px] bg-[#F751511F] p-3 font-light text-xs text-[#47464A]">
+                                                <img src={alertIcon} alt="Alert" className="h-5 w-5 shrink-0" />
+                                                <p>{error}</p>
+                                            </div>
+                                        )}
+                                        <div className="flex min-w-0 flex-wrap justify-center gap-2 sm:gap-3">
                                             {otp.map((digit, index) => (
                                                 <input
                                                     key={index}
@@ -86,18 +210,20 @@ const VerifyAccount = () => {
                                             <Button
                                                 type="submit"
                                                 variant="signIn"
-                                                disabled={!isComplete}
+                                                disabled={!canSubmit || loading || resendLoading}
                                                 className="w-full !h-[48px] !rounded-[12px] font-sans !text-[18px] !font-bold !text-white"
                                             >
-                                                Continue
+                                                {loading ? "Verifying..." : "Continue"}
                                             </Button>
                                             <p className="text-center font-sans text-[14px] font-normal text-[#47464A]">
                                                 Didn&apos;t get the code?{" "}
                                                 <button
                                                     type="button"
-                                                    className="ml-1 font-bold text-[#202020] hover:underline"
+                                                    onClick={() => void handleResend()}
+                                                    disabled={!emailForRequest || resendLoading || loading}
+                                                    className="ml-1 font-bold text-[#202020] hover:underline disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
                                                 >
-                                                    Resend
+                                                    {resendLoading ? "Sending..." : "Resend"}
                                                 </button>
                                             </p>
                                         </div>

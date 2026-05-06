@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { isValidOpeningHourTime } from '../../../utils/restaurantOperatingHours';
 
@@ -24,16 +25,20 @@ const emptyForm = () => ({
  * @param {{
  *   isOpen: boolean,
  *   onClose: () => void,
- *   onSave: (row: { id: string, date: string, is_closed: boolean, open: string, close: string, break_start: string, break_end: string, note: string }) => void,
+ *   onSave: (row: { id: string, date: string, is_closed: boolean, open: string, close: string, break_start: string, break_end: string, note: string }) => boolean | void | Promise<boolean | void>,
  *   initial?: { id?: string, date?: string, is_closed?: boolean, open?: string, close?: string, break_start?: string, break_end?: string, note?: string } | null,
  * }} props
  */
 const AddSpecialDayModal = ({ isOpen, onClose, onSave, initial = null }) => {
     const [form, setForm] = useState(emptyForm);
     const [submitAttempted, setSubmitAttempted] = useState(false);
+    const [savePending, setSavePending] = useState(false);
 
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen) {
+            setSavePending(false);
+            return;
+        }
         setSubmitAttempted(false);
         if (initial && typeof initial === 'object') {
             const bs = typeof initial.break_start === 'string' ? initial.break_start.trim() : '';
@@ -77,7 +82,7 @@ const AddSpecialDayModal = ({ isOpen, onClose, onSave, initial = null }) => {
     const showErrors = submitAttempted;
     const canSubmit = dateOk && timesOk && !timeInvalid(form.open) && !timeInvalid(form.close) && !timeInvalid(form.break_start) && !timeInvalid(form.break_end);
 
-    const handleSave = () => {
+    const handleSave = async () => {
         setSubmitAttempted(true);
         if (!canSubmit) return;
         const id = typeof initial?.id === 'string' && initial.id.trim() ? initial.id.trim() : newSpecialDayId();
@@ -89,7 +94,7 @@ const AddSpecialDayModal = ({ isOpen, onClose, onSave, initial = null }) => {
             break_start = String(form.break_start || '').trim();
             break_end = String(form.break_end || '').trim();
         }
-        onSave?.({
+        const payload = {
             id,
             date: form.date.trim(),
             is_closed: !!form.is_closed,
@@ -98,18 +103,24 @@ const AddSpecialDayModal = ({ isOpen, onClose, onSave, initial = null }) => {
             break_start,
             break_end,
             note: String(form.note || '').trim(),
-        });
-        onClose?.();
+        };
+        setSavePending(true);
+        try {
+            const result = await Promise.resolve(onSave?.(payload));
+            if (result !== false) onClose?.();
+        } finally {
+            setSavePending(false);
+        }
     };
 
-    return (
+    return createPortal(
         <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 animate-in fade-in duration-200"
+            className="fixed inset-0 z-[200] flex min-h-[100dvh] min-h-screen w-full items-center justify-center bg-black/40 p-4 sm:p-6"
             onClick={onClose}
             role="presentation"
         >
             <div
-                className="relative bg-white w-full max-w-[500px] rounded-2xl shadow-xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200"
+                className="relative max-h-[min(90dvh,900px)] w-full max-w-[500px] overflow-y-auto rounded-2xl bg-white shadow-xl animate-in zoom-in-95 duration-200"
                 onClick={(e) => e.stopPropagation()}
                 role="dialog"
                 aria-modal="true"
@@ -259,21 +270,24 @@ const AddSpecialDayModal = ({ isOpen, onClose, onSave, initial = null }) => {
                 <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3 bg-white shadow-inner">
                     <button
                         type="button"
+                        disabled={savePending}
                         onClick={onClose}
-                        className="px-5 py-2.5 text-[16px] font-[400] text-[#374151] bg-white border border-[#E5E7EB] rounded-[8px] hover:bg-gray-50 transition-colors shadow-sm active:scale-95 transition-transform"
+                        className="px-5 py-2.5 text-[16px] font-[400] text-[#374151] bg-white border border-[#E5E7EB] rounded-[8px] hover:bg-gray-50 transition-colors shadow-sm active:scale-95 transition-transform disabled:opacity-50"
                     >
                         Cancel
                     </button>
                     <button
                         type="button"
-                        onClick={handleSave}
-                        className="px-6 py-2.5 text-[16px] font-[400] text-white bg-[#DD2F26] rounded-[8px] shadow-lg shadow-[#DD2F26]/20 hover:bg-[#C52820] active:scale-95 transition-all"
+                        disabled={savePending}
+                        onClick={() => void handleSave()}
+                        className="px-6 py-2.5 text-[16px] font-[400] text-white bg-[#DD2F26] rounded-[8px] shadow-lg shadow-[#DD2F26]/20 hover:bg-[#C52820] active:scale-95 transition-all disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                        Save
+                        {savePending ? 'Saving…' : 'Save'}
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

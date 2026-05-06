@@ -74,3 +74,46 @@ export const ORDER_SOURCE_FILTER_OPTIONS = [
     { value: 'inhouse', label: 'In-house' },
     { value: 'all', label: 'All' },
 ];
+
+const DEFAULT_RECENT_ORDERS_LIMIT = 50;
+
+/**
+ * GET /api/v1/reports/order-report/recent-orders query string.
+ * @param {{
+ *   period?: string,
+ *   days?: number,
+ *   limit?: number,
+ *   orderStatus?: { all?: boolean, completed?: boolean, cancelled?: boolean, refunded?: boolean },
+ *   payment?: { all?: boolean, card?: boolean, cash?: boolean, contactless?: boolean },
+ * }} opts
+ */
+export function buildRecentOrdersQuery(opts = {}) {
+    const {
+        period = 'monthly',
+        days = 30,
+        limit = DEFAULT_RECENT_ORDERS_LIMIT,
+        orderStatus,
+        payment,
+    } = opts;
+    const p = new URLSearchParams();
+    const per = ['daily', 'weekly', 'monthly'].includes(period) ? period : 'monthly';
+    p.set('period', per);
+    const d = Math.min(365, Math.max(1, Number(days) || 1));
+    p.set('days', String(d));
+    const lim = Math.min(500, Math.max(1, Math.round(Number(limit)) || DEFAULT_RECENT_ORDERS_LIMIT));
+    p.set('limit', String(lim));
+
+    if (orderStatus && !orderStatus.all) {
+        if (orderStatus.completed) p.append('order_status', 'completed');
+        if (orderStatus.cancelled) p.append('order_status', 'cancelled');
+        if (orderStatus.refunded) p.append('order_status', 'refunded');
+    }
+
+    if (payment && !payment.all) {
+        if (payment.card) p.append('payment_method', 'card');
+        if (payment.cash) p.append('payment_method', 'cash');
+        if (payment.contactless) p.append('payment_method', 'contactless');
+    }
+
+    return p.toString();
+}

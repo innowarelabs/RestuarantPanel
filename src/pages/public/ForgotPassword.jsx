@@ -6,6 +6,16 @@ import AuthSidebar from "../../components/Auth/AuthSidebar";
 import restaurantLogo from "../../assets/restaurant_logo.png";
 import alertIcon from "../../assets/General/alert.svg";
 
+function messageFromApiErrors(errors) {
+    if (!errors || typeof errors !== "object") return "";
+    const parts = [];
+    for (const v of Object.values(errors)) {
+        if (Array.isArray(v)) parts.push(...v.map(String));
+        else if (typeof v === "string") parts.push(v);
+    }
+    return parts.filter(Boolean).join(" ");
+}
+
 function ForgotPassword() {
     const navigate = useNavigate();
 
@@ -24,13 +34,38 @@ function ForgotPassword() {
         setLoading(true);
 
         try {
-            console.log("Sending reset code to:", email);
+            const baseUrl = (import.meta.env.VITE_BACKEND_URL || "https://api.baaie.com").replace(/\/$/, "");
+            const url = `${baseUrl}/api/v1/auth/forgot-password`;
+            const res = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: email.trim() }),
+            });
 
-            setTimeout(() => {
-                navigate("/verify-account", { state: { email }, replace: true });
-            }, 1000);
+            const contentType = res.headers.get("content-type");
+            const data = contentType?.includes("application/json") ? await res.json() : null;
+
+            if (!res.ok) {
+                const fromErrors = data && typeof data === "object" ? messageFromApiErrors(data.errors) : "";
+                const message =
+                    (data && typeof data === "object" && (data.message || fromErrors)) ||
+                    (typeof data === "string" ? data : "") ||
+                    `Request failed (${res.status})`;
+                throw new Error(message);
+            }
+
+            if (!data || typeof data !== "object") {
+                throw new Error("Invalid response from server");
+            }
+
+            if (data.code !== "SUCCESS_200") {
+                const fromErrors = messageFromApiErrors(data.errors);
+                throw new Error(data.message || fromErrors || "Could not send reset code.");
+            }
+
+            navigate("/verify-account", { state: { email: email.trim() }, replace: true });
         } catch (err) {
-            setError(err?.error || err?.message || "Something went wrong. Please try again.");
+            setError(err?.message || "Something went wrong. Please try again.");
         } finally {
             setLoading(false);
         }

@@ -59,15 +59,192 @@ const LoyaltyPreferences = () => {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [rewardToDelete, setRewardToDelete] = useState(null);
 
+    const [loyaltyForm, setLoyaltyForm] = useState({
+        points_per_dollar: 1,
+        bonus_first_order_points: 0,
+        min_order_to_earn_points: 0,
+        points_expiry_days: 365,
+    });
+
     const [settings, setSettings] = useState([
-        { name: 'Enable Loyalty Program', description: 'Allow customers to earn and redeem points', enabled: true },
-        { name: 'Allow Reward Redemption at Checkout', description: 'Customers can redeem points during order placement', enabled: true },
-        { name: 'Notify Customer When Points Earned', description: 'Send notification after points are credited', enabled: true },
-        { name: 'Notify Customer When Reward Redeemed', description: 'Send confirmation when reward is used', enabled: true },
+        {
+            key: 'loyalty_program_enabled',
+            name: 'Enable Loyalty Program',
+            description: 'Allow customers to earn and redeem points',
+            enabled: true,
+        },
+        {
+            key: 'loyalty_redemption_at_checkout_enabled',
+            name: 'Allow Reward Redemption at Checkout',
+            description: 'Customers can redeem points during order placement',
+            enabled: true,
+        },
+        {
+            key: 'loyalty_notify_points_earned',
+            name: 'Notify Customer When Points Earned',
+            description: 'Send notification after points are credited',
+            enabled: true,
+        },
+        {
+            key: 'loyalty_notify_reward_redeemed',
+            name: 'Notify Customer When Reward Redeemed',
+            description: 'Send confirmation when reward is used',
+            enabled: true,
+        },
     ]);
+
+    const [loadingStep5Settings, setLoadingStep5Settings] = useState(false);
+    const [savingStep5Settings, setSavingStep5Settings] = useState(false);
+
+    const resolvedRestaurantId =
+        (typeof restaurantId === 'string' && restaurantId.trim() ? restaurantId.trim() : '') ||
+        (() => {
+            try {
+                return (localStorage.getItem('restaurant_id') || '').trim();
+            } catch {
+                return '';
+            }
+        })() ||
+        getRestaurantIdFromUser(authUser);
 
     const toggleSetting = (index) => {
         setSettings((prev) => prev.map((item, i) => (i === index ? { ...item, enabled: !item.enabled } : item)));
+    };
+
+    const applyLoyaltyFieldsFromResponse = useCallback((raw) => {
+        const r = extractPayload(raw);
+        if (!r || typeof r !== 'object') return;
+        let src = r.data && typeof r.data === 'object' && !Array.isArray(r.data) ? r.data : r;
+        if (!src || typeof src !== 'object') return;
+        if (src.loyalty_settings && typeof src.loyalty_settings === 'object') {
+            src = { ...src, ...src.loyalty_settings };
+        }
+
+        const num = (v, fallback) => {
+            const n = Number(v);
+            return Number.isFinite(n) ? n : fallback;
+        };
+
+        const bonusRaw =
+            src.bonus_first_order_points !== undefined ? src.bonus_first_order_points : src.first_order_bonus_points;
+
+        setLoyaltyForm((prev) => ({
+            points_per_dollar:
+                src.points_per_dollar !== undefined ? num(src.points_per_dollar, prev.points_per_dollar) : prev.points_per_dollar,
+            bonus_first_order_points:
+                bonusRaw !== undefined ? num(bonusRaw, prev.bonus_first_order_points) : prev.bonus_first_order_points,
+            min_order_to_earn_points:
+                src.min_order_to_earn_points !== undefined
+                    ? num(src.min_order_to_earn_points, prev.min_order_to_earn_points)
+                    : prev.min_order_to_earn_points,
+            points_expiry_days:
+                src.points_expiry_days !== undefined ? num(src.points_expiry_days, prev.points_expiry_days) : prev.points_expiry_days,
+        }));
+
+        setSettings((prev) =>
+            prev.map((item) => {
+                const v = src[item.key];
+                if (typeof v === 'boolean') return { ...item, enabled: v };
+                return item;
+            }),
+        );
+    }, []);
+
+    useEffect(() => {
+        if (!accessToken || !resolvedRestaurantId) return;
+
+        let cancelled = false;
+        const load = async () => {
+            setLoadingStep5Settings(true);
+            try {
+                const baseUrl = import.meta.env.VITE_BACKEND_URL;
+                if (!baseUrl) return;
+                const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/${encodeURIComponent(resolvedRestaurantId)}`;
+                const res = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${accessToken}`,
+                    },
+                });
+                const ct = res.headers.get('content-type');
+                const raw = ct?.includes('application/json') ? await res.json() : await res.text();
+                if (!res.ok || cancelled) return;
+                applyLoyaltyFieldsFromResponse(raw);
+            } catch {
+                /* keep defaults */
+            } finally {
+                if (!cancelled) setLoadingStep5Settings(false);
+            }
+        };
+
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, [accessToken, resolvedRestaurantId, applyLoyaltyFieldsFromResponse]);
+
+    const handleSaveLoyaltyProgramSettings = async () => {
+        if (!resolvedRestaurantId) {
+            toast.error('Restaurant not found');
+            return;
+        }
+        const baseUrl = import.meta.env.VITE_BACKEND_URL;
+        if (!baseUrl) {
+            toast.error('VITE_BACKEND_URL is missing');
+            return;
+        }
+
+        const payload = {
+            restaurant_id: resolvedRestaurantId,
+            points_per_dollar: Math.max(0, Math.trunc(Number(loyaltyForm.points_per_dollar)) || 0),
+            bonus_first_order_points: Math.max(0, Math.trunc(Number(loyaltyForm.bonus_first_order_points)) || 0),
+            min_order_to_earn_points: Math.max(0, Number(loyaltyForm.min_order_to_earn_points) || 0),
+            points_expiry_days: Math.max(0, Math.trunc(Number(loyaltyForm.points_expiry_days)) || 0),
+            loyalty_program_enabled: !!settings[0]?.enabled,
+            loyalty_redemption_at_checkout_enabled: !!settings[1]?.enabled,
+            loyalty_notify_points_earned: !!settings[2]?.enabled,
+            loyalty_notify_reward_redeemed: !!settings[3]?.enabled,
+        };
+
+        setSavingStep5Settings(true);
+        try {
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step5/settings`;
+            const res = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${accessToken}`,
+                },
+                body: JSON.stringify(payload),
+            });
+            const ct = res.headers.get('content-type');
+            const raw = ct?.includes('application/json') ? await res.json() : await res.text();
+
+            if (!res.ok) {
+                const msg =
+                    typeof raw === 'object' && raw?.message
+                        ? raw.message
+                        : typeof raw === 'string' && raw.trim()
+                          ? raw.trim()
+                          : 'Failed to save loyalty settings';
+                toast.error(msg);
+                return;
+            }
+
+            const code = typeof raw === 'object' && raw?.code ? String(raw.code) : '';
+            if (code && code.toUpperCase().startsWith('ERROR_')) {
+                toast.error(typeof raw.message === 'string' ? raw.message : 'Failed to save loyalty settings');
+                return;
+            }
+
+            toast.success('Loyalty program settings saved');
+            if (typeof raw === 'object') applyLoyaltyFieldsFromResponse(raw);
+        } catch (e) {
+            toast.error(e?.message || 'Failed to save loyalty settings');
+        } finally {
+            setSavingStep5Settings(false);
+        }
     };
 
     useEffect(() => {
@@ -434,10 +611,13 @@ const LoyaltyPreferences = () => {
                 <h3 className="mb-4 font-sans text-[18px] font-bold leading-[21.6px] tracking-normal text-[#0F1724]">
                     Loyalty Program Settings
                 </h3>
+                {loadingStep5Settings ? (
+                    <p className="text-[14px] text-[#6B7280] mb-4">Loading settings…</p>
+                ) : null}
                 <div className="space-y-4">
                     {settings.map((item, index) => (
                         <div
-                            key={index}
+                            key={item.key}
                             className="flex items-start sm:items-center justify-between py-3 border-b border-[#E5E7EB] last:border-0 gap-4"
                         >
                             <div className="flex-1">
@@ -447,7 +627,8 @@ const LoyaltyPreferences = () => {
                             <button
                                 type="button"
                                 onClick={() => toggleSetting(index)}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none shrink-0 ${item.enabled ? 'bg-[#DD2F26]' : 'bg-gray-200'}`}
+                                disabled={loadingStep5Settings || savingStep5Settings}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none shrink-0 disabled:opacity-50 ${item.enabled ? 'bg-[#DD2F26]' : 'bg-gray-200'}`}
                             >
                                 <span
                                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${item.enabled ? 'translate-x-6' : 'translate-x-1'}`}
@@ -459,10 +640,12 @@ const LoyaltyPreferences = () => {
                 <div className="mt-8 flex justify-end">
                     <button
                         type="button"
-                        className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#DD2F26] text-white text-[14px] px-6 py-2.5 rounded-[12px] font-[500] hover:bg-[#C52820] transition shadow-lg shadow-[#DD2F26]/20 active:scale-95"
+                        onClick={() => void handleSaveLoyaltyProgramSettings()}
+                        disabled={loadingStep5Settings || savingStep5Settings || !resolvedRestaurantId}
+                        className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#DD2F26] text-white text-[14px] px-6 py-2.5 rounded-[12px] font-[500] hover:bg-[#C52820] transition shadow-lg shadow-[#DD2F26]/20 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
                     >
                         <Save className="w-4 h-4" />
-                        Save Settings
+                        {savingStep5Settings ? 'Saving…' : 'Save Settings'}
                     </button>
                 </div>
             </div>
