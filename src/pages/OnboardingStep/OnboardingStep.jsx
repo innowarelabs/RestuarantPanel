@@ -1424,12 +1424,23 @@ export default function OnboardingStep() {
 
             {/* Add Reward Item Modal */}
             {showAddRewardModal && (
-                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={closeAddRewardModal} />
-                    <div className="bg-white w-full max-w-[560px] rounded-[24px] overflow-hidden shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+                <div className="fixed inset-0 z-[110]">
+                    <div
+                        className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+                        onClick={closeAddRewardModal}
+                        aria-hidden
+                    />
+                    <div className="absolute inset-0 overflow-y-auto overscroll-contain">
+                        <div className="flex min-h-full items-center justify-center px-4 py-6 sm:py-10">
+                            <div
+                                role="dialog"
+                                aria-modal="true"
+                                aria-labelledby="reward-item-modal-title"
+                                className="relative w-full max-w-[560px] shrink-0 rounded-[24px] overflow-hidden bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+                            >
                         {/* Modal Header */}
                         <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-                            <h2 className="text-[18px] font-bold text-[#1A1A1A]">{editingReward ? 'Edit Reward Item' : 'Add Reward Item'}</h2>
+                            <h2 id="reward-item-modal-title" className="text-[18px] font-bold text-[#1A1A1A]">{editingReward ? 'Edit Reward Item' : 'Add Reward Item'}</h2>
                             <button onClick={closeAddRewardModal} className="p-1 hover:bg-gray-100 rounded-full transition-colors">
                                 <X size={18} className="text-gray-400" />
                             </button>
@@ -1597,6 +1608,8 @@ export default function OnboardingStep() {
                             >
                                 {savingReward ? 'Saving...' : editingReward ? 'Update Reward' : 'Save Reward'}
                             </button>
+                        </div>
+                            </div>
                         </div>
                     </div>
                 </div>
