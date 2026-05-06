@@ -141,10 +141,28 @@ const VerifyAccount = () => {
                 throw new Error(data.message || fromErrors || "Verification failed.");
             }
 
-            const resetToken = typeof data.data === "string" ? data.data : "";
+            const payload = data.data;
+            const resetToken =
+                typeof payload === "string" && payload.trim()
+                    ? payload.trim()
+                    : payload &&
+                        typeof payload === "object" &&
+                        typeof payload.reset_token === "string" &&
+                        payload.reset_token.trim()
+                      ? payload.reset_token.trim()
+                      : "";
             if (!resetToken) {
                 throw new Error("Invalid verification response.");
             }
+
+            const verifyToastMessage =
+                (typeof data.message === "string" && data.message.trim()) ||
+                (typeof payload === "object" &&
+                    payload !== null &&
+                    typeof payload.message === "string" &&
+                    payload.message.trim()) ||
+                "OTP verified successfully";
+            toast.success(verifyToastMessage);
 
             navigate("/reset-password", { state: { reset_token: resetToken, email: emailForRequest }, replace: true });
         } catch (err) {

@@ -26,8 +26,12 @@ const HighlightStats = ({ bestSeller, topSellers = [] }) => {
     const risingDescription = (item, emptyFallback) => {
         const growthLine = formatWeekGrowthLine(item);
         if (growthLine) return growthLine;
-        const n = item?.orders_count;
-        if (n != null && Number(n) > 0) return `${Number(n)} orders this week`;
+        const sold = item?.quantity_sold ?? item?.orders_this_week;
+        const n = item?.orders_count ?? sold;
+        if (n != null && Number(n) > 0) {
+            if (sold != null && item?.orders_count == null) return `${Number(sold)} sold this week`;
+            return `${Number(n)} orders this week`;
+        }
         return emptyFallback;
     };
 

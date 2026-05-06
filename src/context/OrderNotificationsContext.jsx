@@ -1,4 +1,12 @@
-import React, { createContext, useContext, useReducer, useRef, useEffect, useCallback } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useReducer,
+  useRef,
+  useEffect,
+  useCallback,
+  useState,
+} from 'react';
 import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import OrderToast from '../components/Header/OrderToast';
@@ -27,6 +35,38 @@ function notificationsReducer(state, action) {
 
 const OrderNotificationsContext = createContext(null);
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Map GET /notifications `items` to in-app notification rows */
+function mapApiItemsToNotifications(items) {
+  const raw = Array.isArray(items) ? items : [];
+  const mapped = raw.map((item) => {
+    const apiItems = Array.isArray(item.items) ? item.items : [];
+    const itemsText = apiItems.map((i) => `${i.name || 'Item'} × ${i.quantity ?? 1}`).join(', ');
+    const apiId = typeof item.id === 'string' && item.id.trim() ? item.id.trim() : '';
+    const description =
+      typeof item.message === 'string' && item.message.trim()
+        ? item.message.trim()
+        : `Order #${item.order_number || 'ORD-?'} from ${item.customer_name || 'Customer'}`;
+    return {
+      id: apiId || `api-${item.order_number || ''}-${item.order_id || ''}`,
+      type: 'Order',
+      title: 'New Order Request',
+      description,
+      itemsText,
+      orderNumber: item.order_number || 'ORD-?',
+      customerName: item.customer_name || 'Customer',
+      orderId: item.order_id || null,
+      items: apiItems,
+      time: undefined,
+      isUnread: item.is_read === false,
+      createdAt: item.created_at ? new Date(item.created_at).getTime() : Date.now(),
+    };
+  });
+  mapped.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  return mapped;
+}
+
 export function OrderNotificationsProvider({ children, onViewOrder }) {
   const accessToken = useSelector((state) => state.auth.accessToken);
   const user = useSelector((state) => state.auth.user);
@@ -36,6 +76,11 @@ export function OrderNotificationsProvider({ children, onViewOrder }) {
     '';
 
   const [notifications, dispatch] = useReducer(notificationsReducer, []);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  /** Header bell badge — not derived from filtered modal list */
+  const [unreadBadgeCount, setUnreadBadgeCount] = useState(0);
+  const listFilterByRef = useRef('all');
+  const fetchNotificationsByFilterRef = useRef(async () => {});
   const wsRef = useRef(null);
   const pingIntervalRef = useRef(null);
   const onViewOrderRef = useRef(onViewOrder);
@@ -52,13 +97,100 @@ export function OrderNotificationsProvider({ children, onViewOrder }) {
     });
   }, []);
 
-  const markAsRead = useCallback((id) => {
-    dispatch({ type: 'MARK_READ', id });
-  }, []);
+  const markAsRead = useCallback(
+    async (id) => {
+      if (id == null || id === '') return true;
+      const idStr = String(id);
 
-  const markAllAsRead = useCallback(() => {
-    dispatch({ type: 'MARK_ALL_READ' });
-  }, []);
+      const useReadApi = UUID_RE.test(idStr) && accessToken && restaurantId?.trim();
+
+      if (useReadApi) {
+        try {
+          const url = `${API_BASE}/api/v1/restaurants/${encodeURIComponent(
+            restaurantId.trim(),
+          )}/notifications/${encodeURIComponent(idStr)}/read`;
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({}),
+          });
+
+          const data = await res.json().catch(() => null);
+          const code = typeof data?.code === 'string' ? data.code.trim().toUpperCase() : '';
+          const success =
+            res.ok &&
+            (!code || code.includes('SUCCESS') || code.endsWith('_200') || code.endsWith('_201')) &&
+            !(code && code.startsWith('ERROR_'));
+
+          if (!success) {
+            console.error('[OrderNotifications] notification read failed', { status: res.status, data });
+            const msg =
+              data && typeof data.message === 'string' && data.message.trim()
+                ? data.message.trim()
+                : 'Could not mark notification as read';
+            toast.error(msg);
+            return false;
+          }
+        } catch (err) {
+          console.error('[OrderNotifications] notification read network error', err);
+          toast.error('Network error while marking notification read');
+          return false;
+        }
+      }
+
+      dispatch({ type: 'MARK_READ', id: idStr });
+      setUnreadBadgeCount((c) => Math.max(0, c - 1));
+      return true;
+    },
+    [accessToken, restaurantId],
+  );
+
+  const markAllAsRead = useCallback(async () => {
+    if (!accessToken || !restaurantId?.trim()) {
+      toast.error('Missing restaurant or session');
+      return;
+    }
+
+    try {
+      const url = `${API_BASE}/api/v1/restaurants/${encodeURIComponent(
+        restaurantId.trim(),
+      )}/notifications/read-all`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      });
+
+      const data = await res.json().catch(() => null);
+      const code = typeof data?.code === 'string' ? data.code.trim().toUpperCase() : '';
+      const success =
+        res.ok &&
+        (!code || code.includes('SUCCESS') || code.endsWith('_200') || code.endsWith('_201'));
+
+      if (!success || (code && code.startsWith('ERROR_'))) {
+        console.error('[OrderNotifications] read-all failed', { status: res.status, data });
+        const msg =
+          data && typeof data.message === 'string' && data.message.trim()
+            ? data.message.trim()
+            : 'Could not mark notifications as read';
+        toast.error(msg);
+        return;
+      }
+
+      dispatch({ type: 'MARK_ALL_READ' });
+      setUnreadBadgeCount(0);
+      void fetchNotificationsByFilterRef.current(listFilterByRef.current);
+    } catch (err) {
+      console.error('[OrderNotifications] read-all network error', err);
+      toast.error('Network error while marking notifications read');
+    }
+  }, [accessToken, restaurantId]);
 
   const updateOrderStatus = useCallback(
     async (orderId, status) => {
@@ -97,7 +229,7 @@ export function OrderNotificationsProvider({ children, onViewOrder }) {
         }
 
         return true;
-      } catch (err) {
+      } catch {
         toast.error('Network error while updating order status');
         return false;
       }
@@ -115,14 +247,23 @@ export function OrderNotificationsProvider({ children, onViewOrder }) {
     [updateOrderStatus]
   );
 
-  useEffect(() => {
-    if (!accessToken || !restaurantId) return;
+  const fetchNotificationsByFilter = useCallback(
+    async (filterBy) => {
+      const normalized =
+        filterBy === 'unread' || filterBy === 'today' || filterBy === 'all' ? filterBy : 'all';
+      if (!accessToken || !restaurantId?.trim()) return;
 
-    const fetchNotifications = async () => {
+      listFilterByRef.current = normalized;
+      setNotificationsLoading(true);
       try {
+        const params = new URLSearchParams({
+          type: 'new_order',
+          limit: '20',
+          filter_by: normalized,
+        });
         const url = `${API_BASE}/api/v1/restaurants/${encodeURIComponent(
-          restaurantId,
-        )}/notifications?type=new_order&limit=20`;
+          restaurantId.trim(),
+        )}/notifications?${params.toString()}`;
         const res = await fetch(url, {
           method: 'GET',
           headers: {
@@ -142,40 +283,50 @@ export function OrderNotificationsProvider({ children, onViewOrder }) {
 
         const payload = data.data || data;
         const items = Array.isArray(payload?.items) ? payload.items : [];
-
-        const mapped = items.map((item) => {
-          const apiItems = Array.isArray(item.items) ? item.items : [];
-          const itemsText = apiItems
-            .map((i) => `${i.name || 'Item'} × ${i.quantity ?? 1}`)
-            .join(', ');
-
-          return {
-            id: item.id || `api-${item.order_number || ''}-${item.order_id || ''}`,
-            type: 'Order',
-            title: 'New Order Request',
-            description: `Order #${item.order_number || 'ORD-?'} from ${item.customer_name || 'Customer'}`,
-            itemsText,
-            orderNumber: item.order_number || 'ORD-?',
-            customerName: item.customer_name || 'Customer',
-            orderId: item.order_id || null,
-            items: apiItems,
-            time: undefined, // computed in NotificationPanel from createdAt
-            isUnread: item.is_read === false,
-            createdAt: item.created_at ? new Date(item.created_at).getTime() : Date.now(),
-          };
-        });
-
-        // Newest first (backend already does this, but enforce just in case)
-        mapped.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-
+        const mapped = mapApiItemsToNotifications(items);
         dispatch({ type: 'SET', payload: mapped });
+
+        if (normalized === 'all') {
+          setUnreadBadgeCount(mapped.filter((n) => n.isUnread).length);
+        } else {
+          const paramsAll = new URLSearchParams({
+            type: 'new_order',
+            limit: '20',
+            filter_by: 'all',
+          });
+          const urlAll = `${API_BASE}/api/v1/restaurants/${encodeURIComponent(
+            restaurantId.trim(),
+          )}/notifications?${paramsAll.toString()}`;
+          const resAll = await fetch(urlAll, {
+            method: 'GET',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          const dataAll = await resAll.json().catch(() => null);
+          if (resAll.ok && dataAll && !(dataAll.code && String(dataAll.code).startsWith('ERROR_'))) {
+            const payloadAll = dataAll.data || dataAll;
+            const itemsAll = Array.isArray(payloadAll?.items) ? payloadAll.items : [];
+            const mappedAll = mapApiItemsToNotifications(itemsAll);
+            setUnreadBadgeCount(mappedAll.filter((n) => n.isUnread).length);
+          }
+        }
       } catch (err) {
         console.error('[OrderNotifications] Failed to fetch notifications', err);
+      } finally {
+        setNotificationsLoading(false);
       }
-    };
+    },
+    [accessToken, restaurantId],
+  );
 
-    fetchNotifications();
-  }, [accessToken, restaurantId]);
+  fetchNotificationsByFilterRef.current = fetchNotificationsByFilter;
+
+  useEffect(() => {
+    if (!accessToken || !restaurantId?.trim()) return;
+    void fetchNotificationsByFilter('all');
+  }, [accessToken, restaurantId, fetchNotificationsByFilter]);
 
   // WebSocket: connect to wss://api.baaie.com/api/v1/activity/ws?token=<access_token>
   useEffect(() => {
@@ -255,6 +406,8 @@ export function OrderNotificationsProvider({ children, onViewOrder }) {
 
             addNotification(notification);
 
+            void fetchNotificationsByFilterRef.current(listFilterByRef.current);
+
             toast.custom(
               (t) => (
                 <OrderToast
@@ -269,7 +422,9 @@ export function OrderNotificationsProvider({ children, onViewOrder }) {
               { duration: 8000, position: 'top-right' }
             );
           }
-        } catch (_) {}
+        } catch {
+          // ignore non-JSON WS payloads
+        }
       };
 
       ws.onerror = () => {
@@ -310,11 +465,11 @@ export function OrderNotificationsProvider({ children, onViewOrder }) {
     };
   }, [accessToken, restaurantId, addNotification]);
 
-  const unreadCount = notifications.filter((n) => n.isUnread).length;
-
   const value = {
     notifications,
-    unreadCount,
+    unreadCount: unreadBadgeCount,
+    notificationsLoading,
+    fetchNotificationsByFilter,
     addNotification,
     markAsRead,
     markAllAsRead,
@@ -335,8 +490,10 @@ export function useOrderNotifications() {
     return {
       notifications: [],
       unreadCount: 0,
+      notificationsLoading: false,
+      fetchNotificationsByFilter: async () => {},
       addNotification: () => {},
-      markAsRead: () => {},
+      markAsRead: async () => true,
       markAllAsRead: () => {},
     };
   }

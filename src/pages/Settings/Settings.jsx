@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import BusinessProfile from '../../components/Settings/BusinessProfile/BusinessProfile';
 import OperatingHours from '../../components/Settings/OperatingHours/OperatingHours';
 import OrderSettings from '../../components/Settings/OrderSettings/OrderSettings';
@@ -11,8 +12,40 @@ import SecuritySettings from '../../components/Settings/Security/SecuritySetting
 import LegalSettings from '../../components/Settings/Legal/LegalSettings';
 import DangerZoneSettings from '../../components/Settings/DangerZone/DangerZoneSettings';
 
+/** URL `?tab=` slug for each settings tab (reload-safe). */
+const TAB_TO_SLUG = {
+    'Business Profile': 'business-profile',
+    'Operating Hours': 'operating-hours',
+    'Order Settings': 'order-settings',
+    Notifications: 'notifications',
+    Integrations: 'integrations',
+    'Loyalty Preferences': 'loyalty-preferences',
+    Security: 'security',
+    Legal: 'legal',
+    'Danger Zone': 'danger-zone',
+};
+
+const SLUG_TO_TAB = Object.fromEntries(Object.entries(TAB_TO_SLUG).map(([label, slug]) => [slug, label]));
+
+const DEFAULT_TAB = 'Business Profile';
+
 const Settings = () => {
-    const [activeTab, setActiveTab] = useState('Business Profile');
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    const activeTab = useMemo(() => {
+        const raw = (searchParams.get('tab') || '').trim().toLowerCase();
+        if (!raw) return DEFAULT_TAB;
+        return SLUG_TO_TAB[raw] || DEFAULT_TAB;
+    }, [searchParams]);
+
+    const selectTab = useCallback(
+        (tab) => {
+            const slug = TAB_TO_SLUG[tab];
+            if (!slug) return;
+            setSearchParams({ tab: slug }, { replace: true });
+        },
+        [setSearchParams]
+    );
 
     const tabs = [
         'Business Profile',
@@ -70,7 +103,7 @@ const Settings = () => {
                     {tabs.map((tab) => (
                         <button
                             key={tab}
-                            onClick={() => setActiveTab(tab)}
+                            onClick={() => selectTab(tab)}
                             className={`px-4 py-4 text-[14px] font-medium transition-all relative ${activeTab === tab
                                 ? tab === 'Danger Zone' ? 'text-red-500' : 'text-[#DD2F26]'
                                 : tab === 'Danger Zone' ? 'text-red-400 opacity-80 hover:opacity-100' : 'text-[#6B6B6B] hover:text-[#1A1A1A]'

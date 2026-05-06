@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Package, DollarSign, X, Bell } from 'lucide-react';
 import { useOrderNotifications } from '../../context/OrderNotificationsContext';
@@ -19,28 +19,41 @@ function getIconForType(type) {
     return type === 'Payment' ? DollarSign : Package;
 }
 
+/** Modal filter chips → GET `filter_by` query (API: all | unread | today) */
+const FILTER_TO_API = { All: 'all', Unread: 'unread', Today: 'today' };
+
 export default function NotificationPanel({ isOpen, onClose }) {
     const navigate = useNavigate();
     const [activeFilter, setActiveFilter] = useState('All');
-    const { notifications, markAsRead, markAllAsRead } = useOrderNotifications();
+    const {
+        notifications,
+        unreadCount,
+        markAsRead,
+        markAllAsRead,
+        fetchNotificationsByFilter,
+        notificationsLoading,
+    } = useOrderNotifications();
 
-    const filteredNotifications = useMemo(() => {
-        const list = notifications.map((n) => ({
+    useEffect(() => {
+        if (!isOpen) return;
+        const apiFilter = FILTER_TO_API[activeFilter];
+        if (!apiFilter) return;
+        void fetchNotificationsByFilter(apiFilter);
+    }, [isOpen, activeFilter, fetchNotificationsByFilter]);
+
+    const displayNotifications = useMemo(() => {
+        return notifications.map((n) => ({
             ...n,
             time: n.time || getTimeLabel(n.createdAt),
             icon: getIconForType(n.type),
         }));
-        if (activeFilter === 'Unread') return list.filter((n) => n.isUnread);
-        if (activeFilter === 'Today') {
-            const startOfToday = new Date();
-            startOfToday.setHours(0, 0, 0, 0);
-            return list.filter((n) => (n.createdAt || 0) >= startOfToday.getTime());
-        }
-        return list;
-    }, [notifications, activeFilter]);
+    }, [notifications]);
 
-    const handleNotificationClick = (notif) => {
-        if (notif.isUnread) markAsRead(notif.id);
+    const handleNotificationClick = async (notif) => {
+        if (notif.isUnread) {
+            const ok = await markAsRead(notif.id);
+            if (ok === false) return;
+        }
         if (notif.orderNumber) {
             onClose();
             navigate('/orders');
@@ -60,9 +73,9 @@ export default function NotificationPanel({ isOpen, onClose }) {
                     <div className="flex items-center justify-between">
                         <h3 className="text-xl font-bold text-[#1A1A1A]">Notifications</h3>
                         <div className="flex items-center gap-3">
-                            {notifications.some((n) => n.isUnread) && (
+                            {unreadCount > 0 && (
                                 <button
-                                    onClick={markAllAsRead}
+                                    onClick={() => void markAllAsRead()}
                                     className="text-[14px] font-semibold text-[#DD2F26] hover:underline transition"
                                 >
                                     Mark all as read
@@ -82,6 +95,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
                         {filters.map((filter) => (
                             <button
                                 key={filter}
+                                type="button"
                                 onClick={() => setActiveFilter(filter)}
                                 className={`px-5 py-2 rounded-full text-[14px] font-bold transition-all ${activeFilter === filter
                                     ? 'bg-[#DD2F26] text-white shadow-lg shadow-[#DD2F26]/20'
@@ -95,10 +109,14 @@ export default function NotificationPanel({ isOpen, onClose }) {
                 </div>
 
                 {/* List */}
-                <div className="max-h-[480px] overflow-y-auto no-scrollbar">
-                    {filteredNotifications.length > 0 ? (
+                <div className="max-h-[480px] overflow-y-auto no-scrollbar relative">
+                    {notificationsLoading ? (
+                        <div className="flex min-h-[240px] items-center justify-center py-12">
+                            <span className="text-[13px] text-gray-500">Loading…</span>
+                        </div>
+                    ) : displayNotifications.length > 0 ? (
                         <div className="divide-y divide-[#F3F4F6]">
-                            {filteredNotifications.map((notif) => {
+                            {displayNotifications.map((notif) => {
                                 const Icon = notif.icon || Package;
                                 return (
                                     <div
@@ -156,6 +174,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
                 {/* Footer */}
                 <div className="p-4 border-t border-[#F3F4F6] bg-gray-50/50">
                     <button
+                        type="button"
                         onClick={() => { onClose(); navigate('/orders'); }}
                         className="w-full py-3 text-[14px] font-bold text-[#6B6B6B] hover:text-[#1A1A1A] transition"
                     >

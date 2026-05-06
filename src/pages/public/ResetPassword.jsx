@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import toast from "react-hot-toast";
 import alertIcon from "../../assets/General/alert.svg";
 import Button from "../../elements/Button";
 import PasswordInput from "../../elements/PasswordInput";
@@ -7,18 +8,28 @@ import AuthSidebar from "../../components/Auth/AuthSidebar";
 import restaurantLogo from "../../assets/restaurant_logo.png";
 import tick from "../../assets/General/tick.svg";
 import cross from "../../assets/General/cross.svg";
-import circleCheck from "../../assets/General/circleCheck(green).svg";
+
+function messageFromApiErrors(errors) {
+    if (!errors || typeof errors !== "object") return "";
+    const parts = [];
+    for (const v of Object.values(errors)) {
+        if (Array.isArray(v)) parts.push(...v.map(String));
+        else if (typeof v === "string") parts.push(v);
+    }
+    return parts.filter(Boolean).join(" ");
+}
 
 function ResetPassword() {
     const navigate = useNavigate();
     const location = useLocation();
     const { reset_token: token } = location.state || {};
+    const resetToken = typeof token === "string" ? token.trim() : "";
+    const hasValidToken = resetToken.length > 0;
 
     const [error, setError] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [repeatPassword, setRepeatPassword] = useState("");
     const [loading, setLoading] = useState(false);
-    const [alert, setAlert] = useState("");
 
     const hasMinLength = newPassword.length >= 8;
     const hasNumber = /\d/.test(newPassword);
@@ -35,21 +46,50 @@ function ResetPassword() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
+
+        if (!hasValidToken) {
+            setError("Invalid or expired reset link. Please start again from Forgot password.");
+            return;
+        }
+        if (!isFormValid) return;
+
         setLoading(true);
-
         try {
-            console.log("Resetting password with token:", token);
+            const baseUrl = (import.meta.env.VITE_BACKEND_URL || "https://api.baaie.com").replace(/\/$/, "");
+            const url = `${baseUrl}/api/v1/auth/reset-password`;
+            const res = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token: resetToken, new_password: newPassword }),
+            });
 
-            setAlert("Password Reset!");
-            setTimeout(() => {
-                setAlert("Redirecting!");
-            }, 1000);
-            setTimeout(() => {
-                navigate("/password-reset-success", { replace: true });
-            }, 2000);
+            const contentType = res.headers.get("content-type");
+            const data = contentType?.includes("application/json") ? await res.json() : null;
+
+            if (!res.ok) {
+                const fromErrors = data && typeof data === "object" ? messageFromApiErrors(data.errors) : "";
+                const message =
+                    (data && typeof data === "object" && (data.message || fromErrors)) ||
+                    (typeof data === "string" ? data : "") ||
+                    `Request failed (${res.status})`;
+                throw new Error(message);
+            }
+
+            if (!data || typeof data !== "object") {
+                throw new Error("Invalid response from server");
+            }
+
+            if (data.code !== "SUCCESS_200") {
+                const fromErrors = messageFromApiErrors(data.errors);
+                throw new Error(data.message || fromErrors || "Password reset failed.");
+            }
+
+            const successMsg =
+                (typeof data.message === "string" && data.message.trim()) || "Password reset successfully";
+            toast.success(successMsg);
+            navigate("/password-reset-success", { replace: true });
         } catch (err) {
-            setAlert("");
-            setError(err?.error || err?.message || "Password reset failed. Please try again.");
+            setError(err?.message || "Password reset failed. Please try again.");
         } finally {
             setLoading(false);
         }
@@ -83,6 +123,16 @@ function ResetPassword() {
                                             <div className="mt-[-15px] flex items-center gap-3 rounded-[12px] bg-[#F751511F] p-3 font-light text-xs text-[#47464A]">
                                                 <img src={alertIcon} alt="Alert" className="h-5 w-5 shrink-0" />
                                                 <p>{error}</p>
+                                            </div>
+                                        )}
+
+                                        {!hasValidToken && !error && (
+                                            <div className="mt-[-15px] flex items-center gap-3 rounded-[12px] bg-[#F751511F] p-3 font-light text-xs text-[#47464A]">
+                                                <img src={alertIcon} alt="Alert" className="h-5 w-5 shrink-0" />
+                                                <p>
+                                                    Invalid or expired reset link. Please start again from Forgot
+                                                    password.
+                                                </p>
                                             </div>
                                         )}
 
@@ -174,20 +224,11 @@ function ResetPassword() {
                                         <Button
                                             type="submit"
                                             variant="signIn"
-                                            disabled={!isFormValid || loading}
+                                            disabled={!isFormValid || loading || !hasValidToken}
                                             className="w-full !h-[48px] !rounded-[12px] font-sans !text-[18px] !font-bold !text-white"
                                         >
                                             {loading ? "Resetting..." : "Reset Password"}
                                         </Button>
-
-                                        {alert && (
-                                            <div className="flex justify-center">
-                                                <div className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-general-text">
-                                                    <img src={circleCheck} alt="Success" className="h-5 w-5" />
-                                                    <p>{alert}</p>
-                                                </div>
-                                            </div>
-                                        )}
                                     </form>
                                 </div>
                             </div>

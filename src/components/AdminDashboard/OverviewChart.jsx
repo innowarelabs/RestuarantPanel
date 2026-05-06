@@ -23,6 +23,7 @@ const OverviewChart = ({
     revenueData = [],
     ordersData = [],
     totalRevenue = 0,
+    ordersTotal = null,
     pctChange = 0
 }) => {
     const [activeTab, setActiveTab] = useState('Revenue');
@@ -31,6 +32,11 @@ const OverviewChart = ({
     const chartData = activeTab === 'Revenue'
         ? revenueData
         : ordersData.map(d => ({ date: d.day || d.date, value: d.total || d.value }));
+
+    const ordersDisplayTotal =
+        ordersTotal != null && Number.isFinite(Number(ordersTotal))
+            ? Number(ordersTotal)
+            : ordersData.reduce((sum, d) => sum + (d.total || d.value || 0), 0);
 
     return (
         <div className="bg-white rounded-[16px] p-6 border border-[#00000033] h-[530px]">
@@ -106,7 +112,7 @@ const OverviewChart = ({
                     <p className="text-[20px] font-[400] text-gray-900">
                         {activeTab === 'Revenue'
                             ? `$${Number(totalRevenue || 0).toLocaleString()}`
-                            : ordersData.reduce((sum, d) => sum + (d.total || d.value || 0), 0).toLocaleString()}
+                            : ordersDisplayTotal.toLocaleString()}
                     </p>
                 </div>
                 <div className="text-right">

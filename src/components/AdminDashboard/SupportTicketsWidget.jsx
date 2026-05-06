@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { MessageSquare, AlertCircle } from 'lucide-react';
 
 const SupportTicketsWidget = ({ tickets = [], loading = false }) => {
@@ -62,9 +63,12 @@ const SupportTicketsWidget = ({ tickets = [], loading = false }) => {
             </div>
 
             <div className="mt-auto p-4 bg-[#DD2F2626] rounded-b-[16px] border-t border-[#E5E7EB]">
-                <button className="w-full text-center text-[14px] font-[800] text-[#374151] hover:text-[#111827] transition-colors cursor-pointer">
+                <Link
+                    to="/supports"
+                    className="block w-full text-center text-[14px] font-[800] text-[#374151] hover:text-[#111827] transition-colors cursor-pointer py-1"
+                >
                     View All Tickets
-                </button>
+                </Link>
             </div>
         </div>
     );

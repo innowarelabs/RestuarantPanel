@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import StatCard from '../../components/AdminDashboard/StatCard';
 import HighlightStats from '../../components/AdminDashboard/HighlightStats';
@@ -8,24 +8,30 @@ import RecentActivities from '../../components/AdminDashboard/RecentActivities';
 import SupportTicketsWidget from '../../components/AdminDashboard/SupportTicketsWidget';
 import MarketingSnapshot from '../../components/AdminDashboard/MarketingSnapshot';
 
-import { ShoppingBag, Clock, CheckCircle, XCircle, Gift } from 'lucide-react';
+import { ShoppingBag, Clock, CheckCircle, XCircle, Banknote } from 'lucide-react';
 
 const API_BASE = 'https://api.baaie.com';
 
-/** `GET .../dashboard/highlights` → `data` object; hide highlight cards when nothing meaningful. */
-function hasMeaningfulHighlights(data) {
-    if (!data || typeof data !== 'object') return false;
-    const bs = data.best_seller_today;
+function numOrZero(v) {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+}
+
+/** `GET .../restaurants/dashboard` → `data.top_sellers`; hide when empty. */
+function hasMeaningfulTopSellers(topSellers) {
+    if (!topSellers || typeof topSellers !== 'object') return false;
+    const bs = topSellers.best_seller_today;
     const hasBestSeller =
-        (bs?.name != null && String(bs.name).trim() !== '') || (Number(bs?.orders_count) > 0);
-    const rs = Array.isArray(data.rising_stars) ? data.rising_stars : [];
-    const hasRising = rs.some(
+        (bs?.name != null && String(bs.name).trim() !== '') || Number(bs?.orders_count) > 0;
+    const week = Array.isArray(topSellers.top_sellers_this_week) ? topSellers.top_sellers_this_week : [];
+    const hasWeek = week.some(
         (item) =>
             (item?.name != null && String(item.name).trim() !== '') ||
+            Number(item?.quantity_sold) > 0 ||
             Number(item?.orders_count) > 0 ||
             Number(item?.orders_this_week) > 0,
     );
-    return hasBestSeller || hasRising;
+    return hasBestSeller || hasWeek;
 }
 
 // Main Dashboard Component
@@ -34,40 +40,14 @@ export default function AdminDashboard() {
     const user = useSelector((state) => state.auth.user);
     const [dashboardData, setDashboardData] = useState(null);
     const [loading, setLoading] = useState(true);
-    /** `undefined` = not loaded yet; `null` = loaded but no payload; else API `data` */
-    const [highlights, setHighlights] = useState(undefined);
 
-    useEffect(() => {
-        const fetchDashboard = async () => {
-            try {
-                const baseUrl = (import.meta.env.VITE_BACKEND_URL || API_BASE).replace(/\/$/, '');
-                const restaurantId = (user?.restaurant_id) || localStorage.getItem('restaurant_id') || '';
-                const res = await fetch(`${baseUrl}/api/v1/restaurants/analytics/dashboard`, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-                        ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
-                    },
-                });
-                const data = await res.json();
-                if (data?.data) {
-                    setDashboardData(data.data);
-                }
-            } catch (err) {
-                console.error('Dashboard API error:', err);
-            }
-            setLoading(false);
-        };
-        fetchDashboard();
-    }, [accessToken, user?.restaurant_id]);
-
-    useEffect(() => {
-        const fetchHighlights = async () => {
+    const loadDashboard = useCallback(
+        async (showLoading = true) => {
+            if (showLoading) setLoading(true);
             try {
                 const baseUrl = (import.meta.env.VITE_BACKEND_URL || API_BASE).replace(/\/$/, '');
                 const restaurantId = user?.restaurant_id || localStorage.getItem('restaurant_id') || '';
-                const url = `${baseUrl}/api/v1/restaurants/dashboard/highlights`;
+                const url = `${baseUrl}/api/v1/restaurants/dashboard`;
                 const res = await fetch(url, {
                     method: 'GET',
                     headers: {
@@ -77,82 +57,162 @@ export default function AdminDashboard() {
                     },
                 });
                 const contentType = res.headers.get('content-type');
-                const body = contentType?.includes('application/json') ? await res.json() : await res.text();
-                console.log('Restaurant dashboard highlights:', { url, ok: res.ok, status: res.status, body });
-                if (!res.ok) {
-                    setHighlights(null);
-                    return;
+                const body = contentType?.includes('application/json') ? await res.json() : null;
+                if (res.ok && body?.data) {
+                    setDashboardData(body.data);
+                } else {
+                    setDashboardData(null);
                 }
-                const payload = typeof body === 'object' && body !== null ? body?.data : null;
-                setHighlights(payload ?? null);
             } catch (err) {
-                console.error('Dashboard highlights API error:', err);
-                setHighlights(null);
+                console.error('Dashboard API error:', err);
+                setDashboardData(null);
+            } finally {
+                if (showLoading) setLoading(false);
             }
-        };
-        fetchHighlights();
-    }, [accessToken, user?.restaurant_id]);
+        },
+        [accessToken, user?.restaurant_id],
+    );
 
-    const showHighlightSection = highlights !== undefined && highlights !== null && hasMeaningfulHighlights(highlights);
+    /** Re-call `GET /api/v1/restaurants/dashboard` after order actions (no full-page loading). */
+    const refetchDashboard = useCallback(() => loadDashboard(false), [loadDashboard]);
+
+    useEffect(() => {
+        loadDashboard(true);
+    }, [loadDashboard]);
+
+    const showHighlightSection =
+        dashboardData?.top_sellers != null && hasMeaningfulTopSellers(dashboardData.top_sellers);
 
     const statCardsData = useMemo(() => {
         const summary = dashboardData?.summary_cards;
-        const s = summary && typeof summary === 'object' ? summary : {};
+        if (summary && typeof summary === 'object' && Object.keys(summary).length > 0) {
+            const s = summary;
+            return [
+                {
+                    Icon: ShoppingBag,
+                    title: 'New Orders',
+                    value: s.new_orders_this_week ?? 0,
+                    change: `${s.new_orders_pct_change ?? 0}%`,
+                    growthValue: s.new_orders_pct_change ?? 0,
+                },
+                {
+                    Icon: Clock,
+                    title: 'Orders in Progress',
+                    value: s.orders_in_progress ?? 0,
+                    change: `${s.orders_in_progress_pct_change ?? 0}%`,
+                    growthValue: s.orders_in_progress_pct_change ?? 0,
+                },
+                {
+                    Icon: CheckCircle,
+                    title: 'Completed',
+                    value: s.completed_this_week ?? 0,
+                    change: `${s.completed_pct_change ?? 0}%`,
+                    growthValue: s.completed_pct_change ?? 0,
+                },
+                {
+                    Icon: XCircle,
+                    title: 'Cancelled / Returns',
+                    value: s.cancelled_returns_this_week ?? 0,
+                    change: `${s.cancelled_pct_change ?? 0}%`,
+                    growthValue: s.cancelled_pct_change ?? 0,
+                },
+                {
+                    Icon: Banknote,
+                    title: 'Loyalty Points Issued',
+                    value: s.loyalty_points_issued_this_week ?? 0,
+                    change: `${s.loyalty_pct_change ?? 0}%`,
+                    growthValue: s.loyalty_pct_change ?? 0,
+                },
+            ];
+        }
+
+        const o = dashboardData?.orders && typeof dashboardData.orders === 'object' ? dashboardData.orders : {};
+        const r = dashboardData?.revenue && typeof dashboardData.revenue === 'object' ? dashboardData.revenue : {};
+        const mrr = numOrZero(o.mrr_growth_percent);
+
+        const inProgress = Math.max(
+            0,
+            numOrZero(o.total_orders_today) - numOrZero(o.completed_orders_today) - numOrZero(o.cancelled_orders_today),
+        );
+
         return [
             {
                 Icon: ShoppingBag,
                 title: 'New Orders',
-                value: s.new_orders_this_week ?? 0,
-                change: `${s.new_orders_pct_change ?? 0}%`,
-                growthValue: s.new_orders_pct_change ?? 0,
+                value: numOrZero(o.total_orders_today),
+                change: `${mrr}%`,
+                growthValue: mrr,
             },
             {
                 Icon: Clock,
                 title: 'Orders in Progress',
-                value: s.orders_in_progress ?? 0,
-                change: `${s.orders_in_progress_pct_change ?? 0}%`,
-                growthValue: s.orders_in_progress_pct_change ?? 0,
+                value: inProgress,
+                change: '0%',
+                growthValue: 0,
             },
             {
                 Icon: CheckCircle,
                 title: 'Completed',
-                value: s.completed_this_week ?? 0,
-                change: `${s.completed_pct_change ?? 0}%`,
-                growthValue: s.completed_pct_change ?? 0,
+                value: numOrZero(o.completed_orders_today),
+                change: '0%',
+                growthValue: 0,
             },
             {
                 Icon: XCircle,
                 title: 'Cancelled / Returns',
-                value: s.cancelled_returns_this_week ?? 0,
-                change: `${s.cancelled_pct_change ?? 0}%`,
-                growthValue: s.cancelled_pct_change ?? 0,
+                value: numOrZero(o.cancelled_orders_today),
+                change: '0%',
+                growthValue: 0,
             },
             {
-                Icon: Gift,
-                title: 'Loyalty Points Issued',
-                value: s.loyalty_points_issued_this_week ?? 0,
-                change: `${s.loyalty_pct_change ?? 0}%`,
-                growthValue: s.loyalty_pct_change ?? 0,
+                Icon: Banknote,
+                title: 'Total revenue',
+                value: `$${numOrZero(r.total_revenue).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`,
+                change: `${mrr}%`,
+                growthValue: mrr,
             },
         ];
     }, [dashboardData]);
 
-    const revenueData = useMemo(() => {
+    /** Chart + footer: prefer `orders.order_trend`; fallback legacy `revenue_overview.daily` */
+    const { revenueData, ordersData, totalRevenueChart, ordersTotalChart, pctVsLastWeek } = useMemo(() => {
+        const trend = Array.isArray(dashboardData?.orders?.order_trend) ? dashboardData.orders.order_trend : [];
+        if (trend.length > 0) {
+            const slice = trend.length > 7 ? trend.slice(-7) : trend;
+            const revenueDataNext = slice.map((d) => ({
+                date: d.label || d.date || '',
+                value: numOrZero(d.revenue),
+            }));
+            const ordersDataNext = slice.map((d) => ({
+                date: d.label || d.date || '',
+                value: numOrZero(d.order_count),
+                total: numOrZero(d.order_count),
+            }));
+            const totalRev = revenueDataNext.reduce((sum, x) => sum + numOrZero(x.value), 0);
+            const totalOrd = ordersDataNext.reduce((sum, x) => sum + numOrZero(x.total ?? x.value), 0);
+            const pct = numOrZero(dashboardData?.orders?.mrr_growth_percent);
+            return {
+                revenueData: revenueDataNext,
+                ordersData: ordersDataNext,
+                totalRevenueChart: totalRev,
+                ordersTotalChart: totalOrd,
+                pctVsLastWeek: pct,
+            };
+        }
+
         const daily = dashboardData?.revenue_overview?.daily || [];
-        return daily.map(d => ({
+        const revenueDataLegacy = daily.map((d) => ({
             date: d.date,
-            value: d.revenue
+            value: d.revenue,
         }));
+        return {
+            revenueData: revenueDataLegacy,
+            ordersData: [],
+            totalRevenueChart: dashboardData?.revenue_overview?.total_revenue_7d ?? 0,
+            ordersTotalChart: 0,
+            pctVsLastWeek: dashboardData?.revenue_overview?.pct_vs_last_week ?? 0,
+        };
     }, [dashboardData]);
-
-    const ordersData = useMemo(() => {
-        // Backend currently does not provide per-day order counts in revenue_overview,
-        // so keep this empty for now. Chart will still work for Revenue tab.
-        return [];
-    }, []);
-
-    const totalRevenue7d = dashboardData?.revenue_overview?.total_revenue_7d ?? 0;
-    const pctVsLastWeek = dashboardData?.revenue_overview?.pct_vs_last_week ?? 0;
 
     return (
         <div className="max-w-[1600px] mx-auto animate-in fade-in duration-500">
@@ -163,7 +223,7 @@ export default function AdminDashboard() {
                 </p>
             </div>
 
-            {/* Row 1: Stat cards — always 5 (analytics); not tied to highlights API */}
+            {/* Row 1: Stat cards — `summary_cards` from dashboard */}
             <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6 -mt-[10px]">
                 {statCardsData.map((card, index) => (
                     <div key={index} className={index === statCardsData.length - 1 ? "col-span-2 lg:col-span-1" : ""}>
@@ -178,11 +238,13 @@ export default function AdminDashboard() {
                 ))}
             </div>
 
-            {/* Row 2: Highlights — only when /dashboard/highlights has meaningful data */}
+            {/* Row 2: Best seller + weekly top sellers from main dashboard */}
             {showHighlightSection ? (
                 <HighlightStats
-                    bestSeller={highlights.best_seller_today}
-                    topSellers={Array.isArray(highlights.rising_stars) ? highlights.rising_stars : []}
+                    bestSeller={dashboardData.top_sellers.best_seller_today}
+                    topSellers={Array.isArray(dashboardData.top_sellers.top_sellers_this_week)
+                        ? dashboardData.top_sellers.top_sellers_this_week
+                        : []}
                 />
             ) : null}
 
@@ -190,14 +252,19 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 mb-6">
                 {/* Active Orders - 4 columns (roughly 1/3) */}
                 <div className="xl:col-span-6">
-                    <ActiveOrders orders={dashboardData?.active_orders || []} loading={loading} />
+                    <ActiveOrders
+                        orders={dashboardData?.active_orders || []}
+                        loading={loading}
+                        onOrdersChanged={refetchDashboard}
+                    />
                 </div>
                 {/* Overview Chart - 8 columns (roughly 2/3) */}
                 <div className="xl:col-span-6">
                     <OverviewChart
                         revenueData={revenueData}
                         ordersData={ordersData}
-                        totalRevenue={totalRevenue7d}
+                        totalRevenue={totalRevenueChart}
+                        ordersTotal={ordersTotalChart}
                         pctChange={pctVsLastWeek}
                     />
                 </div>
@@ -214,7 +281,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Row 5: Marketing Snapshot */}
-            <MarketingSnapshot />
+            <MarketingSnapshot marketingSnapshot={dashboardData?.marketing_snapshot} />
 
         </div>
     );

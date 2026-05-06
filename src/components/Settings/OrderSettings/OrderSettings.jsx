@@ -55,7 +55,7 @@ const toValidationErrorLines = (data) => {
 const isSuccessCode = (code) => {
     if (typeof code !== 'string') return true;
     const normalized = code.trim().toUpperCase();
-    return normalized.endsWith('_200') || normalized.endsWith('_201');
+    return normalized.endsWith('_200') || normalized.endsWith('_201') || normalized.endsWith('_202');
 };
 
 const formatMinimumOrderInput = (raw) => {
@@ -244,23 +244,40 @@ const OrderSettings = () => {
             const orderCancelTimeout = Number(timeLimitMins.trim());
             const orderCancelTimeoutMins = Number.isFinite(orderCancelTimeout) ? Math.trunc(orderCancelTimeout) : 1;
 
-            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step4`;
+            /** Same as Operating Hours / Business Profile: PUT restaurant by id (not onboarding step4). */
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/${encodeURIComponent(restaurantId)}`;
+
+            const maxText = maxOrderAmount.trim();
+            const maxParsed = maxText === '' ? NaN : Number(maxText);
+            const bufText = schedulingBuffer.trim();
+            const bufParsed = bufText === '' ? NaN : Number(bufText);
+
+            const body = {
+                auto_accept_orders: !!switches.autoAccept,
+                order_cancel_timeout_mins: orderCancelTimeoutMins,
+                minimum_order: minOrderValue,
+                allow_special_instructions: !!switches.itemCustomization,
+                allow_scheduled_orders: !!switches.scheduledOrders,
+                show_out_of_stock_items: !!switches.showOutOfStock,
+                cancellation_policy: cancelPolicy.trim(),
+                new_order_sound_notification: !!newOrderSoundNotification,
+                rider_pickup_instructions: riderPickupInstructions.trim(),
+                average_preparation_time: defaultPrepTime.trim(),
+            };
+            if (Number.isFinite(maxParsed)) {
+                body.maximum_order = maxParsed;
+            }
+            if (Number.isFinite(bufParsed)) {
+                body.scheduling_buffer_mins = Math.trunc(bufParsed);
+            }
+
             const res = await fetch(url, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${accessToken}`,
                 },
-                body: JSON.stringify({
-                    restaurant_id: restaurantId,
-                    auto_accept_orders: !!switches.autoAccept,
-                    order_cancel_timeout_mins: orderCancelTimeoutMins,
-                    minimum_order: minOrderValue,
-                    allow_special_instructions: !!switches.itemCustomization,
-                    cancellation_policy: cancelPolicy.trim(),
-                    new_order_sound_notification: !!newOrderSoundNotification,
-                    rider_pickup_instructions: riderPickupInstructions.trim(),
-                }),
+                body: JSON.stringify(body),
             });
 
             const contentType = res.headers.get('content-type');
