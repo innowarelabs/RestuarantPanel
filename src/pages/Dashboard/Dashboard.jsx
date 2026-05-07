@@ -17,21 +17,20 @@ function numOrZero(v) {
     return Number.isFinite(n) ? n : 0;
 }
 
-/** `GET .../restaurants/dashboard` → `data.top_sellers`; hide when empty. */
-function hasMeaningfulTopSellers(topSellers) {
-    if (!topSellers || typeof topSellers !== 'object') return false;
-    const bs = topSellers.best_seller_today;
-    const hasBestSeller =
-        (bs?.name != null && String(bs.name).trim() !== '') || Number(bs?.orders_count) > 0;
-    const week = Array.isArray(topSellers.top_sellers_this_week) ? topSellers.top_sellers_this_week : [];
-    const hasWeek = week.some(
-        (item) =>
-            (item?.name != null && String(item.name).trim() !== '') ||
-            Number(item?.quantity_sold) > 0 ||
-            Number(item?.orders_count) > 0 ||
-            Number(item?.orders_this_week) > 0,
-    );
-    return hasBestSeller || hasWeek;
+/** `GET .../restaurants/dashboard/highlights` — show row only when at least one card has real data. */
+function hasMeaningfulHighlights(data) {
+    if (!data || typeof data !== 'object') return false;
+    const bs = data.best_seller_today;
+    const hasBest =
+        (bs?.name != null && String(bs.name).trim() !== '') || numOrZero(bs?.orders_count) > 0;
+    const rising = Array.isArray(data.rising_stars) ? data.rising_stars : [];
+    const hasRising = rising.some((item) => {
+        const nameOk = item?.name != null && String(item.name).trim() !== '';
+        const qty = numOrZero(item?.quantity_sold);
+        const growth = numOrZero(item?.growth_pct);
+        return nameOk || qty > 0 || growth !== 0;
+    });
+    return hasBest || hasRising;
 }
 
 // Main Dashboard Component
@@ -39,7 +38,34 @@ export default function AdminDashboard() {
     const accessToken = useSelector((state) => state.auth.accessToken);
     const user = useSelector((state) => state.auth.user);
     const [dashboardData, setDashboardData] = useState(null);
+    const [highlightsData, setHighlightsData] = useState(null);
     const [loading, setLoading] = useState(true);
+
+    const loadHighlights = useCallback(async () => {
+        try {
+            const baseUrl = (import.meta.env.VITE_BACKEND_URL || API_BASE).replace(/\/$/, '');
+            const restaurantId = user?.restaurant_id || localStorage.getItem('restaurant_id') || '';
+            const url = `${baseUrl}/api/v1/restaurants/dashboard/highlights`;
+            const res = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
+                },
+            });
+            const contentType = res.headers.get('content-type');
+            const body = contentType?.includes('application/json') ? await res.json() : null;
+            if (res.ok && body?.data && typeof body.data === 'object') {
+                setHighlightsData(body.data);
+            } else {
+                setHighlightsData(null);
+            }
+        } catch (err) {
+            console.error('Dashboard highlights API error:', err);
+            setHighlightsData(null);
+        }
+    }, [accessToken, user?.restaurant_id]);
 
     const loadDashboard = useCallback(
         async (showLoading = true) => {
@@ -73,15 +99,21 @@ export default function AdminDashboard() {
         [accessToken, user?.restaurant_id],
     );
 
-    /** Re-call `GET /api/v1/restaurants/dashboard` after order actions (no full-page loading). */
-    const refetchDashboard = useCallback(() => loadDashboard(false), [loadDashboard]);
+    /** Re-call dashboard + highlights after order actions (no full-page loading). */
+    const refetchDashboard = useCallback(() => {
+        loadDashboard(false);
+        void loadHighlights();
+    }, [loadDashboard, loadHighlights]);
 
     useEffect(() => {
         loadDashboard(true);
     }, [loadDashboard]);
 
-    const showHighlightSection =
-        dashboardData?.top_sellers != null && hasMeaningfulTopSellers(dashboardData.top_sellers);
+    useEffect(() => {
+        void loadHighlights();
+    }, [loadHighlights]);
+
+    const showHighlightSection = highlightsData != null && hasMeaningfulHighlights(highlightsData);
 
     const statCardsData = useMemo(() => {
         const summary = dashboardData?.summary_cards;
@@ -238,13 +270,11 @@ export default function AdminDashboard() {
                 ))}
             </div>
 
-            {/* Row 2: Best seller + weekly top sellers from main dashboard */}
+            {/* Row 2: Best seller + rising stars from GET .../dashboard/highlights */}
             {showHighlightSection ? (
                 <HighlightStats
-                    bestSeller={dashboardData.top_sellers.best_seller_today}
-                    topSellers={Array.isArray(dashboardData.top_sellers.top_sellers_this_week)
-                        ? dashboardData.top_sellers.top_sellers_this_week
-                        : []}
+                    bestSeller={highlightsData.best_seller_today}
+                    topSellers={Array.isArray(highlightsData.rising_stars) ? highlightsData.rising_stars : []}
                 />
             ) : null}
 
