@@ -38,8 +38,8 @@ const steps = [
 ];
 
 const WEBSITE_HEADER_REQUIRED_PX = { width: 1440, height: 495 };
-const WEBSITE_FOOTER_LEFT_REQUIRED_PX = { width: 604, height: 425 };
-const WEBSITE_FOOTER_RIGHT_REQUIRED_PX = { width: 604, height: 425 };
+const WEBSITE_FOOTER_LEFT_REQUIRED_PX = { width: 648, height: 425 };
+const WEBSITE_FOOTER_RIGHT_REQUIRED_PX = { width: 648, height: 425 };
 const CATEGORY_IMAGE_REQUIRED_PX = { width: 270, height: 195 };
 
 export default function OnboardingStep() {

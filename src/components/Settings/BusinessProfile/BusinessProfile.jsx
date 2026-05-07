@@ -6,8 +6,8 @@ import toast from 'react-hot-toast';
 import { setRestaurantName } from '../../../redux/store';
 
 const WEBSITE_HEADER_REQUIRED_PX = { width: 1440, height: 495 };
-const WEBSITE_FOOTER_LEFT_REQUIRED_PX = { width: 604, height: 425 };
-const WEBSITE_FOOTER_RIGHT_REQUIRED_PX = { width: 604, height: 425 };
+const WEBSITE_FOOTER_LEFT_REQUIRED_PX = { width: 648, height: 425 };
+const WEBSITE_FOOTER_RIGHT_REQUIRED_PX = { width: 648, height: 425 };
 
 const defaultOpeningHours = () => ({
     monday: { open: '', close: '' },
@@ -110,6 +110,8 @@ const BusinessProfile = () => {
     const dispatch = useDispatch();
     const accessToken = useSelector((state) => state.auth.accessToken);
     const authUser = useSelector((state) => state.auth.user);
+    const accountEmail =
+        authUser && typeof authUser.email === 'string' ? authUser.email.trim() : '';
 
     const [loadingProfile, setLoadingProfile] = useState(true);
     const [restaurantId, setRestaurantId] = useState('');
@@ -118,7 +120,6 @@ const BusinessProfile = () => {
     const prefilledStep1Ref = useRef(false);
 
     const [companyName, setCompanyName] = useState('');
-    const [email, setEmail] = useState('');
     const [contact, setContact] = useState('');
     const [companyLogoUrl, setCompanyLogoUrl] = useState('');
     const [ownerFullNameRaw, setOwnerFullNameRaw] = useState(null);
@@ -181,7 +182,7 @@ const BusinessProfile = () => {
 
     const logoOk = !!companyLogoUrl?.trim() || !!brandingFiles.companyLogo;
     const identityValid =
-        !!companyName?.trim() && !!email?.trim() && !!contact?.trim() && logoOk;
+        !!companyName?.trim() && !!accountEmail && !!contact?.trim() && logoOk;
 
     const headerOk = !!websiteHeaderUrl?.trim() || !!brandingFiles.websiteHeader;
     const footerLeftOk = !!websiteFooterLeftUrl?.trim() || !!brandingFiles.websiteFooterLeft;
@@ -303,7 +304,6 @@ const BusinessProfile = () => {
         if (typeof r.name === 'string') setCompanyName(r.name);
         else if (typeof r.legal_business_name === 'string') setCompanyName(r.legal_business_name);
 
-        if (typeof r.email === 'string') setEmail(r.email);
         if (typeof r.phone_number === 'string') setContact(r.phone_number);
 
         const logo = normalizeUrl(r.company_logo);
@@ -438,13 +438,11 @@ const BusinessProfile = () => {
                     const nextOwnerFullNameRaw = typeof step1.owner_full_name === 'string' ? step1.owner_full_name : null;
                     const nextOwnerPhoneRaw = typeof step1.owner_phone === 'string' ? step1.owner_phone : null;
                     const nextCompanyName = typeof step1.company_name === 'string' ? step1.company_name : '';
-                    const nextEmail = typeof step1.email === 'string' ? step1.email : '';
                     const nextCompanyLogoUrl = normalizeUrl(step1.company_logo);
 
                     setRestaurantId(nextRestaurantId);
                     setOwnerFullNameRaw(nextOwnerFullNameRaw);
                     setCompanyName(nextCompanyName);
-                    setEmail(nextEmail);
                     setContact(typeof nextOwnerPhoneRaw === 'string' ? nextOwnerPhoneRaw : '');
                     setCompanyLogoUrl(nextCompanyLogoUrl);
 
@@ -740,9 +738,11 @@ const BusinessProfile = () => {
                             </label>
                             <input
                                 type="email"
-                                value={email}
+                                value={accountEmail}
                                 disabled
-                                className="w-full px-4 py-2 bg-gray-50 text-[14px] border border-[#E5E7EB] rounded-[8px] text-[#6B7280]"
+                                readOnly
+                                aria-readonly="true"
+                                className="w-full px-4 py-2 bg-gray-50 text-[14px] border border-[#E5E7EB] rounded-[8px] text-[#6B7280] cursor-not-allowed"
                             />
                         </div>
                         <div>
