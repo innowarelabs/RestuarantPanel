@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Save, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import PromotionsSection, { buildPromoCodesPayload } from './PromotionsSection';
 const normalizeBool = (value) => {
     if (typeof value === 'boolean') return value;
     if (typeof value === 'number') return value === 1;
@@ -91,6 +92,10 @@ const OrderSettings = () => {
     const [cancelPolicy, setCancelPolicy] = useState('');
     const [newOrderSoundNotification, setNewOrderSoundNotification] = useState(true);
     const [riderPickupInstructions, setRiderPickupInstructions] = useState('');
+
+    const [firstOrderDiscountEnabled, setFirstOrderDiscountEnabled] = useState(false);
+    const [firstOrderDiscountValue, setFirstOrderDiscountValue] = useState('10');
+    const [promoCodes, setPromoCodes] = useState([]);
 
     const [saving, setSaving] = useState(false);
     const [saveErrors, setSaveErrors] = useState([]);
@@ -223,6 +228,52 @@ const OrderSettings = () => {
                     const bn = Number(buf);
                     if (Number.isFinite(bn)) setSchedulingBuffer(String(Math.trunc(bn)));
                 }
+
+                try {
+                    const step4Url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step4`;
+                    const res4 = await fetch(step4Url, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${accessToken}`,
+                        },
+                    });
+                    const ct4 = res4.headers.get('content-type');
+                    const raw4 = ct4?.includes('application/json') ? await res4.json() : await res4.text();
+                    if (res4.ok) {
+                        const s4 = extractPayload(raw4);
+                        if (s4 && typeof s4 === 'object') {
+                            const fo = normalizeBool(s4.first_order_discount_enabled);
+                            if (fo !== null) setFirstOrderDiscountEnabled(fo);
+                            if (
+                                s4.first_order_discount_value !== null &&
+                                s4.first_order_discount_value !== undefined &&
+                                String(s4.first_order_discount_value).trim() !== ''
+                            ) {
+                                setFirstOrderDiscountValue(String(s4.first_order_discount_value));
+                            }
+                            if (Array.isArray(s4.promo_codes)) {
+                                setPromoCodes(
+                                    s4.promo_codes.map((p) => ({
+                                        code: String(p?.code ?? ''),
+                                        discount_type: p?.discount_type === 'flat' ? 'flat' : 'percentage',
+                                        discount_value:
+                                            p?.discount_value !== null && p?.discount_value !== undefined
+                                                ? String(p.discount_value)
+                                                : '',
+                                        is_active: normalizeBool(p?.is_active) !== false,
+                                        min_order_amount:
+                                            p?.min_order_amount !== null && p?.min_order_amount !== undefined
+                                                ? String(p.min_order_amount)
+                                                : '0',
+                                    })),
+                                );
+                            }
+                        }
+                    }
+                } catch {
+                    /* step4 optional */
+                }
             } catch (e) {
                 setLoadError(e?.message || 'Failed to load order settings');
             } finally {
@@ -240,6 +291,14 @@ const OrderSettings = () => {
         try {
             const baseUrl = import.meta.env.VITE_BACKEND_URL;
             if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+
+            let normalizedPromos = [];
+            try {
+                normalizedPromos = buildPromoCodesPayload(promoCodes);
+            } catch (ve) {
+                setSaveErrors([ve?.message || 'Invalid promo codes']);
+                return;
+            }
 
             const orderCancelTimeout = Number(timeLimitMins.trim());
             const orderCancelTimeoutMins = Number.isFinite(orderCancelTimeout) ? Math.trunc(orderCancelTimeout) : 1;
@@ -304,6 +363,63 @@ const OrderSettings = () => {
                     typeof data.message === 'string' && data.message.trim()
                         ? data.message.trim()
                         : data.code.trim() || 'Update failed',
+                ]);
+                return;
+            }
+
+            const fodv = Number(firstOrderDiscountValue);
+            const step4Url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step4`;
+            const step4Body = {
+                restaurant_id: restaurantId,
+                auto_accept_orders: !!switches.autoAccept,
+                order_cancel_timeout_mins: orderCancelTimeoutMins,
+                minimum_order: minOrderValue,
+                allow_special_instructions: !!switches.itemCustomization,
+                allow_scheduled_orders: !!switches.scheduledOrders,
+                show_out_of_stock_items: !!switches.showOutOfStock,
+                cancellation_policy: cancelPolicy.trim(),
+                rider_pickup_instructions: riderPickupInstructions.trim(),
+                new_order_sound_notification: !!newOrderSoundNotification,
+                first_order_discount_enabled: !!firstOrderDiscountEnabled,
+                first_order_discount_value: Number.isFinite(fodv) ? fodv : 0,
+                promo_codes: normalizedPromos,
+            };
+            if (Number.isFinite(maxParsed)) {
+                step4Body.maximum_order = maxParsed;
+            }
+
+            const res4 = await fetch(step4Url, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${accessToken}`,
+                },
+                body: JSON.stringify(step4Body),
+            });
+            const ct4 = res4.headers.get('content-type');
+            const data4 = ct4?.includes('application/json') ? await res4.json() : await res4.text();
+
+            if (!res4.ok) {
+                const lines = toValidationErrorLines(data4);
+                setSaveErrors(
+                    lines.length
+                        ? lines
+                        : [
+                              typeof data4 === 'object' && data4?.message
+                                  ? data4.message
+                                  : typeof data4 === 'string' && data4.trim()
+                                    ? data4.trim()
+                                    : 'Failed to save promotions (step 4)',
+                          ],
+                );
+                return;
+            }
+
+            if (data4 && typeof data4 === 'object' && typeof data4.code === 'string' && !isSuccessCode(data4.code)) {
+                setSaveErrors([
+                    typeof data4.message === 'string' && data4.message.trim()
+                        ? data4.message.trim()
+                        : data4.code.trim() || 'Failed to save promotions',
                 ]);
                 return;
             }
@@ -475,6 +591,15 @@ const OrderSettings = () => {
                                 </button>
                             </div>
                         </div>
+
+                        <PromotionsSection
+                            firstOrderDiscountEnabled={firstOrderDiscountEnabled}
+                            onFirstOrderDiscountEnabledChange={setFirstOrderDiscountEnabled}
+                            firstOrderDiscountValue={firstOrderDiscountValue}
+                            onFirstOrderDiscountValueChange={setFirstOrderDiscountValue}
+                            promoCodes={promoCodes}
+                            onPromoCodesChange={setPromoCodes}
+                        />
 
                         {!!saveErrors.length && (
                             <div className="mt-4 bg-[#F751511F] rounded-[12px] py-[10px] px-[12px]">

@@ -315,6 +315,22 @@ const mapDishToMenuItem = (dish) => {
     };
 };
 
+/** GET categories may expose `is_visible` / `is_active`; keep `visible` on mapped objects for existing UI/state. */
+const mapCategoryVisibility = (raw) => {
+    if (!raw || typeof raw !== 'object') return true;
+    if (typeof raw.is_visible === 'boolean') return raw.is_visible;
+    if (raw.is_visible === 1 || raw.is_visible === '1') return true;
+    if (raw.is_visible === 0 || raw.is_visible === '0') return false;
+    if (typeof raw.is_active === 'boolean') return raw.is_active;
+    if (raw.is_active === 1 || raw.is_active === '1') return true;
+    if (raw.is_active === 0 || raw.is_active === '0') return false;
+    if (typeof raw.visible === 'boolean') return raw.visible;
+    if (typeof raw.status === 'boolean') return raw.status;
+    if (raw.status === 1 || raw.status === '1') return true;
+    if (raw.status === 0 || raw.status === '0') return false;
+    return true;
+};
+
 const mapCategory = (raw) => {
     if (!raw || typeof raw !== 'object') return null;
     const id =
@@ -341,7 +357,7 @@ const mapCategory = (raw) => {
         (typeof raw.imageUrl === 'string' && raw.imageUrl) ||
         '';
     const imageUrl = imageRaw ? normalizeUrl(imageRaw) : '';
-    const visible = typeof raw.visible === 'boolean' ? raw.visible : true;
+    const visible = mapCategoryVisibility(raw);
     const count =
         typeof raw.count === 'number'
             ? raw.count

@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useSelector } from 'react-redux';
+import toast from 'react-hot-toast';
 import StatCard from '../../components/AdminDashboard/StatCard';
 import HighlightStats from '../../components/AdminDashboard/HighlightStats';
 import ActiveOrders from '../../components/AdminDashboard/ActiveOrders';
@@ -40,6 +41,7 @@ export default function AdminDashboard() {
     const [dashboardData, setDashboardData] = useState(null);
     const [highlightsData, setHighlightsData] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [dismissingRecentActivities, setDismissingRecentActivities] = useState(false);
 
     const loadHighlights = useCallback(async () => {
         try {
@@ -104,6 +106,45 @@ export default function AdminDashboard() {
         loadDashboard(false);
         void loadHighlights();
     }, [loadDashboard, loadHighlights]);
+
+    const dismissAllRecentActivities = useCallback(async () => {
+        if (!accessToken) {
+            toast.error('Please sign in to dismiss activities.');
+            return;
+        }
+        setDismissingRecentActivities(true);
+        try {
+            const baseUrl = (import.meta.env.VITE_BACKEND_URL || API_BASE).replace(/\/$/, '');
+            const restaurantId = user?.restaurant_id || localStorage.getItem('restaurant_id') || '';
+            const url = `${baseUrl}/api/v1/restaurants/dashboard/recent-activities/dismiss-all`;
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
+                },
+            });
+            const contentType = res.headers.get('content-type');
+            const body = contentType?.includes('application/json') ? await res.json() : null;
+            if (res.ok && body?.code === 'SUCCESS_200') {
+                const msg =
+                    typeof body.message === 'string' && body.message.trim() ? body.message.trim() : null;
+                toast.success(msg || 'Recent activities dismissed.');
+                await loadDashboard(false);
+            } else {
+                const msg =
+                    (body && typeof body.message === 'string' && body.message.trim()) ||
+                    `Could not dismiss activities (${res.status})`;
+                toast.error(msg);
+            }
+        } catch (err) {
+            console.error('Dismiss all recent activities failed:', err);
+            toast.error(typeof err?.message === 'string' ? err.message : 'Could not dismiss activities');
+        } finally {
+            setDismissingRecentActivities(false);
+        }
+    }, [accessToken, user?.restaurant_id, loadDashboard]);
 
     useEffect(() => {
         loadDashboard(true);
@@ -303,7 +344,12 @@ export default function AdminDashboard() {
             {/* Row 4: Recent Activities & Support Tickets */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
                 <div className='lg:col-span-5'>
-                    <RecentActivities activities={dashboardData?.recent_activities || []} loading={loading} />
+                    <RecentActivities
+                        activities={dashboardData?.recent_activities || []}
+                        loading={loading}
+                        dismissBusy={dismissingRecentActivities}
+                        onDismissAll={dismissAllRecentActivities}
+                    />
                 </div>
                 <div className='lg:col-span-7'>
                     <SupportTicketsWidget tickets={dashboardData?.support_tickets || []} loading={loading} />

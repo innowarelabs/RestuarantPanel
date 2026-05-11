@@ -23,8 +23,14 @@ const getIconConfig = (type) => {
     }
 };
 
-const RecentActivities = ({ activities = [], loading = false }) => {
+const RecentActivities = ({
+    activities = [],
+    loading = false,
+    onDismissAll,
+    dismissBusy = false,
+}) => {
     const hasActivities = activities && activities.length > 0;
+    const dismissDisabled = loading || dismissBusy || !hasActivities || typeof onDismissAll !== 'function';
 
     return (
         <div className="bg-white rounded-[16px] border border-[#00000033] h-full flex flex-col">
@@ -68,8 +74,19 @@ const RecentActivities = ({ activities = [], loading = false }) => {
             </div>
 
             <div className="mt-auto p-4 bg-[#DD2F2626] rounded-b-[16px] border-t border-[#E5E7EB]">
-                <button className="w-full text-center text-[14px] font-[800] text-[#111827] hover:opacity-80 transition-opacity cursor-pointer">
-                    Dismiss All
+                <button
+                    type="button"
+                    disabled={dismissDisabled}
+                    onClick={() => {
+                        if (!dismissDisabled) onDismissAll();
+                    }}
+                    className={`w-full text-center text-[14px] font-[800] text-[#111827] transition-opacity ${
+                        dismissDisabled
+                            ? 'opacity-50 cursor-not-allowed'
+                            : 'hover:opacity-80 cursor-pointer'
+                    }`}
+                >
+                    {dismissBusy ? 'Dismissing…' : 'Dismiss All'}
                 </button>
             </div>
         </div>

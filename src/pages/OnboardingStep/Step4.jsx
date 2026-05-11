@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useSelector } from 'react-redux';
 
 import Toggle from './Toggle';
+import PromotionsSection, { buildPromoCodesPayload } from '../../components/Settings/OrderSettings/PromotionsSection';
 
 export default function Step4({ formData, setFormData, handlePrev, handleNext }) {
     const accessToken = useSelector((state) => state.auth.accessToken);
@@ -45,6 +46,15 @@ export default function Step4({ formData, setFormData, handlePrev, handleNext })
         setSubmitting(true);
         setErrorLines([]);
         try {
+            let promoPayload = [];
+            try {
+                promoPayload = buildPromoCodesPayload(formData.promoCodes || []);
+            } catch (ve) {
+                const message = typeof ve?.message === 'string' ? ve.message : 'Invalid promo codes';
+                setErrorLines([message]);
+                return;
+            }
+
             const baseUrl = import.meta.env.VITE_BACKEND_URL;
             if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
 
@@ -52,6 +62,7 @@ export default function Step4({ formData, setFormData, handlePrev, handleNext })
             const orderCancelTimeout = Number(timeLimitDigits);
             const orderCancelTimeoutMins = Number.isFinite(orderCancelTimeout) ? Math.trunc(orderCancelTimeout) : 1;
 
+            const fodv = Number(formData.firstOrderDiscountValue);
             const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step4`;
             const res = await fetch(url, {
                 method: 'PUT',
@@ -68,6 +79,9 @@ export default function Step4({ formData, setFormData, handlePrev, handleNext })
                     cancellation_policy: formData.cancelPolicy?.trim() || '',
                     new_order_sound_notification: !!formData.newOrderSoundNotification,
                     rider_pickup_instructions: formData.riderPickupInstructions?.trim() || '',
+                    first_order_discount_enabled: !!formData.firstOrderDiscountEnabled,
+                    first_order_discount_value: Number.isFinite(fodv) ? fodv : 0,
+                    promo_codes: promoPayload,
                 }),
             });
 
@@ -194,6 +208,15 @@ export default function Step4({ formData, setFormData, handlePrev, handleNext })
                     className="onboarding-textarea"
                 />
             </div>
+
+            <PromotionsSection
+                firstOrderDiscountEnabled={!!formData.firstOrderDiscountEnabled}
+                onFirstOrderDiscountEnabledChange={(v) => setFormData({ ...formData, firstOrderDiscountEnabled: v })}
+                firstOrderDiscountValue={formData.firstOrderDiscountValue ?? '10'}
+                onFirstOrderDiscountValueChange={(v) => setFormData({ ...formData, firstOrderDiscountValue: v })}
+                promoCodes={Array.isArray(formData.promoCodes) ? formData.promoCodes : []}
+                onPromoCodesChange={(rows) => setFormData({ ...formData, promoCodes: rows })}
+            />
 
             {!!errorLines.length && (
                 <div className="bg-[#F751511F] rounded-[12px] py-[10px] px-[12px]">

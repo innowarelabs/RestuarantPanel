@@ -456,6 +456,9 @@ export default function OnboardingStep() {
         cancelPolicy: '',
         newOrderSoundNotification: true,
         riderPickupInstructions: '',
+        firstOrderDiscountEnabled: false,
+        firstOrderDiscountValue: '10',
+        promoCodes: [],
         // Step 5
         loyaltyEnabled: true,
         pointsPerDollar: '10',
