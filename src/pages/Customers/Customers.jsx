@@ -140,16 +140,11 @@ export default function Customers() {
         return date.toLocaleDateString();
     };
 
-    const customerStatusBadge = (isLocked) =>
-        isLocked ? (
-            <span className="inline-flex items-center rounded-[8px] bg-gray-200 px-3 py-1.5 text-[12px] font-medium text-gray-800">
-                Blocked
-            </span>
-        ) : (
-            <span className="inline-flex items-center rounded-[8px] bg-primary-bg px-3 py-1.5 text-[12px] font-medium text-primary">
-                Active
-            </span>
-        );
+    const customerStatusBadge = (isLocked) => (
+        <span className="inline-flex items-center rounded-[8px] bg-primary-bg px-3 py-1.5 text-[12px] font-medium text-primary">
+            {isLocked ? 'Blocked' : 'Active'}
+        </span>
+    );
 
     const formatCurrency = (amount) => {
         return `$${amount.toFixed(2)}`;

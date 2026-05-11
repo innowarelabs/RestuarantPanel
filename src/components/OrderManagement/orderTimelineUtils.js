@@ -55,7 +55,10 @@ export function mapApiTimelineToDisplayEvents(timeline) {
     return sorted.map((ev, i) => {
         const st = String((ev && ev.status) || '').toLowerCase();
         const rawLab = (ev && ev.label) != null ? String(ev.label).trim() : '';
-        const label = rawLab || humanizeStatus((ev && ev.status) || 'Update');
+        let label = rawLab || humanizeStatus((ev && ev.status) || 'Update');
+        if (st === 'mark_as_ready' || /^mark\s*as\s*ready$/i.test(String(label).trim())) {
+            label = 'Ready';
+        }
         const isCancelled = st === 'cancelled' || st === 'canceled' || label.toLowerCase().includes('cancel');
         return {
             id: (ev && ev.id) != null ? String(ev.id) : `tl-${i}`,

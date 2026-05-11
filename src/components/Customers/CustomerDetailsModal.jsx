@@ -548,15 +548,13 @@ export default function CustomerDetailsModal({
                             </div>
                         </div>
                         <div>
-                            {isCustomerBlocked ? (
-                                <span className="inline-flex items-center rounded-[8px] bg-gray-200 px-3 py-1.5 font-sans text-[12px] font-medium text-gray-800">
-                                    Blocked
-                                </span>
-                            ) : (
-                                <span className="inline-flex items-center rounded-[8px] bg-primary-bg px-3 py-1.5 font-sans text-[12px] font-medium text-primary">
-                                    Active
-                                </span>
-                            )}
+                            <span
+                                className={`inline-flex items-center rounded-[8px] bg-primary-bg px-3 py-1.5 font-sans text-[12px] font-medium ${
+                                    isCustomerBlocked ? 'text-primary' : 'text-[#059669]'
+                                }`}
+                            >
+                                {isCustomerBlocked ? 'Blocked' : 'Active'}
+                            </span>
                         </div>
                     </div>
                     <button
