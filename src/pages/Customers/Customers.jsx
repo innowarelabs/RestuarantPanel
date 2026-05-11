@@ -65,17 +65,23 @@ export default function Customers() {
             if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
 
             const skip = (page - 1) * 20;
-            let url = `${baseUrl}/api/v1/orders/customers?skip=${skip}&limit=20`;
-            if (search) url += `&search=${encodeURIComponent(search)}`;
-            if (sort) url += `&sort=${sort}`;
+            const root = String(baseUrl).replace(/\/$/, '');
+            const listUrl = new URL(`${root}/api/v1/orders/customers`);
+            listUrl.searchParams.set('skip', String(skip));
+            listUrl.searchParams.set('limit', '20');
+            const q =
+                typeof search === 'string' ? search.replace(/\s+/g, '').trim() : '';
+            if (q) listUrl.searchParams.set('search', q);
+            if (sort) listUrl.searchParams.set('sort', sort);
             if (date) {
                 const d = String(date).trim();
                 if (d) {
-                    url += `&start_date=${encodeURIComponent(d)}&end_date=${encodeURIComponent(d)}`;
+                    listUrl.searchParams.set('start_date', d);
+                    listUrl.searchParams.set('end_date', d);
                 }
             }
 
-            const res = await fetch(url, {
+            const res = await fetch(listUrl.toString(), {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
