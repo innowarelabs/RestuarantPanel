@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { AlertCircle, Image, Save, Upload } from 'lucide-react';
+import { AlertCircle, Image, Save, Upload, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { setRestaurantName } from '../../../redux/store';
@@ -8,6 +8,7 @@ import { setRestaurantName } from '../../../redux/store';
 const WEBSITE_HEADER_REQUIRED_PX = { width: 1440, height: 495 };
 const WEBSITE_FOOTER_LEFT_REQUIRED_PX = { width: 648, height: 425 };
 const WEBSITE_FOOTER_RIGHT_REQUIRED_PX = { width: 648, height: 425 };
+const CATERING_POSTER_PX = { width: 464, height: 300 };
 
 const defaultOpeningHours = () => ({
     monday: { open: '', close: '' },
@@ -138,6 +139,18 @@ const BusinessProfile = () => {
     const [enableDelivery, setEnableDelivery] = useState(true);
     const [enablePickup, setEnablePickup] = useState(false);
 
+    /** Shown on customer storefront home (`user-panel`) via branding/summary APIs */
+    const [posterImageUrl, setPosterImageUrl] = useState('');
+    const [posterFile, setPosterFile] = useState(null);
+    const [posterPreviewUrl, setPosterPreviewUrl] = useState('');
+    const [savingPoster, setSavingPoster] = useState(false);
+
+    /** Catering menu / events poster — `POST .../upload/catering-poster`, URL on restaurant as `catering_poster_image_url`. */
+    const [cateringPosterImageUrl, setCateringPosterImageUrl] = useState('');
+    const [cateringPosterFile, setCateringPosterFile] = useState(null);
+    const [cateringPosterPreviewUrl, setCateringPosterPreviewUrl] = useState('');
+    const [savingCateringPoster, setSavingCateringPoster] = useState(false);
+
     const [brandingFiles, setBrandingFiles] = useState({
         companyLogo: null,
         companyLogoPreviewUrl: '',
@@ -168,6 +181,8 @@ const BusinessProfile = () => {
     const websiteHeaderPreviewUrl = brandingFiles.websiteHeaderPreviewUrl || normalizeUrl(websiteHeaderUrl);
     const websiteFooterLeftPreviewUrl = brandingFiles.websiteFooterLeftPreviewUrl || normalizeUrl(websiteFooterLeftUrl);
     const websiteFooterRightPreviewUrl = brandingFiles.websiteFooterRightPreviewUrl || normalizeUrl(websiteFooterRightUrl);
+    const posterDisplayUrl = posterPreviewUrl || normalizeUrl(posterImageUrl);
+    const cateringPosterDisplayUrl = cateringPosterPreviewUrl || normalizeUrl(cateringPosterImageUrl);
 
     const resolvedRestaurantId = (() => {
         const fromStep = restaurantId?.trim();
@@ -229,7 +244,12 @@ const BusinessProfile = () => {
                 return normalizeUrl(text);
             }
         }
-        return normalizeUrl(data.url);
+        return normalizeUrl(
+            data.url ||
+                (data.data && typeof data.data === 'object' && typeof data.data.url === 'string'
+                    ? data.data.url
+                    : ''),
+        );
     };
 
     const uploadCompanyLogo = async (file, baseUrl) => {
@@ -269,6 +289,46 @@ const BusinessProfile = () => {
         const uploadedUrl = extractUploadedImageUrl(data);
         if (!res.ok) throw new Error('Image upload failed');
         if (!uploadedUrl) throw new Error('Image upload did not return a link');
+        return uploadedUrl;
+    };
+
+    const uploadPosterFile = async (file, baseUrl) => {
+        if (!file) throw new Error('Poster image is missing');
+        const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/upload/poster`;
+        const body = new FormData();
+        body.append('file', file);
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+            },
+            body,
+        });
+        const contentType = res.headers.get('content-type');
+        const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+        const uploadedUrl = extractUploadedImageUrl(data);
+        if (!res.ok) throw new Error('Poster upload failed');
+        if (!uploadedUrl) throw new Error('Poster upload did not return a link');
+        return uploadedUrl;
+    };
+
+    const uploadCateringPosterFile = async (file, baseUrl) => {
+        if (!file) throw new Error('Catering poster image is missing');
+        const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/upload/catering-poster`;
+        const body = new FormData();
+        body.append('file', file);
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+            },
+            body,
+        });
+        const contentType = res.headers.get('content-type');
+        const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+        const uploadedUrl = extractUploadedImageUrl(data);
+        if (!res.ok) throw new Error('Catering poster upload failed');
+        if (!uploadedUrl) throw new Error('Catering poster upload did not return a link');
         return uploadedUrl;
     };
 
@@ -348,7 +408,58 @@ const BusinessProfile = () => {
         if (r.opening_hours && typeof r.opening_hours === 'object') {
             setOpeningHours(mergeOpeningHours(r.opening_hours));
         }
+
+        /** Poster image — from GET /api/v1/restaurants/{id} `data.poster_image_url`. */
+        const posterRaw = r.poster_image_url;
+        if (typeof posterRaw === 'string' && posterRaw.trim()) {
+            setPosterImageUrl(normalizeUrl(posterRaw));
+        } else if (posterRaw === null || posterRaw === '') {
+            setPosterImageUrl('');
+        }
+
+        const cpRaw = r.catering_poster_image_url;
+        if (typeof cpRaw === 'string' && cpRaw.trim()) {
+            setCateringPosterImageUrl(normalizeUrl(cpRaw));
+        } else if (cpRaw === null || cpRaw === '') {
+            setCateringPosterImageUrl('');
+        }
     };
+
+    /** Sync storefront + catering poster URLs from GET /api/v1/restaurants/{id}. */
+    const refreshPostersFromRestaurantGet = async (baseUrl, restaurantId) => {
+        const root = String(baseUrl).replace(/\/$/, '');
+        const res = await fetch(`${root}/api/v1/restaurants/${encodeURIComponent(restaurantId)}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+            },
+        });
+        const ct = res.headers.get('content-type');
+        const raw = ct?.includes('application/json') ? await res.json() : await res.text();
+        const detail = extractPayload(raw);
+        if (!res.ok || !detail || typeof detail !== 'object') return false;
+        const posterRaw = detail.poster_image_url;
+        if (typeof posterRaw === 'string' && posterRaw.trim()) {
+            setPosterImageUrl(normalizeUrl(posterRaw));
+        } else if (posterRaw === null || posterRaw === '') {
+            setPosterImageUrl('');
+        }
+        const cpRaw = detail.catering_poster_image_url;
+        if (typeof cpRaw === 'string' && cpRaw.trim()) {
+            setCateringPosterImageUrl(normalizeUrl(cpRaw));
+        } else if (cpRaw === null || cpRaw === '') {
+            setCateringPosterImageUrl('');
+        }
+        return true;
+    };
+
+    useEffect(() => {
+        return () => {
+            if (posterPreviewUrl) URL.revokeObjectURL(posterPreviewUrl);
+            if (cateringPosterPreviewUrl) URL.revokeObjectURL(cateringPosterPreviewUrl);
+        };
+    }, [posterPreviewUrl, cateringPosterPreviewUrl]);
 
     useEffect(() => {
         if (!accessToken) {
@@ -604,6 +715,9 @@ const BusinessProfile = () => {
             return false;
         }
 
+        const hadPendingPosterFile = !!posterFile;
+        const hadPendingCateringPosterFile = !!cateringPosterFile;
+
         const headerUrl =
             websiteHeaderUrl?.trim() || (await uploadImage(brandingFiles.websiteHeader, baseUrl));
         const footerLeftUrl =
@@ -614,6 +728,29 @@ const BusinessProfile = () => {
         setWebsiteHeaderUrl(headerUrl);
         setWebsiteFooterLeftUrl(footerLeftUrl);
         setWebsiteFooterRightUrl(footerRightUrl);
+
+        let resolvedPosterUrl = posterImageUrl?.trim() || '';
+        if (posterFile) {
+            resolvedPosterUrl = await uploadPosterFile(posterFile, baseUrl);
+            setPosterPreviewUrl((prev) => {
+                if (prev) URL.revokeObjectURL(prev);
+                return '';
+            });
+            setPosterFile(null);
+        }
+
+        const posterNorm = normalizeUrl(resolvedPosterUrl);
+
+        let resolvedCateringPosterUrl = cateringPosterImageUrl?.trim() || '';
+        if (cateringPosterFile) {
+            resolvedCateringPosterUrl = await uploadCateringPosterFile(cateringPosterFile, baseUrl);
+            setCateringPosterPreviewUrl((prev) => {
+                if (prev) URL.revokeObjectURL(prev);
+                return '';
+            });
+            setCateringPosterFile(null);
+        }
+        const cateringPosterNorm = normalizeUrl(resolvedCateringPosterUrl);
 
         const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/${encodeURIComponent(rid)}`;
         const res = await fetch(url, {
@@ -635,6 +772,8 @@ const BusinessProfile = () => {
                 average_preparation_time: prepTime,
                 enable_delivery: !!enableDelivery,
                 enable_pickup: !!enablePickup,
+                ...(posterNorm ? { poster_image_url: posterNorm } : {}),
+                ...(cateringPosterNorm ? { catering_poster_image_url: cateringPosterNorm } : {}),
             }),
         });
 
@@ -664,6 +803,14 @@ const BusinessProfile = () => {
             return false;
         }
 
+        if (hadPendingPosterFile || posterNorm || hadPendingCateringPosterFile || cateringPosterNorm) {
+            try {
+                await refreshPostersFromRestaurantGet(baseUrl, rid);
+            } catch {
+                /* ignore — PUT already persisted */
+            }
+        }
+
         toast.success(successToast);
         return true;
     };
@@ -691,6 +838,262 @@ const BusinessProfile = () => {
             setOperationalErrors([e?.message || 'Request failed']);
         } finally {
             setSavingOperational(false);
+        }
+    };
+
+    const handleSavePoster = async () => {
+        if (!resolvedRestaurantId || savingPoster) return;
+        setSavingPoster(true);
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+
+            let urlOut = posterImageUrl.trim();
+            if (posterFile) {
+                urlOut = await uploadPosterFile(posterFile, baseUrl);
+                setPosterPreviewUrl((prev) => {
+                    if (prev) URL.revokeObjectURL(prev);
+                    return '';
+                });
+                setPosterFile(null);
+            }
+
+            const normalized = normalizeUrl(urlOut);
+            const payload = normalized ? { poster_image_url: normalized } : { poster_image_url: null };
+
+            const res = await fetch(
+                `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/${encodeURIComponent(resolvedRestaurantId)}`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    },
+                    body: JSON.stringify(payload),
+                },
+            );
+            const contentType = res.headers.get('content-type');
+            const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+
+            if (!res.ok) {
+                toast.error(
+                    typeof data === 'object' && data?.message
+                        ? data.message
+                        : typeof data === 'string'
+                          ? data
+                          : 'Failed to save poster',
+                );
+                return;
+            }
+            if (isErrorPayload(data)) {
+                toast.error(typeof data.message === 'string' ? data.message : 'Failed to save poster');
+                return;
+            }
+
+            try {
+                const ok = await refreshPostersFromRestaurantGet(baseUrl, resolvedRestaurantId);
+                if (!ok && normalized) setPosterImageUrl(normalized);
+            } catch {
+                if (normalized) setPosterImageUrl(normalized);
+            }
+
+            toast.success('Poster saved');
+        } catch (e) {
+            toast.error(typeof e?.message === 'string' ? e.message : 'Failed to save poster');
+        } finally {
+            setSavingPoster(false);
+        }
+    };
+
+    const handleRemovePoster = async () => {
+        if (!resolvedRestaurantId || savingPoster) return;
+        setSavingPoster(true);
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+
+            const res = await fetch(
+                `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/${encodeURIComponent(resolvedRestaurantId)}`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    },
+                    body: JSON.stringify({ poster_image_url: null }),
+                },
+            );
+            const contentType = res.headers.get('content-type');
+            const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+
+            if (!res.ok) {
+                toast.error(
+                    typeof data === 'object' && data?.message
+                        ? data.message
+                        : typeof data === 'string'
+                          ? data
+                          : 'Failed to remove poster',
+                );
+                return;
+            }
+            if (isErrorPayload(data)) {
+                toast.error(typeof data.message === 'string' ? data.message : 'Failed to remove poster');
+                return;
+            }
+
+            try {
+                const ok = await refreshPostersFromRestaurantGet(baseUrl, resolvedRestaurantId);
+                if (!ok) {
+                    setPosterImageUrl('');
+                    setPosterFile(null);
+                    setPosterPreviewUrl((prev) => {
+                        if (prev) URL.revokeObjectURL(prev);
+                        return '';
+                    });
+                }
+            } catch {
+                setPosterImageUrl('');
+                setPosterFile(null);
+                setPosterPreviewUrl((prev) => {
+                    if (prev) URL.revokeObjectURL(prev);
+                    return '';
+                });
+            }
+
+            toast.success('Poster removed');
+        } catch (e) {
+            toast.error(typeof e?.message === 'string' ? e.message : 'Failed to remove poster');
+        } finally {
+            setSavingPoster(false);
+        }
+    };
+
+    const handleSaveCateringPoster = async () => {
+        if (!resolvedRestaurantId || savingCateringPoster) return;
+        setSavingCateringPoster(true);
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+
+            let urlOut = cateringPosterImageUrl.trim();
+            if (cateringPosterFile) {
+                urlOut = await uploadCateringPosterFile(cateringPosterFile, baseUrl);
+                setCateringPosterPreviewUrl((prev) => {
+                    if (prev) URL.revokeObjectURL(prev);
+                    return '';
+                });
+                setCateringPosterFile(null);
+            }
+
+            const normalized = normalizeUrl(urlOut);
+            const payload = normalized
+                ? { catering_poster_image_url: normalized }
+                : { catering_poster_image_url: null };
+
+            const res = await fetch(
+                `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/${encodeURIComponent(resolvedRestaurantId)}`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    },
+                    body: JSON.stringify(payload),
+                },
+            );
+            const contentType = res.headers.get('content-type');
+            const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+
+            if (!res.ok) {
+                toast.error(
+                    typeof data === 'object' && data?.message
+                        ? data.message
+                        : typeof data === 'string'
+                          ? data
+                          : 'Failed to save catering poster',
+                );
+                return;
+            }
+            if (isErrorPayload(data)) {
+                toast.error(typeof data.message === 'string' ? data.message : 'Failed to save catering poster');
+                return;
+            }
+
+            try {
+                const ok = await refreshPostersFromRestaurantGet(baseUrl, resolvedRestaurantId);
+                if (!ok && normalized) setCateringPosterImageUrl(normalized);
+            } catch {
+                if (normalized) setCateringPosterImageUrl(normalized);
+            }
+
+            toast.success('Catering poster saved');
+        } catch (e) {
+            toast.error(typeof e?.message === 'string' ? e.message : 'Failed to save catering poster');
+        } finally {
+            setSavingCateringPoster(false);
+        }
+    };
+
+    const handleRemoveCateringPoster = async () => {
+        if (!resolvedRestaurantId || savingCateringPoster) return;
+        setSavingCateringPoster(true);
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+
+            const res = await fetch(
+                `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/${encodeURIComponent(resolvedRestaurantId)}`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    },
+                    body: JSON.stringify({ catering_poster_image_url: null }),
+                },
+            );
+            const contentType = res.headers.get('content-type');
+            const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+
+            if (!res.ok) {
+                toast.error(
+                    typeof data === 'object' && data?.message
+                        ? data.message
+                        : typeof data === 'string'
+                          ? data
+                          : 'Failed to remove catering poster',
+                );
+                return;
+            }
+            if (isErrorPayload(data)) {
+                toast.error(typeof data.message === 'string' ? data.message : 'Failed to remove catering poster');
+                return;
+            }
+
+            try {
+                const ok = await refreshPostersFromRestaurantGet(baseUrl, resolvedRestaurantId);
+                if (!ok) {
+                    setCateringPosterImageUrl('');
+                    setCateringPosterFile(null);
+                    setCateringPosterPreviewUrl((prev) => {
+                        if (prev) URL.revokeObjectURL(prev);
+                        return '';
+                    });
+                }
+            } catch {
+                setCateringPosterImageUrl('');
+                setCateringPosterFile(null);
+                setCateringPosterPreviewUrl((prev) => {
+                    if (prev) URL.revokeObjectURL(prev);
+                    return '';
+                });
+            }
+
+            toast.success('Catering poster removed');
+        } catch (e) {
+            toast.error(typeof e?.message === 'string' ? e.message : 'Failed to remove catering poster');
+        } finally {
+            setSavingCateringPoster(false);
         }
     };
 
@@ -947,6 +1350,138 @@ const BusinessProfile = () => {
                                     </div>
                                 )}
                             </div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4 border-t border-[#E8E8E8] pt-8 mt-2">
+                        <div>
+                            <h4 className="font-sans text-[16px] font-bold text-[#0F1724]">Customer app home poster</h4>
+                        </div>
+                        <div className="w-full bg-white border border-[#E5E7EB] rounded-[14px] h-[52px] flex items-center px-4 justify-between">
+                            <label htmlFor="bpPoster" className="flex items-center gap-2 text-[13px] font-[500] text-[#6B7280] cursor-pointer">
+                                <Image size={18} />
+                                {posterFile || posterDisplayUrl ? 'Change poster image' : 'Upload poster image'}
+                            </label>
+                            <input
+                                id="bpPoster"
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0] ?? null;
+                                    setPosterPreviewUrl((prev) => {
+                                        if (prev) URL.revokeObjectURL(prev);
+                                        return file ? URL.createObjectURL(file) : '';
+                                    });
+                                    setPosterFile(file);
+                                    if (file) setPosterImageUrl('');
+                                }}
+                            />
+                        </div>
+                        {posterDisplayUrl && (
+                            <div className="relative w-full max-w-xl">
+                                <div className="w-full rounded-[16px] overflow-hidden border border-[#E5E7EB] bg-white">
+                                    <img
+                                        src={posterDisplayUrl}
+                                        alt="Poster preview"
+                                        className="w-full h-auto block max-h-[320px] object-contain bg-[#FAFAFA]"
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    disabled={savingPoster || !resolvedRestaurantId}
+                                    onClick={handleRemovePoster}
+                                    className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white/95 text-[#374151] shadow-sm transition hover:bg-red-50 hover:text-[#DD2F26] disabled:cursor-not-allowed disabled:opacity-50"
+                                    aria-label="Remove poster"
+                                >
+                                    <X size={18} strokeWidth={2.5} />
+                                </button>
+                            </div>
+                        )}
+                        <div className="flex justify-start">
+                            <button
+                                type="button"
+                                disabled={savingPoster || !resolvedRestaurantId}
+                                onClick={handleSavePoster}
+                                className="flex items-center gap-2 bg-white border border-[#E5E7EB] text-[#1A1A1A] text-[14px] px-5 py-2.5 rounded-[8px] font-[500] hover:bg-gray-50 transition disabled:opacity-50"
+                            >
+                                <Save className="w-4 h-4" />
+                                {savingPoster ? 'Saving…' : 'Save poster'}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4 border-t border-[#E8E8E8] pt-8 mt-2">
+                        <div className="flex items-end justify-between gap-3">
+                            <h4 className="font-sans text-[16px] font-bold text-[#0F1724]">Catering poster</h4>
+                            <span className="text-[11px] text-[#6B7280] shrink-0">
+                                {CATERING_POSTER_PX.width}×{CATERING_POSTER_PX.height}px
+                            </span>
+                        </div>
+                        <div className="w-full bg-white border border-[#E5E7EB] rounded-[14px] h-[52px] flex items-center px-4 justify-between">
+                            <label
+                                htmlFor="bpCateringPoster"
+                                className="flex items-center gap-2 text-[13px] font-[500] text-[#6B7280] cursor-pointer"
+                            >
+                                <Image size={18} />
+                                {cateringPosterFile || cateringPosterDisplayUrl
+                                    ? 'Change catering poster'
+                                    : 'Upload catering poster'}
+                            </label>
+                            <input
+                                id="bpCateringPoster"
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0] ?? null;
+                                    setCateringPosterPreviewUrl((prev) => {
+                                        if (prev) URL.revokeObjectURL(prev);
+                                        return file ? URL.createObjectURL(file) : '';
+                                    });
+                                    setCateringPosterFile(file);
+                                    if (file) setCateringPosterImageUrl('');
+                                }}
+                            />
+                        </div>
+                        {cateringPosterDisplayUrl && (
+                            <div
+                                className="relative w-full"
+                                style={{ maxWidth: CATERING_POSTER_PX.width }}
+                            >
+                                <div
+                                    className="w-full rounded-[16px] overflow-hidden border border-[#E5E7EB] bg-[#FAFAFA]"
+                                    style={{
+                                        aspectRatio: `${CATERING_POSTER_PX.width} / ${CATERING_POSTER_PX.height}`,
+                                    }}
+                                >
+                                    <img
+                                        src={cateringPosterDisplayUrl}
+                                        alt="Catering poster preview"
+                                        className="h-full w-full object-contain block"
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    disabled={savingCateringPoster || !resolvedRestaurantId}
+                                    onClick={handleRemoveCateringPoster}
+                                    className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white/95 text-[#374151] shadow-sm transition hover:bg-red-50 hover:text-[#DD2F26] disabled:cursor-not-allowed disabled:opacity-50"
+                                    aria-label="Remove catering poster"
+                                >
+                                    <X size={18} strokeWidth={2.5} />
+                                </button>
+                            </div>
+                        )}
+                        <div className="flex justify-start">
+                            <button
+                                type="button"
+                                disabled={savingCateringPoster || !resolvedRestaurantId}
+                                onClick={handleSaveCateringPoster}
+                                className="flex items-center gap-2 bg-white border border-[#E5E7EB] text-[#1A1A1A] text-[14px] px-5 py-2.5 rounded-[8px] font-[500] hover:bg-gray-50 transition disabled:opacity-50"
+                            >
+                                <Save className="w-4 h-4" />
+                                {savingCateringPoster ? 'Saving…' : 'Save catering poster'}
+                            </button>
                         </div>
                     </div>
                 </div>

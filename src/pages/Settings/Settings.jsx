@@ -5,6 +5,7 @@ import OperatingHours from '../../components/Settings/OperatingHours/OperatingHo
 import OrderSettings from '../../components/Settings/OrderSettings/OrderSettings';
 // import DeliverySettings from '../../components/Settings/DeliverySettings/DeliverySettings';
 // import StaffPermissions from '../../components/Settings/StaffPermissions/StaffPermissions';
+import StoreLocationsSettings from '../../components/Settings/StoreLocations/StoreLocationsSettings';
 import NotificationsSettings from '../../components/Settings/Notifications/NotificationsSettings';
 import IntegrationsSettings from '../../components/Settings/Integrations/IntegrationsSettings';
 import LoyaltyPreferences from '../../components/Settings/LoyaltyPreferences/LoyaltyPreferences';
@@ -19,6 +20,7 @@ const TAB_TO_SLUG = {
     'Order Settings': 'order-settings',
     // 'Delivery Settings': 'delivery-settings',
     // 'Staff & Permissions': 'staff-permissions',
+    'Stores Location': 'stores-location',
     Notifications: 'notifications',
     Integrations: 'integrations',
     'Loyalty Preferences': 'loyalty-preferences',
@@ -55,6 +57,7 @@ const Settings = () => {
         'Order Settings',
         // 'Delivery Settings',
         // 'Staff & Permissions',
+        'Stores Location',
         'Notifications',
         'Integrations',
         'Loyalty Preferences',
@@ -75,6 +78,8 @@ const Settings = () => {
             //     return <DeliverySettings />;
             // case 'Staff & Permissions':
             //     return <StaffPermissions />;
+            case 'Stores Location':
+                return <StoreLocationsSettings />;
             case 'Notifications':
                 return <NotificationsSettings />;
             case 'Integrations':

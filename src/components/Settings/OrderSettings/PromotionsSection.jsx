@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Check, Plus, Trash2 } from 'lucide-react';
 
 const emptyPromo = () => ({
     code: '',
@@ -212,13 +212,26 @@ export default function PromotionsSection({
                                         />
                                     </div>
                                 </div>
-                                <label className="flex items-center gap-2 text-[13px] text-[#374151] cursor-pointer">
+                                <label className="flex cursor-pointer items-center gap-2 rounded text-[13px] text-[#374151] has-[:focus-visible]:outline-none has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary/30 has-[:focus-visible]:ring-offset-2">
                                     <input
                                         type="checkbox"
                                         checked={!!row.is_active}
                                         onChange={(e) => updatePromo(index, { is_active: e.target.checked })}
-                                        className="rounded border-gray-300"
+                                        className="sr-only"
                                     />
+                                    <span
+                                        className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded border-2 transition-colors ${
+                                            row.is_active
+                                                ? 'border-primary bg-primary'
+                                                : 'border-gray-300 bg-white'
+                                        }`}
+                                        aria-hidden
+                                    >
+                                        <Check
+                                            className={`h-3 w-3 text-white ${row.is_active ? 'opacity-100' : 'opacity-0'}`}
+                                            strokeWidth={3}
+                                        />
+                                    </span>
                                     Active
                                 </label>
                             </div>

@@ -613,6 +613,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                         </div>
                     )}
 
+                    {/* Catering card — hidden per product request
                     <div className="flex items-center justify-between bg-gray-50 p-4 rounded-[12px]">
                         <div>
                             <h4 className="text-[14px] font-[500] text-[#111827]">Catering</h4>
@@ -644,6 +645,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                             />
                         </div>
                     )}
+                    */}
 
                     <div className="flex items-center justify-between bg-gray-50 p-4 rounded-[12px]">
                         <div>
