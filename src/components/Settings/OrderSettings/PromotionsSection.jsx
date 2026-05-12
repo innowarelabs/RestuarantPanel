@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Plus, Trash2 } from 'lucide-react';
+import { Check, DollarSign, Percent, Plus, Trash2 } from 'lucide-react';
 
 const emptyPromo = () => ({
     code: '',
@@ -114,14 +114,22 @@ export default function PromotionsSection({
                     <label className="block font-[500] text-[14px] text-[#4B5563] mb-1">
                         First-order discount value
                     </label>
-                    <input
-                        type="text"
-                        inputMode="decimal"
-                        value={firstOrderDiscountValue}
-                        onChange={(e) => onFirstOrderDiscountValueChange(e.target.value)}
-                        className="w-full max-w-xs px-4 py-2 font-[500] text-[14px] border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#DD2F26]"
-                        placeholder="e.g. 10 for 10%"
-                    />
+                    <div className="relative w-full max-w-xs">
+                        <input
+                            type="text"
+                            inputMode="decimal"
+                            value={firstOrderDiscountValue}
+                            onChange={(e) => onFirstOrderDiscountValueChange(e.target.value)}
+                            className="w-full pl-4 pr-10 py-2 font-[500] text-[14px] border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#DD2F26]"
+                            placeholder="e.g. 10 for 10%"
+                        />
+                        <span
+                            className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-[#9CA3AF]"
+                            aria-hidden
+                        >
+                            <Percent className="h-4 w-4 shrink-0" strokeWidth={2} />
+                        </span>
+                    </div>
                 </div>
             )}
 
@@ -187,14 +195,28 @@ export default function PromotionsSection({
                                         <label className="block text-[12px] text-[#6B7280] mb-1">
                                             Discount value
                                         </label>
-                                        <input
-                                            type="text"
-                                            inputMode="decimal"
-                                            value={row.discount_value}
-                                            onChange={(e) => updatePromo(index, { discount_value: e.target.value })}
-                                            className="w-full px-3 py-2 text-[14px] border border-[#E5E7EB] rounded-lg"
-                                            placeholder={row.discount_type === 'percentage' ? '10' : '5'}
-                                        />
+                                        <div className="relative w-full">
+                                            <input
+                                                type="text"
+                                                inputMode="decimal"
+                                                value={row.discount_value}
+                                                onChange={(e) =>
+                                                    updatePromo(index, { discount_value: e.target.value })
+                                                }
+                                                className="w-full pl-3 pr-10 py-2 text-[14px] border border-[#E5E7EB] rounded-lg"
+                                                placeholder={row.discount_type === 'percentage' ? '10' : '5'}
+                                            />
+                                            <span
+                                                className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-[#9CA3AF]"
+                                                aria-hidden
+                                            >
+                                                {row.discount_type === 'flat' ? (
+                                                    <DollarSign className="h-4 w-4 shrink-0" strokeWidth={2} />
+                                                ) : (
+                                                    <Percent className="h-4 w-4 shrink-0" strokeWidth={2} />
+                                                )}
+                                            </span>
+                                        </div>
                                     </div>
                                     <div>
                                         <label className="block text-[12px] text-[#6B7280] mb-1">
