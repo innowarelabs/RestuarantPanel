@@ -1,13 +1,34 @@
 import React, { useEffect, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
 import { MoreVertical, Store, Paperclip, Smile, Send, ChevronDown, AlertCircle } from 'lucide-react';
 import { useSelector } from 'react-redux';
+import {
+    PRIORITY_OPTIONS,
+    STATUS_OPTIONS,
+    getPriorityColor,
+    getStatusColor,
+    patchTicketById,
+    normalizePriorityValue,
+    normalizeStatusValue,
+} from './restaurantTicketApi';
 
-const CustomerChatWindow = ({ conversation, ticketDetails, messages, onMessagesChange, loading, error }) => {
+const CustomerChatWindow = ({
+    conversation,
+    ticketDetails,
+    setTicketDetails,
+    messages,
+    onMessagesChange,
+    loading,
+    error,
+    onRefreshInbox,
+}) => {
     const accessToken = useSelector((state) => state.auth.accessToken);
     const user = useSelector((state) => state.auth.user);
     const [newMessage, setNewMessage] = useState('');
     const [sending, setSending] = useState(false);
     const [actionError, setActionError] = useState('');
+    const [patchingPriority, setPatchingPriority] = useState(false);
+    const [patchingStatus, setPatchingStatus] = useState(false);
 
     const getRestaurantId = () => {
         const fromUser = user && typeof user === 'object' && typeof user.restaurant_id === 'string' ? user.restaurant_id : '';
@@ -21,7 +42,46 @@ const CustomerChatWindow = ({ conversation, ticketDetails, messages, onMessagesC
     };
 
     const restaurantId = getRestaurantId();
-    const messagesEndRef = useRef(null);
+    const messagesContainerRef = useRef(null);
+
+    const ticketApiId = ticketDetails?.id || ticketDetails?.ticket_id || conversation?.ticketId;
+    const prioritySelectValue = normalizePriorityValue(ticketDetails?.priority);
+    const statusSelectValue = normalizeStatusValue(ticketDetails?.status);
+    const isResolvedTicket = statusSelectValue === 'resolved';
+
+    const handlePriorityChange = async (value) => {
+        if (!ticketApiId || patchingPriority || patchingStatus || !accessToken) return;
+        if (value === prioritySelectValue) return;
+        setPatchingPriority(true);
+        try {
+            await patchTicketById(ticketApiId, { priority: value }, { accessToken, restaurantId });
+            if (typeof setTicketDetails === 'function') {
+                setTicketDetails((d) => (d ? { ...d, priority: value } : d));
+            }
+            toast.success('Priority updated');
+        } catch (err) {
+            toast.error(err?.message || 'Failed to update priority');
+        } finally {
+            setPatchingPriority(false);
+        }
+    };
+
+    const handleStatusChange = async (apiValue) => {
+        if (!ticketApiId || patchingStatus || patchingPriority || !accessToken) return;
+        if (apiValue === statusSelectValue) return;
+        setPatchingStatus(true);
+        try {
+            await patchTicketById(ticketApiId, { status: apiValue }, { accessToken, restaurantId });
+            if (typeof setTicketDetails === 'function') {
+                setTicketDetails((d) => (d ? { ...d, status: apiValue } : d));
+            }
+            toast.success('Status updated');
+        } catch (err) {
+            toast.error(err?.message || 'Failed to update status');
+        } finally {
+            setPatchingStatus(false);
+        }
+    };
 
     const ticketId = conversation?.ticketId;
 
@@ -153,7 +213,7 @@ const CustomerChatWindow = ({ conversation, ticketDetails, messages, onMessagesC
     };
 
     const handleResolveTicket = async (silent = false) => {
-        if (!ticketId) return;
+        if (!ticketId || isResolvedTicket) return;
         if (!silent) {
             setActionError('');
         }
@@ -177,8 +237,33 @@ const CustomerChatWindow = ({ conversation, ticketDetails, messages, onMessagesC
             });
 
             const data = await res.json();
-            if (data?.code !== 'SUCCESS_200') {
+            const isSuccess =
+                typeof data?.code === 'string' && String(data.code).startsWith('SUCCESS_');
+            if (!isSuccess) {
                 throw new Error(data?.message || 'Failed to resolve ticket');
+            }
+
+            const msg =
+                typeof data?.message === 'string' && data.message.trim()
+                    ? data.message.trim()
+                    : 'Ticket marked as resolved';
+            toast.success(msg);
+
+            const payload = data?.data;
+            if (payload && typeof setTicketDetails === 'function') {
+                setTicketDetails((prev) =>
+                    prev
+                        ? {
+                              ...prev,
+                              status: payload.status ?? 'resolved',
+                              resolved_at: payload.resolved_at ?? prev.resolved_at,
+                          }
+                        : prev,
+                );
+            }
+
+            if (typeof onRefreshInbox === 'function') {
+                await onRefreshInbox();
             }
         } catch (err) {
             if (!silent) {
@@ -188,7 +273,7 @@ const CustomerChatWindow = ({ conversation, ticketDetails, messages, onMessagesC
     };
 
     const handleEscalate = async () => {
-        if (!ticketId) return;
+        if (!ticketId || isResolvedTicket) return;
         setActionError('');
 
         try {
@@ -218,10 +303,12 @@ const CustomerChatWindow = ({ conversation, ticketDetails, messages, onMessagesC
         }
     };
 
-    const ticketStatus = ticketDetails?.status || 'open';
+    const statusLabelForSubtitle =
+        STATUS_OPTIONS.find((o) => o.api === statusSelectValue)?.label ||
+        String(ticketDetails?.status || 'open');
     const ticketCategory = ticketDetails?.category || conversation?.tags?.[0] || 'Support';
     const orderNumber = conversation?.orderId || ticketDetails?.order_number || '#ORD-XXXX';
-    const orderSubtitle = ticketDetails?.subject || `Status: ${ticketDetails?.status || 'open'}`;
+    const orderSubtitle = ticketDetails?.subject || `Status: ${statusLabelForSubtitle}`;
 
     const normalizedMessages = Array.isArray(messages)
         ? messages.map((msg) => ({
@@ -238,29 +325,32 @@ const CustomerChatWindow = ({ conversation, ticketDetails, messages, onMessagesC
         return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
-    // Auto-scroll to bottom when messages change
+    // Scroll inside the message pane only (avoid scrollIntoView moving the page)
     useEffect(() => {
-        if (messagesEndRef.current) {
-            messagesEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
-        }
-    }, [normalizedMessages.length, loading]);
+        const el = messagesContainerRef.current;
+        if (!el) return;
+        if (loading && !normalizedMessages.length) return;
+        requestAnimationFrame(() => {
+            el.scrollTop = el.scrollHeight;
+        });
+    }, [normalizedMessages.length, loading, ticketId]);
 
     return (
-        <div className="bg-white rounded-[24px] border border-[#E5E7EB] flex flex-col h-full font-['Inter',_sans-serif]">
+        <div className="bg-white rounded-[24px] border border-[#00000033] flex flex-col h-full min-h-0 overflow-hidden font-['Inter',_sans-serif]">
             {!conversation ? (
                 <div className="flex-1 flex items-center justify-center text-gray-400">
                     <p>Select a conversation to start chatting</p>
                 </div>
             ) : (
-                <>
+                <div className="flex h-full min-h-0 flex-col overflow-hidden">
                     {/* Header */}
-                    <div className="px-8 pt-6 pb-1 border-b border-transparent flex items-center justify-between">
+                    <div className="flex shrink-0 items-center justify-between border-b border-[#00000033] px-6 pb-3 pt-4 sm:px-8 sm:pt-5">
                         <div>
                             <div className="flex items-center gap-3">
                                 <h3 className="text-[18px] font-bold text-[#111827]">{conversation.name}</h3>
                                 {conversation.online && (
-                                    <div className="flex items-center gap-1.5 mt-1">
-                                        <div className="w-2.5 h-2.5 bg-[#DD2F26] rounded-full mb-1"></div>
+                                    <div className="mt-1 flex items-center gap-1.5">
+                                        <div className="mb-1 h-2.5 w-2.5 rounded-full bg-[#DD2F26]"></div>
                                         <span className="text-[12px] text-[#DD2F26]">Online</span>
                                     </div>
                                 )}
@@ -269,184 +359,233 @@ const CustomerChatWindow = ({ conversation, ticketDetails, messages, onMessagesC
                                 Ticket ID: {ticketDetails?.ticket_number || ticketDetails?.id || conversation.ticketId}
                             </p>
                         </div>
-                        <button className="text-[#9CA3AF] hover:text-[#111827] transition-colors">
-                            <MoreVertical className="w-6 h-6" />
+                        <button className="text-[#9CA3AF] transition-colors hover:text-[#111827]" type="button">
+                            <MoreVertical className="h-6 w-6" />
                         </button>
                     </div>
 
-                    {/* Scrollable Content Area */}
-                    <div className="flex-1 overflow-y-auto px-4 sm:px-8 custom-scrollbar">
-                        {/* Order Summary Card */}
-                        <div className="rounded-[8px] mb-8 mt-4">
-                            <div className="bg-[#F9FAFB] border border-[#F3F4F6] rounded-[8px] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-8 h-8 bg-white rounded-[12px] flex items-center justify-center text-[#6B7280] shadow-sm">
-                                        <Store className="w-4 h-4" />
+                    {/* Order + actions: fixed (does not scroll) */}
+                    <div className="shrink-0 px-4 pb-3 pt-2 sm:px-8">
+                        <div className="rounded-[8px]">
+                            <div className="mb-2 flex flex-col justify-between gap-3 rounded-[8px] border border-[#F3F4F6] bg-[#F9FAFB] p-3 sm:flex-row sm:items-center sm:gap-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded-[12px] bg-white text-[#6B7280] shadow-sm">
+                                        <Store className="h-4 w-4" />
                                     </div>
                                     <div>
-                                        <h4 className="text-[14px] font-[500] text-[#111827]">
-                                            {orderNumber}
-                                        </h4>
-                                        <p className="text-[12px] text-[#6B7280]">
-                                            {orderSubtitle}
-                                        </p>
+                                        <h4 className="text-[14px] font-[500] text-[#111827]">{orderNumber}</h4>
+                                        <p className="text-[12px] text-[#6B7280]">{orderSubtitle}</p>
                                     </div>
                                 </div>
-                                <button className="text-[13px] font-[500] text-[#DD2F26] hover:underline text-left sm:text-right">
+                                <button
+                                    className="text-left text-[13px] font-[500] text-[#DD2F26] hover:underline sm:text-right"
+                                    type="button"
+                                >
                                     View Full Order
                                 </button>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 border-t border-transparent">
-                                <div className="space-y-2">
-                                    <label className="text-[12px] font-medium text-[#6B7280]">Priority</label>
-                                    <div className="flex items-center justify-between px-4 py-3 bg-[#FEE2E2] text-[#EF4444] rounded-[6px] text-[13px]">
-                                        {ticketDetails?.priority || 'Normal'} <ChevronDown className="w-4 h-4" />
+                            <div className="grid grid-cols-1 gap-3 border-t border-transparent sm:grid-cols-3 sm:gap-4">
+                                <div className="space-y-1.5">
+                                    <label
+                                        className="text-[12px] font-medium text-[#6B7280]"
+                                        htmlFor="support-priority-select"
+                                    >
+                                        Priority
+                                    </label>
+                                    <div className="relative">
+                                        <select
+                                            id="support-priority-select"
+                                            value={prioritySelectValue}
+                                            onChange={(e) => handlePriorityChange(e.target.value)}
+                                            disabled={!ticketApiId || patchingPriority || patchingStatus}
+                                            className={`w-full cursor-pointer appearance-none rounded-[6px] border-0 py-2.5 pl-3 pr-9 text-[13px] font-medium outline-none ring-0 focus:ring-2 focus:ring-[#DD2F26]/30 disabled:cursor-not-allowed disabled:opacity-60 ${getPriorityColor(prioritySelectValue)}`}
+                                        >
+                                            {PRIORITY_OPTIONS.map((opt) => (
+                                                <option key={opt.value} value={opt.value}>
+                                                    {opt.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <ChevronDown
+                                            className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 opacity-70"
+                                            aria-hidden
+                                        />
                                     </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[12px] font-medium text-[#6B7280]">Status</label>
-                                    <div className="flex items-center justify-between px-4 py-3 bg-[#DCFCE7] text-[#10B981] rounded-[6px] text-[13px]">
-                                        {ticketStatus} <ChevronDown className="w-4 h-4" />
+                                <div className="space-y-1.5">
+                                    <label
+                                        className="text-[12px] font-medium text-[#6B7280]"
+                                        htmlFor="support-status-select"
+                                    >
+                                        Status
+                                    </label>
+                                    <div className="relative">
+                                        <select
+                                            id="support-status-select"
+                                            value={statusSelectValue}
+                                            onChange={(e) => handleStatusChange(e.target.value)}
+                                            disabled={!ticketApiId || patchingStatus || patchingPriority}
+                                            className={`w-full cursor-pointer appearance-none rounded-[6px] border-0 py-2.5 pl-3 pr-9 text-[13px] font-medium outline-none ring-0 focus:ring-2 focus:ring-[#DD2F26]/30 disabled:cursor-not-allowed disabled:opacity-60 ${getStatusColor(statusSelectValue)}`}
+                                        >
+                                            {STATUS_OPTIONS.map((opt) => (
+                                                <option key={opt.api} value={opt.api}>
+                                                    {opt.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <ChevronDown
+                                            className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 opacity-70"
+                                            aria-hidden
+                                        />
                                     </div>
                                 </div>
-                                <div className="space-y-2">
+                                <div className="space-y-1.5">
                                     <label className="text-[12px] font-medium text-[#6B7280]">Channel</label>
-                                    <div className="px-4 py-3 bg-[#F3F4F6] text-[#4B5563] rounded-[6px] text-[13px] ">
+                                    <div className="rounded-[6px] bg-[#F3F4F6] px-3 py-2.5 text-[13px] text-[#4B5563]">
                                         Chat
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="mt-6 px-4 py-2.5 bg-[#DCFCE7] text-[#10B981] rounded-[6px] text-[13px] ">
+                            <div className="mt-3 rounded-[6px] bg-[#DCFCE7] px-3 py-2 text-[13px] text-[#10B981]">
                                 {ticketCategory}
                             </div>
 
-                            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-5">
+                            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:gap-3">
                                 <button
                                     type="button"
                                     onClick={handleEscalate}
-                                    className="w-full sm:flex-1 flex items-center justify-center gap-2 py-3 bg-white border border-[#E5E7EB] text-[#111827] rounded-[8px] text-[13px] hover:bg-gray-50 active:scale-[0.98] transition-all"
+                                    disabled={isResolvedTicket}
+                                    className="flex w-full items-center justify-center gap-2 rounded-[8px] border border-[#E5E7EB] bg-white py-2.5 text-[13px] text-[#111827] transition-all hover:bg-gray-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white sm:flex-1"
                                 >
-                                    <AlertCircle className="w-5 h-5 text-[#111827]" />
+                                    <AlertCircle className="h-5 w-5 text-[#111827]" />
                                     Escalate to Admin
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => handleResolveTicket(false)}
-                                    className="w-full sm:flex-1 py-3 bg-[#DD2F26] text-white rounded-[8px] text-[13px] hover:bg-[#C52820] active:scale-[0.98] transition-all"
+                                    disabled={isResolvedTicket}
+                                    className="w-full rounded-[8px] bg-[#DD2F26] py-2.5 text-[13px] text-white transition-all hover:bg-[#C52820] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:flex-1"
                                 >
                                     Mark Resolved
                                 </button>
                             </div>
                         </div>
+                    </div>
 
-                        {/* Chat Messages */}
-                        <div className="space-y-4 pb-10">
+                    {/* Separator: above message thread */}
+                    <div className="shrink-0 border-t border-[#00000033]" />
+
+                    {/* Messages only — scrolls */}
+                    <div
+                        ref={messagesContainerRef}
+                        className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-2 sm:px-8"
+                    >
+                        <div className="space-y-2">
                             {loading && !normalizedMessages.length && (
                                 <>
-                                    <div className="flex flex-col items-start gap-2 animate-pulse">
-                                        <div className="px-6 py-4 rounded-[22px] rounded-tl-none bg-gray-100 max-w-[80%]">
-                                            <div className="h-3 bg-gray-200 rounded mb-2 w-5/6" />
-                                            <div className="h-3 bg-gray-200 rounded w-2/3" />
+                                    <div className="flex flex-col items-start gap-1.5 animate-pulse">
+                                        <div className="max-w-[80%] rounded-[22px] rounded-tl-none bg-gray-100 px-5 py-3">
+                                            <div className="mb-2 h-3 w-5/6 rounded bg-gray-200" />
+                                            <div className="h-3 w-2/3 rounded bg-gray-200" />
                                         </div>
-                                        <div className="h-3 w-12 bg-gray-100 rounded ml-2" />
+                                        <div className="ml-2 h-3 w-12 rounded bg-gray-100" />
                                     </div>
-                                    <div className="flex flex-col items-end gap-2 animate-pulse">
-                                        <div className="px-6 py-4 rounded-[22px] rounded-tr-none bg-gray-100 max-w-[80%]">
-                                            <div className="h-3 bg-gray-200 rounded mb-2 w-4/6" />
-                                            <div className="h-3 bg-gray-200 rounded w-3/5" />
+                                    <div className="flex flex-col items-end gap-1.5 animate-pulse">
+                                        <div className="max-w-[80%] rounded-[22px] rounded-tr-none bg-gray-100 px-5 py-3">
+                                            <div className="mb-2 h-3 w-2/3 rounded bg-gray-200" />
+                                            <div className="h-3 w-3/5 rounded bg-gray-200" />
                                         </div>
-                                        <div className="h-3 w-12 bg-gray-100 rounded mr-2" />
+                                        <div className="mr-2 h-3 w-12 rounded bg-gray-100" />
                                     </div>
                                 </>
                             )}
-                            {error && !loading && (
-                                <p className="text-[13px] text-red-500">{error}</p>
-                            )}
+                            {error && !loading && <p className="text-[13px] text-red-500">{error}</p>}
                             {!loading && !normalizedMessages.length && !error && (
-                                <p className="text-[13px] text-gray-400">No messages yet. Start the conversation below.</p>
+                                <p className="text-[13px] text-gray-400">
+                                    No messages yet. Start the conversation below.
+                                </p>
                             )}
                             {normalizedMessages.map((msg) => {
                                 const isRestaurant = msg.sender_type === 'restaurant';
                                 return (
                                     <div
                                         key={msg.id}
-                                        className={`flex flex-col ${isRestaurant ? 'items-end' : 'items-start'} gap-1`}
+                                        className={`flex flex-col ${isRestaurant ? 'items-end' : 'items-start'} gap-0.5`}
                                     >
                                         <div
-                                            className={`px-6 py-3 rounded-[12px] text-[14px] max-w-[90%] sm:max-w-[85%] font-medium leading-relaxed ${
+                                            className={`max-w-[90%] rounded-[12px] px-4 py-2.5 text-[14px] font-medium leading-relaxed sm:max-w-[85%] ${
                                                 isRestaurant
-                                                    ? 'bg-[#DD2F26] text-white rounded-tr-[4px] shadow-sm text-right'
-                                                    : 'bg-[#F3F4F6] text-[#111827] rounded-tl-[4px]'
+                                                    ? 'bg-[#DD2F26] text-right text-white shadow-sm rounded-tr-[4px]'
+                                                    : 'rounded-tl-[4px] bg-[#F3F4F6] text-[#111827]'
                                             }`}
                                         >
                                             {msg.content}
                                         </div>
-                                        <span className={`text-[12px] text-[#9CA3AF] font-medium ${isRestaurant ? 'mr-2' : 'ml-2'}`}>
+                                        <span
+                                            className={`text-[12px] font-medium text-[#9CA3AF] ${isRestaurant ? 'mr-1' : 'ml-1'}`}
+                                        >
                                             {formatTime(msg.created_at)}
                                         </span>
                                     </div>
                                 );
                             })}
-                            {actionError && (
-                                <p className="text-[12px] text-red-500">{actionError}</p>
-                            )}
-                            <div ref={messagesEndRef} />
+                            {actionError && <p className="text-[12px] text-red-500">{actionError}</p>}
                         </div>
                     </div>
 
                     {/* Chat Input Area */}
-                    <div className="mt-auto px-4 sm:px-8 pb-4 sm:pb-8 pt-4 bg-white rounded-b-[24px]">
-                        <div className="inline-flex items-center px-4 py-2 bg-[#F3F4F6] text-[#6B7280] rounded-[6px] text-[12px] font-medium mb-2">
+                    <div className="shrink-0 rounded-b-[24px] bg-white px-4 pb-4 pt-3 sm:px-8 sm:pb-6 sm:pt-4">
+                        <div className="mb-1.5 inline-flex items-center rounded-[6px] bg-[#F3F4F6] px-3 py-1.5 text-[12px] font-medium text-[#6B7280]">
                             Internal Notes OFF
                         </div>
 
-                        <div className="bg-white border border-[#E5E7EB] min-h-[80px] rounded-[6px] p-4 focus-within:border-[#DD2F26] transition-all">
+                        <div className="min-h-[72px] rounded-[6px] border border-[#00000033] bg-white p-3 transition-all focus-within:border-[#DD2F26]">
                             <textarea
                                 rows="2"
                                 placeholder="Type your message..."
                                 value={newMessage}
                                 onChange={(e) => setNewMessage(e.target.value)}
-                                className="w-full bg-transparent border-none focus:outline-none text-[14px] text-[#111827] placeholder:text-[#9CA3AF] resize-none"
-                            ></textarea>
+                                className="w-full resize-none border-none bg-transparent text-[14px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none"
+                            />
 
                             <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2 mt-2">
-                                    <button className="text-[#9CA3AF] hover:text-[#DD2F26] transition-colors active:scale-90" type="button">
-                                        <Paperclip className="w-4 h-4" />
+                                <div className="mt-1 flex items-center gap-2">
+                                    <button className="text-[#9CA3AF] transition-colors hover:text-[#DD2F26] active:scale-90" type="button">
+                                        <Paperclip className="h-4 w-4" />
                                     </button>
-                                    <button className="text-[#9CA3AF] hover:text-[#DD2F26] transition-colors active:scale-90" type="button">
-                                        <Smile className="w-4 h-4" />
+                                    <button className="text-[#9CA3AF] transition-colors hover:text-[#DD2F26] active:scale-90" type="button">
+                                        <Smile className="h-4 w-4" />
                                     </button>
-                                    <button className="text-[12px] text-[#DD2F26] active:scale-95 transition-all hover:opacity-80" type="button">
+                                    <button className="text-[12px] text-[#DD2F26] transition-all hover:opacity-80 active:scale-95" type="button">
                                         Quick Replies
                                     </button>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="flex flex-col sm:flex-row items-center justify-end gap-3 sm:gap-4 mt-4">
+                        <div className="mt-3 flex flex-col items-center justify-end gap-2 sm:mt-2 sm:flex-row sm:gap-3">
                             <button
                                 type="button"
                                 onClick={() => handleSendMessage(false)}
                                 disabled={sending || !newMessage.trim()}
-                                className="w-full sm:w-auto px-5 py-3 bg-[#DD2F26] text-white rounded-[8px] text-[13px] font-[500] flex items-center justify-center gap-2 hover:bg-[#C52820] active:scale-95 transition-all shadow-sm order-1 sm:order-1 disabled:opacity-60 disabled:cursor-not-allowed"
+                                className="order-1 flex w-full items-center justify-center gap-2 rounded-[8px] bg-[#DD2F26] px-5 py-2.5 text-[13px] font-[500] text-white shadow-sm transition-all hover:bg-[#C52820] active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 sm:order-1 sm:w-auto"
                             >
-                                <Send className="w-5 h-5 fill-current" />
+                                <Send className="h-5 w-5 fill-current" />
                                 {sending ? 'Sending…' : 'Send'}
                             </button>
                             <button
                                 type="button"
                                 onClick={() => handleSendMessage(true)}
-                                disabled={sending || !newMessage.trim()}
-                                className="w-full sm:w-auto px-6 py-3 bg-white border border-[#DD2F26] text-[#DD2F26] rounded-[8px] text-[13px] font-[500] flex items-center justify-center hover:bg-[#FEF2F2] active:scale-95 transition-all order-2 sm:order-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                                disabled={sending || !newMessage.trim() || isResolvedTicket}
+                                className="order-2 flex w-full items-center justify-center rounded-[8px] border border-[#DD2F26] bg-white px-6 py-2.5 text-[13px] font-[500] text-[#DD2F26] transition-all hover:bg-[#FEF2F2] active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 sm:order-2 sm:w-auto"
                             >
                                 Send & Resolve
                             </button>
                         </div>
                     </div>
-                </>
+                </div>
             )}
         </div>
     );

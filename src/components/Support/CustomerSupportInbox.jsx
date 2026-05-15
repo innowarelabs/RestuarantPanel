@@ -4,7 +4,7 @@ import { MessageSquare, Paperclip, Mail, Bot } from 'lucide-react';
 const CustomerSupportInbox = ({ conversations, activeId, onSelect }) => {
     return (
         <div className="bg-white rounded-[16px] border border-[#00000033] overflow-hidden flex flex-col h-full">
-            <div className="p-6 border-b border-gray-100">
+            <div className="p-6 border-b border-[#00000033]">
                 <h2 className="text-[16px] font-bold text-general-text">Customer Support Inbox</h2>
                 <p className="text-[12px] text-gray-500">{conversations.length} active conversations</p>
             </div>
@@ -14,7 +14,7 @@ const CustomerSupportInbox = ({ conversations, activeId, onSelect }) => {
                     <div
                         key={conv.id}
                         onClick={() => onSelect(conv)}
-                        className={`p-6 flex gap-4 cursor-pointer transition-colors relative border-b border-gray-100 last:border-0 ${activeId === conv.id ? 'bg-[#FEF2F2]' : 'hover:bg-gray-50/50'
+                        className={`p-6 flex gap-4 cursor-pointer transition-colors relative border-b border-gray-100 last:border-0 ${activeId === conv.id ? 'bg-[#DD2F2633]' : 'hover:bg-gray-50/50'
                             }`}
                     >
                         <div className="relative flex-shrink-0">

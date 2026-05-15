@@ -3,40 +3,13 @@ import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import { ChevronDown, Eye } from 'lucide-react';
 import { buildTicketsListSearchParams } from './ticketListQueryParams';
-
-const PRIORITY_OPTIONS = [
-    { label: 'High', value: 'high' },
-    { label: 'Medium', value: 'medium' },
-    { label: 'Low', value: 'low' },
-];
-
-/** Same API values as admin-panel `SupportTickets.jsx` → PATCH `/api/v1/tickets/{id}` body `{ status }`. */
-const STATUS_OPTIONS = [
-    { label: 'Pending', api: 'open' },
-    { label: 'In Progress', api: 'in_progress' },
-    { label: 'Resolved', api: 'resolved' },
-    { label: 'Closed', api: 'closed' },
-    { label: 'Waiting customer', api: 'waiting_customer' },
-];
-
-const formatPatchError = (json) => {
-    if (!json || typeof json !== 'object') return 'Update failed';
-    const detail = json.detail;
-    if (Array.isArray(detail) && detail.length > 0) {
-        const lines = detail
-            .map((item) => {
-                if (!item || typeof item !== 'object') return null;
-                const msg = item.msg || item.message || 'Invalid value';
-                const loc = Array.isArray(item.loc) ? item.loc.filter((x) => x !== 'body') : [];
-                const field = loc.length ? String(loc[loc.length - 1]) : '';
-                return field ? `${field}: ${msg}` : msg;
-            })
-            .filter(Boolean);
-        if (lines.length) return lines.join('\n');
-    }
-    if (typeof json.message === 'string' && json.message.trim()) return json.message.trim();
-    return 'Update failed';
-};
+import {
+    PRIORITY_OPTIONS,
+    STATUS_OPTIONS,
+    getPriorityColor,
+    getStatusColor,
+    patchTicketById,
+} from './restaurantTicketApi';
 
 const AdminSupportTickets = ({ onViewTicket, refreshKey, listFilters = {} }) => {
     const accessToken = useSelector((state) => state.auth.accessToken);
@@ -86,45 +59,6 @@ const AdminSupportTickets = ({ onViewTicket, refreshKey, listFilters = {} }) => 
         }
     };
 
-    /** Priority: same tag shell as category; semantic colors. */
-    const getPriorityColor = (priority) => {
-        const value = (priority || '').toLowerCase();
-        switch (value) {
-            case 'high':
-            case 'urgent':
-                return 'bg-[#FEE2E2] text-[#DC2626]';
-            case 'medium':
-            case 'normal':
-                return 'bg-[#FFEDD5] text-[#EA580C]';
-            case 'low':
-                return 'bg-[#DBEAFE] text-[#2563EB]';
-            default:
-                return 'bg-[#F3F4F6] text-[#4B5563]';
-        }
-    };
-
-    /** Status: same tag shell as category; semantic colors. */
-    const getStatusColor = (status) => {
-        const value = (status || '').toLowerCase();
-        switch (value) {
-            case 'open':
-            case 'pending':
-                return 'bg-[#DCFCE7] text-[#16A34A]';
-            case 'in_progress':
-            case 'in progress':
-                return 'bg-[#DBEAFE] text-[#2563EB]';
-            case 'awaiting_info':
-            case 'waiting_customer':
-                return 'bg-[#FEF3C7] text-[#CA8A04]';
-            case 'resolved':
-                return 'bg-[#EEF2FF] text-[#4F46E5]';
-            case 'closed':
-                return 'bg-[#F3F4F6] text-[#6B7280]';
-            default:
-                return 'bg-[#F3F4F6] text-[#4B5563]';
-        }
-    };
-
     /** Shared pill: padding 4px 12px, radius 6px, Sofia Pro 12px / 18px / 500 (from global font). */
     const tagPillClass = 'inline-flex items-center gap-0.5 rounded-[6px] px-3 py-1 text-[12px] font-medium leading-[18px] tracking-normal';
     /** Priority / status triggers: extra gap between label and chevron. */
@@ -149,37 +83,7 @@ const AdminSupportTickets = ({ onViewTicket, refreshKey, listFilters = {} }) => 
 
     const patchTicket = useCallback(
         async (apiId, body) => {
-            const baseUrl = import.meta.env.VITE_BACKEND_URL;
-            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
-            if (!accessToken) throw new Error('Not authenticated');
-            if (!apiId) throw new Error('Missing ticket id');
-
-            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/tickets/${encodeURIComponent(apiId)}`;
-            const res = await fetch(url, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
-                },
-                body: JSON.stringify(body),
-            });
-            const raw = await res.text();
-            let json = {};
-            if (raw) {
-                try {
-                    json = JSON.parse(raw);
-                } catch {
-                    json = { message: raw };
-                }
-            }
-            if (!res.ok) {
-                throw new Error(formatPatchError(json));
-            }
-            if (json.code != null && !String(json.code).startsWith('SUCCESS')) {
-                throw new Error(json.message || formatPatchError(json) || 'Update failed');
-            }
-            return json.data ?? json;
+            return patchTicketById(apiId, body, { accessToken, restaurantId });
         },
         [accessToken, restaurantId],
     );

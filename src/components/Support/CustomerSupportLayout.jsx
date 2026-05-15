@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import CustomerSupportInbox from './CustomerSupportInbox';
 import CustomerChatWindow from './CustomerChatWindow';
@@ -30,80 +30,88 @@ const CustomerSupportLayout = ({ refreshKey }) => {
 
     const restaurantId = getRestaurantId();
 
-    useEffect(() => {
-        const fetchInbox = async () => {
-            setLoadingInbox(true);
-            setInboxError('');
-            try {
-                const baseUrl = import.meta.env.VITE_BACKEND_URL;
-                if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
+    const fetchInbox = useCallback(async () => {
+        setLoadingInbox(true);
+        setInboxError('');
+        try {
+            const baseUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
 
-                const url = `${baseUrl.replace(/\/$/, '')}/api/v1/support/inbox`;
-                const res = await fetch(url, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-                        ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
-                    },
-                });
+            const url = `${baseUrl.replace(/\/$/, '')}/api/v1/support/inbox`;
+            const res = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
+                },
+            });
 
-                const data = await res.json();
-                const items = Array.isArray(data?.data?.conversations)
-                    ? data.data.conversations
-                    : Array.isArray(data?.conversations)
-                        ? data.conversations
-                        : Array.isArray(data)
-                            ? data
-                            : [];
-
-                if (!Array.isArray(items)) {
-                    throw new Error('Unexpected inbox response format');
-                }
-
-                const mapped = items.map((item, index) => {
-                    const ticketId = item.id || item.ticket_id || item.ticketId || index;
-                    const customer = item.customer || {};
-                    const order = item.order || {};
-                    const tags = Array.isArray(item.tags)
-                        ? item.tags.map((t) => t.label || t)
+            const data = await res.json();
+            const items = Array.isArray(data?.data?.conversations)
+                ? data.data.conversations
+                : Array.isArray(data?.conversations)
+                    ? data.conversations
+                    : Array.isArray(data)
+                        ? data
                         : [];
 
-                    return {
-                        id: ticketId,
-                        ticketId,
-                        ticketNumber: item.ticket_number,
-                        name: customer.name || 'Customer',
-                        avatar: customer.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=customer',
-                        online: customer.is_online === true,
-                        orderId: order.order_number || '#ORD-XXXX',
-                        time: item.last_message_relative || '',
-                        lastMessage: item.last_message || '',
-                        tags: tags.length ? tags : [item.category_label || item.category || 'Support'],
-                        hasMessage: true,
-                        hasEmail: false,
-                        hasAttachment: false,
-                        isBot: false,
-                        progress: undefined,
-                        statusColor: '#DD2F26',
-                    };
-                });
-
-                setConversations(mapped);
-                if (mapped.length > 0) {
-                    setSelectedConversation(mapped[0]);
-                }
-            } catch (error) {
-                setInboxError(error.message || 'Failed to load support inbox');
-            } finally {
-                setLoadingInbox(false);
+            if (!Array.isArray(items)) {
+                throw new Error('Unexpected inbox response format');
             }
-        };
 
+            const mapped = items.map((item, index) => {
+                const ticketId = item.id || item.ticket_id || item.ticketId || index;
+                const customer = item.customer || {};
+                const order = item.order || {};
+                const tags = Array.isArray(item.tags)
+                    ? item.tags.map((t) => t.label || t)
+                    : [];
+
+                return {
+                    id: ticketId,
+                    ticketId,
+                    ticketNumber: item.ticket_number,
+                    name: customer.name || 'Customer',
+                    avatar: customer.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=customer',
+                    online: customer.is_online === true,
+                    orderId: order.order_number || '#ORD-XXXX',
+                    time: item.last_message_relative || '',
+                    lastMessage: item.last_message || '',
+                    tags: tags.length ? tags : [item.category_label || item.category || 'Support'],
+                    hasMessage: true,
+                    hasEmail: false,
+                    hasAttachment: false,
+                    isBot: false,
+                    progress: undefined,
+                    statusColor: '#DD2F26',
+                };
+            });
+
+            setConversations(mapped);
+            setSelectedConversation((prev) => {
+                if (!mapped.length) return null;
+                const prevId = prev?.ticketId ?? prev?.id;
+                if (prevId != null) {
+                    const match = mapped.find(
+                        (c) => String(c.ticketId) === String(prevId) || String(c.id) === String(prevId),
+                    );
+                    if (match) return match;
+                }
+                return mapped[0];
+            });
+        } catch (error) {
+            setInboxError(error.message || 'Failed to load support inbox');
+        } finally {
+            setLoadingInbox(false);
+        }
+    }, [accessToken, restaurantId]);
+
+    useEffect(() => {
         if (accessToken) {
             fetchInbox();
         }
-    }, [accessToken, restaurantId, refreshKey]);
+    }, [accessToken, fetchInbox, refreshKey]);
 
     useEffect(() => {
         const fetchTicket = async () => {
@@ -216,7 +224,7 @@ const CustomerSupportLayout = ({ refreshKey }) => {
     }, [accessToken, restaurantId, selectedConversation?.ticketId]);
 
     return (
-        <div className="flex flex-col lg:flex-row gap-6 h-[600px] pb-10 lg:pb-0">
+        <div className="flex flex-col lg:flex-row gap-6 h-[920px] pb-10 lg:pb-0">
             <div className="w-full lg:w-[400px] flex-shrink-0 h-full">
                 <CustomerSupportInbox
                     conversations={conversations}
@@ -230,14 +238,16 @@ const CustomerSupportLayout = ({ refreshKey }) => {
                     <p className="mt-2 text-xs text-red-500 px-2">{inboxError}</p>
                 )}
             </div>
-            <div className="flex-1">
+            <div className="flex min-h-0 flex-1 flex-col">
                 <CustomerChatWindow
                     conversation={selectedConversation}
                     ticketDetails={ticketDetails}
+                    setTicketDetails={setTicketDetails}
                     messages={messages}
                     onMessagesChange={setMessages}
                     loading={loadingTicket}
                     error={ticketError}
+                    onRefreshInbox={fetchInbox}
                 />
             </div>
         </div>
