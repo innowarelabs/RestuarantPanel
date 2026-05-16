@@ -4,6 +4,8 @@ const ACCESS_TOKEN_COOKIE_KEY = 'accessToken';
 const REFRESH_TOKEN_COOKIE_KEY = 'refreshToken';
 const ONBOARDING_STEP_STORAGE_KEY = 'onboardingStep';
 const RESTAURANT_NAME_STORAGE_KEY = 'restaurantName';
+/** Login `data.is_open` + sidebar accepting-orders toggle (`/dashboard/toggle-open`) */
+export const RESTAURANT_IS_OPEN_STORAGE_KEY = 'restaurantPanelAcceptingOrders';
 
 const getUserFromStorage = () => {
     try {
@@ -32,6 +34,24 @@ const getRestaurantNameFromStorage = () => {
         return value;
     } catch {
         return '';
+    }
+};
+
+const getRestaurantIsOpenFromStorage = () => {
+    try {
+        const v = localStorage.getItem(RESTAURANT_IS_OPEN_STORAGE_KEY);
+        if (v === 'false') return false;
+        return true;
+    } catch {
+        return true;
+    }
+};
+
+const persistRestaurantIsOpen = (value) => {
+    try {
+        localStorage.setItem(RESTAURANT_IS_OPEN_STORAGE_KEY, String(Boolean(value)));
+    } catch {
+        /* ignore */
     }
 };
 
@@ -73,6 +93,7 @@ const APP_LOCAL_STORAGE_KEYS = [
     'twoFAGoto',
     'twoFAUserId',
     'sidebarSelected',
+    RESTAURANT_IS_OPEN_STORAGE_KEY,
 ];
 
 const clearAppLocalStorage = () => {
@@ -119,10 +140,19 @@ const authSlice = createSlice({
         refreshToken: getCookie(REFRESH_TOKEN_COOKIE_KEY),
         onboardingStep: getOnboardingStepFromStorage(),
         restaurantName: getRestaurantNameFromStorage(),
+        restaurantIsOpen: getRestaurantIsOpenFromStorage(),
     },
     reducers: {
         setSession: (state, action) => {
-            const { user, accessToken, refreshToken, onboardingStep, accessTokenExpiresIn, restaurantName } = action.payload || {};
+            const {
+                user,
+                accessToken,
+                refreshToken,
+                onboardingStep,
+                accessTokenExpiresIn,
+                restaurantName,
+                restaurantIsOpen,
+            } = action.payload || {};
 
             state.user = user || null;
             state.accessToken = accessToken || null;
@@ -133,11 +163,21 @@ const authSlice = createSlice({
                 localStorage.setItem(RESTAURANT_NAME_STORAGE_KEY, restaurantName);
             }
 
+            if (typeof restaurantIsOpen === 'boolean') {
+                state.restaurantIsOpen = restaurantIsOpen;
+                persistRestaurantIsOpen(restaurantIsOpen);
+            }
+
             if (user) localStorage.setItem("user", JSON.stringify(user));
             localStorage.setItem(ONBOARDING_STEP_STORAGE_KEY, state.onboardingStep);
 
             if (accessToken) setCookie(ACCESS_TOKEN_COOKIE_KEY, accessToken, { maxAgeSeconds: accessTokenExpiresIn });
             if (refreshToken) setCookie(REFRESH_TOKEN_COOKIE_KEY, refreshToken, { maxAgeSeconds: 60 * 60 * 24 * 30 });
+        },
+        setRestaurantIsOpen: (state, action) => {
+            const next = Boolean(action.payload);
+            state.restaurantIsOpen = next;
+            persistRestaurantIsOpen(next);
         },
         setRestaurantName: (state, action) => {
             const nextValue = typeof action.payload === 'string' ? action.payload.trim() : '';
@@ -154,6 +194,7 @@ const authSlice = createSlice({
             state.refreshToken = null;
             state.onboardingStep = 'step1';
             state.restaurantName = '';
+            state.restaurantIsOpen = true;
             clearAppLocalStorage();
             clearSiteCookies();
             clearSessionStorage();
@@ -161,7 +202,7 @@ const authSlice = createSlice({
     }
 });
 
-export const { setSession, setRestaurantName, setOnboardingStep, logout } = authSlice.actions;
+export const { setSession, setRestaurantName, setRestaurantIsOpen, setOnboardingStep, logout } = authSlice.actions;
 
 const sidebarSlice = createSlice({
     name: 'sidebar',

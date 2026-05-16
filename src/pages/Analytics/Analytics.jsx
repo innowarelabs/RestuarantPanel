@@ -310,7 +310,7 @@ export default function Analytics() {
                 mk('Total Orders', ShoppingBag, 'redMetrics'),
                 mk('Total Revenue', DollarSign, 'redMetrics'),
                 mk('Avg Order Value', Target, 'redMetrics'),
-                mk('New Customers', Users, 'indigoMetrics'),
+                mk('New Customer', Users, 'indigoMetrics'),
                 mk('Returning Customers', RefreshCcw, 'indigoMetrics'),
                 mk('Cancellation Rate', XCircle, 'redMetrics'),
             ];
@@ -358,9 +358,15 @@ export default function Analytics() {
                 variant: 'redMetrics',
             },
             {
-                label: 'New Customers',
-                value: '-',
-                secondaryInfo: 'Not provided for this period',
+                label: 'New Customer',
+                value:
+                    d.new_customers_last_24h != null && d.new_customers_last_24h !== ''
+                        ? String(Number(d.new_customers_last_24h))
+                        : '-',
+                secondaryInfo:
+                    d.new_customers_last_24h != null && d.new_customers_last_24h !== ''
+                        ? 'Last 24 hours'
+                        : 'Not provided for this period',
                 percentage: '',
                 trend: 'up',
                 showTrend: false,

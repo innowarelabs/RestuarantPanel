@@ -37,7 +37,7 @@ function buildStatRows(analyticsData, analyticsLoading) {
             { label: 'Total Orders', value: dash, note: '—', extra: '' },
             { label: 'Total Revenue', value: dash, note: '—', extra: '' },
             { label: 'Avg Order Value', value: dash, note: '—', extra: '' },
-            { label: 'New Customers', value: dash, note: '—', extra: '' },
+            { label: 'New Customer', value: dash, note: '—', extra: '' },
             { label: 'Returning Customers', value: dash, note: '—', extra: '' },
             { label: 'Cancellation Rate', value: dash, note: '—', extra: '' },
         ];
@@ -51,12 +51,16 @@ function buildStatRows(analyticsData, analyticsLoading) {
     const completeShare = total > 0 ? formatPct((completed / total) * 100, 0) : '0';
     const mrr = o.mrr_growth_percent;
     const mrrStr = mrr != null ? `${Number(mrr) >= 0 ? '+' : ''}${formatPct(mrr, 1)}%` : '—';
+    const nc = analyticsData.new_customers_last_24h;
+    const ncProvided = nc != null && nc !== '';
+    const ncValue = ncProvided ? String(Number(nc)) : '-';
+    const ncNote = ncProvided ? 'Last 24 hours' : 'Not provided for this period';
 
     return [
         { label: 'Total Orders', value: String(total), note: pl, extra: '' },
         { label: 'Total Revenue', value: formatMoney(r.revenue_period ?? o.total_revenue_period), note: pl, extra: mrrStr !== '—' ? `MRR growth: ${mrrStr}` : '' },
         { label: 'Avg Order Value', value: `$${formatPct(o.average_order_value_period ?? 0, 2)}`, note: pl, extra: '' },
-        { label: 'New Customers', value: '-', note: 'Not provided for this period', extra: '' },
+        { label: 'New Customer', value: ncValue, note: ncNote, extra: '' },
         { label: 'Returning Customers', value: `${completeShare}%`, note: 'Completed share of orders', extra: '' },
         { label: 'Cancellation Rate', value: `${cancelRate}%`, note: 'of orders in period', extra: '' },
     ];

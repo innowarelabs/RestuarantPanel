@@ -29,6 +29,7 @@ const CustomerChatWindow = ({
     const [actionError, setActionError] = useState('');
     const [patchingPriority, setPatchingPriority] = useState(false);
     const [patchingStatus, setPatchingStatus] = useState(false);
+    const [escalating, setEscalating] = useState(false);
 
     const getRestaurantId = () => {
         const fromUser = user && typeof user === 'object' && typeof user.restaurant_id === 'string' ? user.restaurant_id : '';
@@ -273,14 +274,15 @@ const CustomerChatWindow = ({
     };
 
     const handleEscalate = async () => {
-        if (!ticketId || isResolvedTicket) return;
+        if (!ticketApiId || isResolvedTicket || escalating) return;
         setActionError('');
+        setEscalating(true);
 
         try {
             const baseUrl = import.meta.env.VITE_BACKEND_URL;
             if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
 
-            const encodedId = encodeURIComponent(ticketId);
+            const encodedId = encodeURIComponent(ticketApiId);
             const url = `${baseUrl.replace(/\/$/, '')}/api/v1/support/tickets/${encodedId}/escalate`;
 
             const headers = {
@@ -289,17 +291,51 @@ const CustomerChatWindow = ({
                 ...(restaurantId ? { 'X-Restaurant-Id': restaurantId } : {}),
             };
 
-            const res = await fetch(`${url}?note=${encodeURIComponent('Escalated from restaurant panel')}`, {
+            const res = await fetch(url, {
                 method: 'POST',
                 headers,
             });
 
-            const data = await res.json();
-            if (data?.code !== 'SUCCESS_200') {
-                throw new Error(data?.message || 'Failed to escalate ticket');
+            if (res.status !== 200) {
+                let message = 'Failed to escalate ticket';
+                try {
+                    const errBody = await res.json();
+                    if (typeof errBody?.message === 'string' && errBody.message.trim()) {
+                        message = errBody.message.trim();
+                    }
+                } catch {
+                    // ignore non-JSON error bodies
+                }
+                throw new Error(message);
+            }
+
+            let successMessage = 'Ticket escalated to admin';
+            try {
+                const ct = res.headers.get('content-type') || '';
+                if (ct.includes('application/json')) {
+                    const text = await res.text();
+                    if (text.trim()) {
+                        const data = JSON.parse(text);
+                        if (typeof data?.message === 'string' && data.message.trim()) {
+                            successMessage = data.message.trim();
+                        }
+                    }
+                }
+            } catch {
+                // 200 with empty or invalid JSON body — still success
+            }
+
+            toast.success(successMessage);
+
+            if (typeof onRefreshInbox === 'function') {
+                await onRefreshInbox();
             }
         } catch (err) {
-            setActionError(err.message || 'Unable to escalate ticket');
+            const msg = err.message || 'Unable to escalate ticket';
+            setActionError(msg);
+            toast.error(msg);
+        } finally {
+            setEscalating(false);
         }
     };
 
@@ -456,11 +492,11 @@ const CustomerChatWindow = ({
                                 <button
                                     type="button"
                                     onClick={handleEscalate}
-                                    disabled={isResolvedTicket}
+                                    disabled={!ticketApiId || isResolvedTicket || escalating}
                                     className="flex w-full items-center justify-center gap-2 rounded-[8px] border border-[#E5E7EB] bg-white py-2.5 text-[13px] text-[#111827] transition-all hover:bg-gray-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white sm:flex-1"
                                 >
                                     <AlertCircle className="h-5 w-5 text-[#111827]" />
-                                    Escalate to Admin
+                                    {escalating ? 'Escalating…' : 'Escalate to Admin'}
                                 </button>
                                 <button
                                     type="button"

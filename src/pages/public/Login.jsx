@@ -90,6 +90,7 @@ function Login() {
                     : typeof sessionData?.user?.id === "string"
                       ? sessionData.user.id
                       : "";
+            const restaurantIsOpen = typeof sessionData?.is_open === "boolean" ? sessionData.is_open : undefined;
 
             dispatch(
                 setSession({
@@ -99,6 +100,7 @@ function Login() {
                     onboardingStep,
                     accessTokenExpiresIn: sessionData?.expires_in,
                     ...(restaurantName ? { restaurantName } : {}),
+                    ...(typeof restaurantIsOpen === "boolean" ? { restaurantIsOpen } : {}),
                 })
             );
 

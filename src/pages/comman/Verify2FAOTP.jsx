@@ -118,6 +118,7 @@ function Verify2FAOTP() {
         : userFromState
           ? { ...userFromState, is_2fa_enabled: true, is_2fa_setup: true }
           : null;
+      const restaurantIsOpen = typeof sessionData?.is_open === "boolean" ? sessionData.is_open : undefined;
 
       if (!access_token || !refresh_token) throw new Error("Verification failed. Please try again.");
 
@@ -129,6 +130,7 @@ function Verify2FAOTP() {
           onboardingStep: nextGoto,
           accessTokenExpiresIn: nextExpiresIn,
           ...(restaurantName ? { restaurantName } : {}),
+          ...(typeof restaurantIsOpen === "boolean" ? { restaurantIsOpen } : {}),
         })
       );
       const restaurantId =

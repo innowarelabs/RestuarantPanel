@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import toast from 'react-hot-toast';
 
 const API_BASE = 'https://api.baaie.com';
@@ -18,8 +18,7 @@ import {
 import { Tooltip } from 'react-tooltip';
 import 'react-tooltip/dist/react-tooltip.css';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-
-const RESTAURANT_OPEN_STORAGE_KEY = 'restaurantPanelAcceptingOrders';
+import { setRestaurantIsOpen } from '../../redux/store';
 
 const navItems = [
     { key: 1, name: 'Dashboard', icon: LayoutDashboard, path: '/admin-dashboard' },
@@ -36,29 +35,14 @@ const navItems = [
 export default function Sidebar({ isCollapsed, onToggleCollapse }) {
     const location = useLocation();
     const navigate = useNavigate();
+    const dispatch = useDispatch();
     const pathname = location.pathname;
     const restaurantName = useSelector((state) => state.auth?.restaurantName);
     const accessToken = useSelector((state) => state.auth?.accessToken);
     const user = useSelector((state) => state.auth?.user);
+    const isRestaurantOpen = useSelector((state) => state.auth?.restaurantIsOpen !== false);
     const displayName = restaurantName?.trim() || 'Restaurant';
     const initial = displayName.charAt(0).toUpperCase() || 'R';
-
-    const [isRestaurantOpen, setIsRestaurantOpen] = useState(() => {
-        try {
-            const v = localStorage.getItem(RESTAURANT_OPEN_STORAGE_KEY);
-            return v !== 'false';
-        } catch {
-            return true;
-        }
-    });
-
-    useEffect(() => {
-        try {
-            localStorage.setItem(RESTAURANT_OPEN_STORAGE_KEY, String(isRestaurantOpen));
-        } catch {
-            /* ignore */
-        }
-    }, [isRestaurantOpen]);
 
     const [toggleOpenPending, setToggleOpenPending] = useState(false);
     const toggleOpenInFlight = useRef(false);
@@ -111,10 +95,10 @@ export default function Sidebar({ isCollapsed, onToggleCollapse }) {
                                 : typeof d?.accepting_orders === 'boolean'
                                   ? d.accepting_orders
                                   : null;
-                    if (open != null) setIsRestaurantOpen(open);
-                    else setIsRestaurantOpen((v) => !v);
+                    if (open != null) dispatch(setRestaurantIsOpen(open));
+                    else dispatch(setRestaurantIsOpen(!isRestaurantOpen));
                 } else {
-                    setIsRestaurantOpen((v) => !v);
+                    dispatch(setRestaurantIsOpen(!isRestaurantOpen));
                 }
                 if (apiIndicatesError && apiMessage) {
                     toast.error(apiMessage);
@@ -133,7 +117,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse }) {
             toggleOpenInFlight.current = false;
             setToggleOpenPending(false);
         }
-    }, [accessToken, user?.restaurant_id]);
+    }, [accessToken, user?.restaurant_id, dispatch, isRestaurantOpen]);
 
     const handleClick = (item) => {
         localStorage.setItem('sidebarSelected', item.key.toString());
@@ -162,13 +146,11 @@ export default function Sidebar({ isCollapsed, onToggleCollapse }) {
                         disabled={toggleOpenPending}
                         onClick={toggleRestaurantOpen}
                         data-tooltip-id={openStatusTooltipId}
-                        data-tooltip-content={
-                            isRestaurantOpen ? 'Open — accepting orders' : 'Closed'
-                        }
+                        data-tooltip-content={isRestaurantOpen ? 'ON — accepting orders' : 'OFF — not accepting orders'}
                         className={`relative flex h-5 w-10 shrink-0 items-center rounded-full p-0.5 transition-colors ${
                             isRestaurantOpen ? 'bg-primary' : 'bg-[#D1D5DB]'
                         }`}
-                        aria-label={isRestaurantOpen ? 'Mark restaurant as closed' : 'Mark restaurant as open'}
+                        aria-label={isRestaurantOpen ? 'Turn accepting orders off' : 'Turn accepting orders on'}
                     >
                         <span
                             className={`pointer-events-none block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ease-out ${
@@ -227,7 +209,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse }) {
                                 <span
                                     className="min-w-0 truncate font-sans text-[10px] font-normal leading-[10px] tracking-normal text-primary"
                                 >
-                                    {isRestaurantOpen ? 'Open' : 'Closed'}
+                                    {isRestaurantOpen ? 'ON' : 'OFF'}
                                 </span>
                                 <button
                                     type="button"
@@ -239,7 +221,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse }) {
                                         isRestaurantOpen ? 'bg-primary' : 'bg-[#D1D5DB]'
                                     }`}
                                     aria-label={
-                                        isRestaurantOpen ? 'Mark restaurant as closed' : 'Mark restaurant as open'
+                                        isRestaurantOpen ? 'Turn accepting orders off' : 'Turn accepting orders on'
                                     }
                                 >
                                     <span
