@@ -247,8 +247,12 @@ export default function AdminDashboard() {
         ];
     }, [dashboardData]);
 
-    /** Chart + footer: prefer `orders.order_trend`; fallback legacy `revenue_overview.daily` */
-    const { revenueData, ordersData, totalRevenueChart, ordersTotalChart, pctVsLastWeek } = useMemo(() => {
+    /**
+     * Chart + footer: prefer `orders.order_trend`; fallback `revenue_overview.daily` +
+     * `orders_overview.daily` from GET /restaurants/dashboard.
+     */
+    const { revenueData, ordersData, totalRevenueChart, ordersTotalChart, pctVsLastWeek, ordersPctVsLastWeek } =
+        useMemo(() => {
         const trend = Array.isArray(dashboardData?.orders?.order_trend) ? dashboardData.orders.order_trend : [];
         if (trend.length > 0) {
             const slice = trend.length > 7 ? trend.slice(-7) : trend;
@@ -270,20 +274,38 @@ export default function AdminDashboard() {
                 totalRevenueChart: totalRev,
                 ordersTotalChart: totalOrd,
                 pctVsLastWeek: pct,
+                ordersPctVsLastWeek: undefined,
             };
         }
 
         const daily = dashboardData?.revenue_overview?.daily || [];
         const revenueDataLegacy = daily.map((d) => ({
             date: d.date,
-            value: d.revenue,
+            value: numOrZero(d.revenue),
         }));
+
+        const ordersDaily = dashboardData?.orders_overview?.daily || [];
+        const ordersDataLegacy = ordersDaily.map((d) => {
+            const count = numOrZero(d.orders ?? d.order_count);
+            return {
+                date: d.date,
+                value: count,
+                total: count,
+            };
+        });
+        const totalOrders7d = numOrZero(dashboardData?.orders_overview?.total_orders_7d);
+        const ordersTotalComputed =
+            totalOrders7d > 0
+                ? totalOrders7d
+                : ordersDataLegacy.reduce((sum, x) => sum + numOrZero(x.total ?? x.value), 0);
+
         return {
             revenueData: revenueDataLegacy,
-            ordersData: [],
+            ordersData: ordersDataLegacy,
             totalRevenueChart: dashboardData?.revenue_overview?.total_revenue_7d ?? 0,
-            ordersTotalChart: 0,
+            ordersTotalChart: ordersTotalComputed,
             pctVsLastWeek: dashboardData?.revenue_overview?.pct_vs_last_week ?? 0,
+            ordersPctVsLastWeek: dashboardData?.orders_overview?.pct_vs_last_week ?? 0,
         };
     }, [dashboardData]);
 
@@ -337,6 +359,7 @@ export default function AdminDashboard() {
                         totalRevenue={totalRevenueChart}
                         ordersTotal={ordersTotalChart}
                         pctChange={pctVsLastWeek}
+                        ordersPctChange={ordersPctVsLastWeek}
                     />
                 </div>
             </div>

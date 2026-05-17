@@ -24,9 +24,17 @@ const OverviewChart = ({
     ordersData = [],
     totalRevenue = 0,
     ordersTotal = null,
-    pctChange = 0
+    /** Week-over-week % for Revenue tab */
+    pctChange = 0,
+    /** Week-over-week % for Orders tab (e.g. from `orders_overview.pct_vs_last_week`) */
+    ordersPctChange,
 }) => {
     const [activeTab, setActiveTab] = useState('Revenue');
+
+    const footerPct =
+        activeTab === 'Orders' && ordersPctChange !== undefined && ordersPctChange !== null
+            ? Number(ordersPctChange)
+            : Number(pctChange);
 
     // Prepare data based on active tab
     const chartData = activeTab === 'Revenue'
@@ -116,9 +124,9 @@ const OverviewChart = ({
                     </p>
                 </div>
                 <div className="text-right">
-                    <span className={`text-[12px] font-[400] ${pctChange >= 0 ? 'text-primary' : 'text-[#EF4444]'}`}>
-                        {pctChange >= 0 ? '+' : ''}
-                        {pctChange}% vs last week
+                    <span className={`text-[12px] font-[400] ${footerPct >= 0 ? 'text-primary' : 'text-[#EF4444]'}`}>
+                        {footerPct >= 0 ? '+' : ''}
+                        {footerPct}% vs last week
                     </span>
                 </div>
             </div>

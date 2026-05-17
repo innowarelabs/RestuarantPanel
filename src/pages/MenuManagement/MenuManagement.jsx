@@ -19,13 +19,13 @@ const normalizeUrl = (value) => {
     return value.trim().replace(/^["'`]+|["'`]+$/g, '').trim();
 };
 
-/** Resolve public URL from GET /api/v1/restaurants/{id} JSON (`data` or root). */
+/** Resolve public URL from GET /api/v1/restaurants/{id} JSON (`data` or root). Prefer `domain`; if missing or empty, use `website`. */
 const extractWebsiteOrDomainFromRestaurantResponse = (json) => {
     if (!json || typeof json !== 'object') return '';
     const inner = json.data != null && typeof json.data === 'object' ? json.data : json;
     const w = typeof inner.website === 'string' ? normalizeUrl(inner.website) : '';
     const d = typeof inner.domain === 'string' ? normalizeUrl(inner.domain) : '';
-    return w || d || '';
+    return d || w || '';
 };
 
 const toValidationErrorLines = (data) => {
