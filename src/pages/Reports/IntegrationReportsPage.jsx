@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { getBackendBaseUrl } from '../../utils/backendUrl';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { ChevronLeft } from 'lucide-react';
@@ -12,7 +13,6 @@ import {
     Tooltip,
 } from 'recharts';
 
-const REPORTS_API_BASE = 'https://api.baaie.com';
 const CHART_GRADIENT_ID = 'integrationTrendFill';
 
 const extractInnerData = (json) => {
@@ -74,7 +74,7 @@ export default function IntegrationReportsPage() {
             setLoading(true);
             setError('');
             try {
-                const baseUrl = (import.meta.env.VITE_BACKEND_URL || REPORTS_API_BASE).replace(/\/$/, '');
+                const baseUrl = getBackendBaseUrl();
                 const restaurantId = getRestaurantId();
                 const url = `${baseUrl}/api/v1/reports/integration`;
                 const res = await fetch(url, {

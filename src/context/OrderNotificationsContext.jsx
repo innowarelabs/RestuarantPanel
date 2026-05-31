@@ -10,12 +10,7 @@ import React, {
 import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import OrderToast from '../components/Header/OrderToast';
-
-// Activity WebSocket: always use api.baaie.com as per NEW_ORDER_WEBHOOK_GUIDELINE.md
-const ACTIVITY_WS_BASE = 'wss://api.baaie.com';
-const API_BASE =
-  (import.meta.env.VITE_BACKEND_URL && import.meta.env.VITE_BACKEND_URL.replace(/\/$/, '')) ||
-  'https://api.baaie.com';
+import { getActivityWsBaseUrl, getBackendBaseUrl } from '../utils/backendUrl';
 
 // Notification shape: { id, type, title, description, time, isUnread, orderNumber?, customerName?, itemsText?, createdAt }
 function notificationsReducer(state, action) {
@@ -106,7 +101,7 @@ export function OrderNotificationsProvider({ children, onViewOrder }) {
 
       if (useReadApi) {
         try {
-          const url = `${API_BASE}/api/v1/restaurants/${encodeURIComponent(
+          const url = `${getBackendBaseUrl()}/api/v1/restaurants/${encodeURIComponent(
             restaurantId.trim(),
           )}/notifications/${encodeURIComponent(idStr)}/read`;
           const res = await fetch(url, {
@@ -155,7 +150,7 @@ export function OrderNotificationsProvider({ children, onViewOrder }) {
     }
 
     try {
-      const url = `${API_BASE}/api/v1/restaurants/${encodeURIComponent(
+      const url = `${getBackendBaseUrl()}/api/v1/restaurants/${encodeURIComponent(
         restaurantId.trim(),
       )}/notifications/read-all`;
       const res = await fetch(url, {
@@ -200,7 +195,7 @@ export function OrderNotificationsProvider({ children, onViewOrder }) {
       }
 
       try {
-        const url = `${API_BASE}/api/v1/orders/${encodeURIComponent(orderId)}/status`;
+        const url = `${getBackendBaseUrl()}/api/v1/orders/${encodeURIComponent(orderId)}/status`;
         const res = await fetch(url, {
           method: 'PATCH',
           headers: {
@@ -261,7 +256,7 @@ export function OrderNotificationsProvider({ children, onViewOrder }) {
           limit: '20',
           filter_by: normalized,
         });
-        const url = `${API_BASE}/api/v1/restaurants/${encodeURIComponent(
+        const url = `${getBackendBaseUrl()}/api/v1/restaurants/${encodeURIComponent(
           restaurantId.trim(),
         )}/notifications?${params.toString()}`;
         const res = await fetch(url, {
@@ -294,7 +289,7 @@ export function OrderNotificationsProvider({ children, onViewOrder }) {
             limit: '20',
             filter_by: 'all',
           });
-          const urlAll = `${API_BASE}/api/v1/restaurants/${encodeURIComponent(
+          const urlAll = `${getBackendBaseUrl()}/api/v1/restaurants/${encodeURIComponent(
             restaurantId.trim(),
           )}/notifications?${paramsAll.toString()}`;
           const resAll = await fetch(urlAll, {
@@ -328,7 +323,7 @@ export function OrderNotificationsProvider({ children, onViewOrder }) {
     void fetchNotificationsByFilter('all');
   }, [accessToken, restaurantId, fetchNotificationsByFilter]);
 
-  // WebSocket: connect to wss://api.baaie.com/api/v1/activity/ws?token=<access_token>
+  // WebSocket: connect to {VITE_BACKEND_URL}/api/v1/activity/ws?token=<access_token>
   useEffect(() => {
     if (!accessToken || !restaurantId) return;
 
@@ -348,7 +343,7 @@ export function OrderNotificationsProvider({ children, onViewOrder }) {
         return;
       }
 
-      const wsUrl = `${ACTIVITY_WS_BASE}/api/v1/activity/ws?token=${encodeURIComponent(accessToken)}`;
+      const wsUrl = `${getActivityWsBaseUrl()}/api/v1/activity/ws?token=${encodeURIComponent(accessToken)}`;
       console.info(
         '[OrderNotifications] Opening WebSocket',
         wsUrl.replace(accessToken, '<token>'),

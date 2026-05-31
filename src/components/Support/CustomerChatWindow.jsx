@@ -11,6 +11,7 @@ import {
     normalizePriorityValue,
     normalizeStatusValue,
 } from './restaurantTicketApi';
+import { getActivityWsBaseUrl } from '../../utils/backendUrl';
 
 const CustomerChatWindow = ({
     conversation,
@@ -90,10 +91,7 @@ const CustomerChatWindow = ({
     useEffect(() => {
         if (!ticketId || !accessToken || typeof onMessagesChange !== 'function') return;
 
-        // Normalize base URL so we always end up with .../api/v1/chat/ws/...
-        const rawBase = import.meta.env.VITE_BACKEND_URL || 'https://api.baaie.com/api/v1';
-        const httpBase = rawBase.replace(/\/api\/v1\/?$/, '');
-        const wsBase = httpBase.replace(/^http/, 'ws');
+        const wsBase = getActivityWsBaseUrl();
 
         const wsUrl =
             `${wsBase.replace(/\/$/, '')}/api/v1/chat/ws/tickets/${encodeURIComponent(ticketId)}?token=${encodeURIComponent(

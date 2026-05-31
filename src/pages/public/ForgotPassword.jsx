@@ -5,6 +5,7 @@ import TextInput from "../../elements/TextInput";
 import AuthSidebar from "../../components/Auth/AuthSidebar";
 import restaurantLogo from "../../assets/restaurant_logo.png";
 import alertIcon from "../../assets/General/alert.svg";
+import { getBackendBaseUrl } from "../../utils/backendUrl";
 
 function messageFromApiErrors(errors) {
     if (!errors || typeof errors !== "object") return "";
@@ -34,7 +35,7 @@ function ForgotPassword() {
         setLoading(true);
 
         try {
-            const baseUrl = (import.meta.env.VITE_BACKEND_URL || "https://api.baaie.com").replace(/\/$/, "");
+            const baseUrl = getBackendBaseUrl();
             const url = `${baseUrl}/api/v1/auth/forgot-password`;
             const res = await fetch(url, {
                 method: "POST",

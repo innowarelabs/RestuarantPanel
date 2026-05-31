@@ -3,7 +3,9 @@ import autoTable from 'jspdf-autotable';
 import { dateRangeToDays } from '../components/Reports/reportsFilterConstants';
 import { drawTrendLineChart } from './reportPdfCharts';
 
-export const REPORTS_API_BASE = 'https://api.baaie.com';
+import { getBackendBaseUrl } from './backendUrl';
+
+export const getReportsApiBase = () => getBackendBaseUrl();
 
 export const PDF_PRIMARY = [221, 47, 38]; // #DD2F26
 

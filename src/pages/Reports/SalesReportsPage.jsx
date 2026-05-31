@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { getBackendBaseUrl } from '../../utils/backendUrl';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
@@ -14,7 +15,6 @@ import {
     createSalesReportPdfFromPageState,
 } from '../../utils/salesReportPdf';
 
-const REPORTS_API_BASE = 'https://api.baaie.com';
 
 /** Parse `filename` / `filename*` from Content-Disposition for CSV export. */
 function parseFilenameFromContentDisposition(header) {
@@ -357,7 +357,7 @@ const SalesReportsPage = () => {
             setScheduleLoading(true);
             setScheduleLoadError('');
             try {
-                const baseUrl = (import.meta.env.VITE_BACKEND_URL || REPORTS_API_BASE).replace(/\/$/, '');
+                const baseUrl = getBackendBaseUrl();
                 const restaurantId = getRestaurantId();
                 const url = `${baseUrl}/api/v1/reports/schedule/monthly`;
                 const res = await fetch(url, {
@@ -406,7 +406,7 @@ const SalesReportsPage = () => {
             toast.error('Load the sales report first');
             return;
         }
-        const baseUrl = (import.meta.env.VITE_BACKEND_URL || REPORTS_API_BASE).replace(/\/$/, '');
+        const baseUrl = getBackendBaseUrl();
         const restaurantId = getRestaurantId();
         setScheduleSaving(true);
         try {
@@ -495,7 +495,7 @@ const SalesReportsPage = () => {
             try {
                 setLoading(true);
                 setError(null);
-                const baseUrl = (import.meta.env.VITE_BACKEND_URL || REPORTS_API_BASE).replace(/\/$/, '');
+                const baseUrl = getBackendBaseUrl();
                 const restaurantId = getRestaurantId();
                 const url = `${baseUrl}/api/v1/reports/sales-report?${query}`;
                 const res = await fetch(url, {
@@ -526,7 +526,7 @@ const SalesReportsPage = () => {
 
     const fetchSalesTrends = useCallback(async () => {
         if (!accessToken) return;
-        const baseUrl = (import.meta.env.VITE_BACKEND_URL || REPORTS_API_BASE).replace(/\/$/, '');
+        const baseUrl = getBackendBaseUrl();
         const restaurantId = getRestaurantId();
         const params = new URLSearchParams({ granularity: salesTrendGranularity });
         const url = `${baseUrl}/api/v1/reports/sales-trends?${params.toString()}`;
@@ -578,7 +578,7 @@ const SalesReportsPage = () => {
 
     const fetchSalesReportBreakdown = useCallback(async () => {
         if (!accessToken) return;
-        const baseUrl = (import.meta.env.VITE_BACKEND_URL || REPORTS_API_BASE).replace(/\/$/, '');
+        const baseUrl = getBackendBaseUrl();
         const restaurantId = getRestaurantId();
         const query = buildSalesReportBreakdownQuery(lastAppliedSalesFilters, dailyBreakdownFilterApplied);
         const url = `${baseUrl}/api/v1/reports/sales-report/breakdown?${query}`;
@@ -660,7 +660,7 @@ const SalesReportsPage = () => {
         if (!reportData) return;
         try {
             setPdfDownloading(true);
-            const baseUrl = (import.meta.env.VITE_BACKEND_URL || REPORTS_API_BASE).replace(/\/$/, '');
+            const baseUrl = getBackendBaseUrl();
             const restaurantId = getRestaurantId();
             const q = exportQuery || buildSalesReportQuery(DEFAULT_SALES_FILTERS);
             const url = `${baseUrl}/api/v1/reports/sales-report/export/pdf?${q}`;
@@ -725,7 +725,7 @@ const SalesReportsPage = () => {
     const handleExportCsv = useCallback(async () => {
         try {
             setCsvDownloading(true);
-            const baseUrl = (import.meta.env.VITE_BACKEND_URL || REPORTS_API_BASE).replace(/\/$/, '');
+            const baseUrl = getBackendBaseUrl();
             const restaurantId = getRestaurantId();
             const q = exportQuery || buildSalesReportQuery(DEFAULT_SALES_FILTERS);
             const url = `${baseUrl}/api/v1/reports/sales-report/export/csv?${q}`;

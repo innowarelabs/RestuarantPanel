@@ -4,6 +4,7 @@ import { AlertCircle, Image, Save, Upload, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { setRestaurantName } from '../../../redux/store';
+import { getRestaurantUploadImageUrl } from '../../../utils/backendUrl';
 
 const WEBSITE_HEADER_REQUIRED_PX = { width: 1440, height: 495 };
 const WEBSITE_FOOTER_LEFT_REQUIRED_PX = { width: 648, height: 425 };
@@ -272,9 +273,9 @@ const BusinessProfile = () => {
         return uploadedUrl;
     };
 
-    const uploadImage = async (file, baseUrl) => {
+    const uploadImage = async (file) => {
         if (!file) throw new Error('Image file is missing');
-        const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/upload/image`;
+        const url = getRestaurantUploadImageUrl();
         const body = new FormData();
         body.append('file', file);
         const res = await fetch(url, {
@@ -719,11 +720,11 @@ const BusinessProfile = () => {
         const hadPendingCateringPosterFile = !!cateringPosterFile;
 
         const headerUrl =
-            websiteHeaderUrl?.trim() || (await uploadImage(brandingFiles.websiteHeader, baseUrl));
+            websiteHeaderUrl?.trim() || (await uploadImage(brandingFiles.websiteHeader));
         const footerLeftUrl =
-            websiteFooterLeftUrl?.trim() || (await uploadImage(brandingFiles.websiteFooterLeft, baseUrl));
+            websiteFooterLeftUrl?.trim() || (await uploadImage(brandingFiles.websiteFooterLeft));
         const footerRightUrl =
-            websiteFooterRightUrl?.trim() || (await uploadImage(brandingFiles.websiteFooterRight, baseUrl));
+            websiteFooterRightUrl?.trim() || (await uploadImage(brandingFiles.websiteFooterRight));
 
         setWebsiteHeaderUrl(headerUrl);
         setWebsiteFooterLeftUrl(footerLeftUrl);

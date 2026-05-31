@@ -9,6 +9,7 @@ import restaurantLogo from "../../assets/restaurant_logo.png";
 import alertIcon from "../../assets/General/alert.svg";
 import AuthSidebar from "../../components/Auth/AuthSidebar";
 import { setSession } from "../../redux/store";
+import { getApiV1Url } from "../../utils/backendUrl";
 
 function Login() {
     const dispatch = useDispatch();
@@ -43,7 +44,7 @@ function Login() {
             sessionStorage.removeItem("twoFAEmail");
             sessionStorage.removeItem("twoFAPassword");
 
-            const url = "https://api.baaie.com/api/v1/auth/restaurant/login";
+            const url = getApiV1Url("auth/restaurant/login");
             const res = await fetch(url, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

@@ -10,6 +10,7 @@ import CancelledOrderDrawer from '../../components/OrderManagement/CancelledOrde
 import AcceptOrderModal from '../../components/OrderManagement/AcceptOrderModal';
 import RejectOrderModal from '../../components/OrderManagement/RejectOrderModal';
 import { printCompletedOrderReceiptPdf } from '../../utils/completedOrderReceiptPdf';
+import { getApiV1Url } from '../../utils/backendUrl';
 
 /** Relative time from `created_at` (ISO), e.g. "2 mins ago", "3 days ago" */
 function formatTimeAgoFromCreated(iso) {
@@ -164,7 +165,7 @@ export default function OrderManagement() {
         }
         setLoading(true);
         try {
-            const url = `https://api.baaie.com/api/v1/orders?status=${encodeURIComponent(currentStatus)}&skip=0&limit=20`;
+            const url = getApiV1Url(`orders?status=${encodeURIComponent(currentStatus)}&skip=0&limit=20`);
 
             const res = await fetch(url, {
                 method: 'GET',
@@ -271,7 +272,7 @@ export default function OrderManagement() {
             return;
         }
         try {
-            const url = `https://api.baaie.com/api/v1/orders/counts`;
+            const url = getApiV1Url('orders/counts');
 
             const res = await fetch(url, {
                 method: 'GET',
@@ -440,7 +441,7 @@ export default function OrderManagement() {
     ) => {
         if (!orderId) return false;
         try {
-            const url = `https://api.baaie.com/api/v1/orders/${encodeURIComponent(orderId)}/status`;
+            const url = getApiV1Url(`orders/${encodeURIComponent(orderId)}/status`);
 
             const res = await fetch(url, {
                 method: 'PATCH',
@@ -499,7 +500,7 @@ export default function OrderManagement() {
             return { ok: false, message: 'Missing order' };
         }
         try {
-            const url = `https://api.baaie.com/api/v1/orders/${encodeURIComponent(orderId)}/mark-ready`;
+            const url = getApiV1Url(`orders/${encodeURIComponent(orderId)}/mark-ready`);
             const res = await fetch(url, {
                 method: 'PATCH',
                 headers: {

@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { getBackendBaseUrl } from '../../utils/backendUrl';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { ChevronLeft, TrendingUp } from 'lucide-react';
 
-const REPORTS_API_BASE = 'https://api.baaie.com';
 
 const formatCurrency = (val) => (val != null ? `$${Number(val).toLocaleString()}` : '--');
 
@@ -31,7 +31,7 @@ const MenuPerformancePage = () => {
         try {
             setLoading(true);
             setError(null);
-            const baseUrl = (import.meta.env.VITE_BACKEND_URL || REPORTS_API_BASE).replace(/\/$/, '');
+            const baseUrl = getBackendBaseUrl();
             const restaurantId = getRestaurantId();
             const url = `${baseUrl}/api/v1/reports/best-performing-menu`;
             const res = await fetch(url, {

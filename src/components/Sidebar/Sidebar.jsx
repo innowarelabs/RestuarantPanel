@@ -2,8 +2,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import toast from 'react-hot-toast';
-
-const API_BASE = 'https://api.baaie.com';
+import { getBackendBaseUrl } from '../../utils/backendUrl';
 import {
     LayoutDashboard,
     ShoppingBag,
@@ -49,7 +48,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse }) {
 
     const toggleRestaurantOpen = useCallback(async () => {
         if (toggleOpenInFlight.current) return;
-        const baseUrl = (import.meta.env.VITE_BACKEND_URL || API_BASE).replace(/\/$/, '');
+        const baseUrl = getBackendBaseUrl();
         const restaurantId = user?.restaurant_id || localStorage.getItem('restaurant_id') || '';
         if (!accessToken || !restaurantId) {
             console.warn('[dashboard/toggle-open] skipped: missing accessToken or restaurant id');

@@ -1,4 +1,4 @@
-const API_BASE = 'https://api.baaie.com';
+import { getBackendBaseUrl } from '../../utils/backendUrl';
 
 const formatMoney = (n) => {
     if (n == null || Number.isNaN(Number(n))) return '$0';
@@ -53,7 +53,7 @@ export function mapTopItemsToUiRows(items) {
  * @returns {Promise<object[]>} raw API `items` array
  */
 export async function fetchTopSellingItems({ accessToken, user, period }) {
-    const baseUrl = (import.meta.env.VITE_BACKEND_URL || API_BASE).replace(/\/$/, '');
+    const baseUrl = getBackendBaseUrl();
     const restaurantId = user?.restaurant_id || localStorage.getItem('restaurant_id') || '';
     const days = period === '7d' ? 7 : 30;
     const { start_date, end_date } = periodDateRange(days);

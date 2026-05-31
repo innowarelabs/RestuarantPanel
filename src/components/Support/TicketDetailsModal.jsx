@@ -2,8 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import { X, Clock, Paperclip, Send, FileText } from 'lucide-react';
+import { getBackendBaseUrl } from '../../utils/backendUrl';
 
-const getBaseUrl = () => (import.meta.env.VITE_BACKEND_URL || 'https://api.baaie.com').replace(/\/$/, '');
+const getBaseUrl = () => getBackendBaseUrl();
 
 /** API often returns `/uploads/...` — join with API origin for browser navigation. */
 const resolveAttachmentHref = (url) => {

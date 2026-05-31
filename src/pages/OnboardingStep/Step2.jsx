@@ -10,6 +10,7 @@ import {
     mergeOpeningHours,
     openingHoursRecordToDays,
 } from '../../utils/restaurantOperatingHours';
+import { getRestaurantUploadImageUrl } from '../../utils/backendUrl';
 
 export default function Step2({
     formData,
@@ -84,9 +85,9 @@ export default function Step2({
         return '';
     };
 
-    const uploadImage = async (file, baseUrl) => {
+    const uploadImage = async (file) => {
         if (!file) throw new Error('Image file is missing');
-        const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/upload/image`;
+        const url = getRestaurantUploadImageUrl();
         const body = new FormData();
         body.append('file', file);
 
@@ -205,11 +206,11 @@ export default function Step2({
             }
 
             const headerUrl =
-                formData.websiteHeaderUrl?.trim() || (await uploadImage(brandingFiles.websiteHeader, baseUrl));
+                formData.websiteHeaderUrl?.trim() || (await uploadImage(brandingFiles.websiteHeader));
             const footerLeftUrl =
-                formData.websiteFooterLeftUrl?.trim() || (await uploadImage(brandingFiles.websiteFooterLeft, baseUrl));
+                formData.websiteFooterLeftUrl?.trim() || (await uploadImage(brandingFiles.websiteFooterLeft));
             const footerRightUrl =
-                formData.websiteFooterRightUrl?.trim() || (await uploadImage(brandingFiles.websiteFooterRight, baseUrl));
+                formData.websiteFooterRightUrl?.trim() || (await uploadImage(brandingFiles.websiteFooterRight));
 
             setFormData((prev) => ({
                 ...prev,

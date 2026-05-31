@@ -6,6 +6,7 @@ import restaurantLogo from "../../assets/restaurant_logo.png";
 import googleAuthAppLogo from "../../assets/General/googleAuthApp.svg";
 import OTPInput from "../../elements/OTPInput";
 import { setSession } from "../../redux/store";
+import { getApiV1Url } from "../../utils/backendUrl";
 
 const extractPayload = (raw) => {
   if (!raw) return null;
@@ -89,7 +90,7 @@ function Verify2FAOTP() {
       const code = otp.join("");
       if (!email || !password) throw new Error("Session expired. Please login again.");
 
-      const url = "https://api.baaie.com/api/v1/auth/restaurant/login";
+      const url = getApiV1Url("auth/restaurant/login");
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

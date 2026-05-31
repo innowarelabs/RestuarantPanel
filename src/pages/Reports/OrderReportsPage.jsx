@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { getBackendBaseUrl } from '../../utils/backendUrl';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
@@ -8,7 +9,6 @@ import { buildOrderReportQuery, buildRecentOrdersQuery, DEFAULT_ORDER_REPORT_FIL
 import { RECENT_ORDERS_FILTER_DEFAULTS } from '../../components/Reports/RecentOrdersFilterModal';
 import { buildOrderReportPdf } from '../../utils/reportCardPdfDownload';
 
-const REPORTS_API_BASE = 'https://api.baaie.com';
 
 /** Backend `report_type` for order-report monthly schedule + PDF upload */
 const ORDER_SCHEDULE_REPORT_TYPE = 'order_report';
@@ -140,7 +140,7 @@ const OrderReportsPage = () => {
             setScheduleLoading(true);
             setScheduleLoadError('');
             try {
-                const baseUrl = (import.meta.env.VITE_BACKEND_URL || REPORTS_API_BASE).replace(/\/$/, '');
+                const baseUrl = getBackendBaseUrl();
                 const restaurantId = getRestaurantId();
                 const url = `${baseUrl}/api/v1/reports/schedule/monthly`;
                 const res = await fetch(url, {
@@ -189,7 +189,7 @@ const OrderReportsPage = () => {
             toast.error('Load the order report first');
             return;
         }
-        const baseUrl = (import.meta.env.VITE_BACKEND_URL || REPORTS_API_BASE).replace(/\/$/, '');
+        const baseUrl = getBackendBaseUrl();
         const restaurantId = getRestaurantId();
         setScheduleSaving(true);
         try {
@@ -259,7 +259,7 @@ const OrderReportsPage = () => {
             try {
                 setOrderReportLoading(true);
                 setOrderReportError(null);
-                const baseUrl = (import.meta.env.VITE_BACKEND_URL || REPORTS_API_BASE).replace(/\/$/, '');
+                const baseUrl = getBackendBaseUrl();
                 const restaurantId = getRestaurantId();
                 const q = buildOrderReportQuery(f);
                 const url = `${baseUrl}/api/v1/reports/order-report?${q}`;
@@ -302,7 +302,7 @@ const OrderReportsPage = () => {
             setOrdersBySourceLoading(true);
             setOrdersBySourceError('');
             try {
-                const baseUrl = (import.meta.env.VITE_BACKEND_URL || REPORTS_API_BASE).replace(/\/$/, '');
+                const baseUrl = getBackendBaseUrl();
                 const restaurantId = getRestaurantId();
                 const params = new URLSearchParams({ period });
                 const url = `${baseUrl}/api/v1/reports/order-report/orders-by-source?${params.toString()}`;
@@ -350,7 +350,7 @@ const OrderReportsPage = () => {
         setRecentOrdersLoading(true);
         setRecentOrdersError('');
         try {
-            const baseUrl = (import.meta.env.VITE_BACKEND_URL || REPORTS_API_BASE).replace(/\/$/, '');
+            const baseUrl = getBackendBaseUrl();
             const restaurantId = getRestaurantId();
             const days = dateRangeToDays(appliedOrderFilters.dateRange);
             const q = buildRecentOrdersQuery({
@@ -411,7 +411,7 @@ const OrderReportsPage = () => {
     const handleExportPdf = useCallback(async () => {
         try {
             setOrderReportPdfDownloading(true);
-            const baseUrl = (import.meta.env.VITE_BACKEND_URL || REPORTS_API_BASE).replace(/\/$/, '');
+            const baseUrl = getBackendBaseUrl();
             const restaurantId = getRestaurantId();
             const q = buildOrderReportQuery(appliedOrderFilters);
             const url = `${baseUrl}/api/v1/reports/order-report/export/pdf?${q}`;
@@ -471,7 +471,7 @@ const OrderReportsPage = () => {
 
     const handleExportCsv = useCallback(async () => {
         try {
-            const baseUrl = (import.meta.env.VITE_BACKEND_URL || REPORTS_API_BASE).replace(/\/$/, '');
+            const baseUrl = getBackendBaseUrl();
             const restaurantId = getRestaurantId();
             const q = buildOrderReportQuery(appliedOrderFilters);
             const url = `${baseUrl}/api/v1/reports/order-report/export/csv?${q}`;

@@ -1,7 +1,47 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Plus, Trash2, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Image, Plus, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getBackendBaseUrl } from '../../utils/backendUrl';
+import { getBackendBaseUrl, getRestaurantUploadImageUrl } from '../../utils/backendUrl';
+
+const normalizeUrl = (value) => {
+    if (typeof value !== 'string') return '';
+    return value.trim().replace(/^["'`]+|["'`]+$/g, '').trim();
+};
+
+const extractUploadedImageUrl = (data) => {
+    if (!data) return '';
+    if (typeof data === 'string') {
+        const text = data.trim();
+        if (!text) return '';
+        try {
+            const parsed = JSON.parse(text);
+            return extractUploadedImageUrl(parsed);
+        } catch {
+            return normalizeUrl(text);
+        }
+    }
+    if (data && typeof data === 'object') {
+        if (data.data && typeof data.data === 'object') {
+            const nested = data.data;
+            if (typeof nested.url === 'string') return normalizeUrl(nested.url);
+            if (typeof nested.image_url === 'string') return normalizeUrl(nested.image_url);
+            if (typeof nested.image === 'string') return normalizeUrl(nested.image);
+        }
+        if (typeof data.url === 'string') return normalizeUrl(data.url);
+        if (typeof data.image_url === 'string') return normalizeUrl(data.image_url);
+        if (typeof data.image === 'string') return normalizeUrl(data.image);
+    }
+    return '';
+};
+
+const packageImageFromRecord = (pkg) => {
+    if (!pkg || typeof pkg !== 'object') return '';
+    const raw =
+        (typeof pkg.image === 'string' && pkg.image) ||
+        (typeof pkg.image_url === 'string' && pkg.image_url) ||
+        '';
+    return normalizeUrl(raw);
+};
 
 const isErrorPayload = (data) => {
     if (!data || typeof data !== 'object') return false;
@@ -78,12 +118,24 @@ export default function CreateCateringPackageModal({
     editingPackage,
     duplicateSource,
 }) {
+    const fileInputRef = useRef(null);
+    const objectUrlRef = useRef('');
+
     const [name, setName] = useState('');
     const [serves, setServes] = useState('');
     const [price, setPrice] = useState('');
     const [items, setItems] = useState([newItemRow()]);
+    const [imageFile, setImageFile] = useState(null);
+    const [imagePreviewUrl, setImagePreviewUrl] = useState('');
+    const [existingImageUrl, setExistingImageUrl] = useState('');
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+
+    useEffect(() => {
+        return () => {
+            if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+        };
+    }, []);
 
     const dishOptions = useMemo(() => {
         const out = [];
@@ -115,6 +167,17 @@ export default function CreateCateringPackageModal({
         if (!isOpen) return;
         setError('');
         setSaving(false);
+        const resetImageState = (remoteUrl) => {
+            if (objectUrlRef.current) {
+                URL.revokeObjectURL(objectUrlRef.current);
+                objectUrlRef.current = '';
+            }
+            setImageFile(null);
+            const url = normalizeUrl(remoteUrl);
+            setExistingImageUrl(url);
+            setImagePreviewUrl(url);
+        };
+
         if (isEditMode && editingPackage) {
             setName(typeof editingPackage.name === 'string' ? editingPackage.name : '');
             const sn = editingPackage.serves;
@@ -124,6 +187,7 @@ export default function CreateCateringPackageModal({
             const pn = toFiniteNumber(editingPackage.price);
             setPrice(pn !== null ? String(pn) : '');
             setItems(packageItemsToFormRows(editingPackage));
+            resetImageState(packageImageFromRecord(editingPackage));
         } else if (!isEditMode && duplicateSource && typeof duplicateSource === 'object') {
             const baseName = typeof duplicateSource.name === 'string' ? duplicateSource.name.trim() : '';
             setName(baseName ? `${baseName} (copy)` : '');
@@ -134,11 +198,13 @@ export default function CreateCateringPackageModal({
             const pn = toFiniteNumber(duplicateSource.price);
             setPrice(pn !== null ? String(pn) : '');
             setItems(packageItemsToFormRows(duplicateSource));
+            resetImageState(packageImageFromRecord(duplicateSource));
         } else {
             setName('');
             setServes('');
             setPrice('');
             setItems([newItemRow()]);
+            resetImageState('');
         }
     }, [isOpen, isEditMode, editingPackage, duplicateSource]);
 
@@ -150,6 +216,7 @@ export default function CreateCateringPackageModal({
 
     const previewLines = useMemo(() => {
         const lines = [];
+        if (imagePreviewUrl) lines.push('Cover image attached');
         if (name.trim()) lines.push(name.trim());
         const s = serves.trim();
         const p = price.trim();
@@ -169,7 +236,7 @@ export default function CreateCateringPackageModal({
             lines.push(`${idx + 1}. ${bits.join(' — ')}`);
         });
         return lines;
-    }, [name, serves, price, items, dishById]);
+    }, [name, serves, price, items, dishById, imagePreviewUrl]);
 
     const handleClose = () => {
         if (saving) return;
@@ -188,6 +255,33 @@ export default function CreateCateringPackageModal({
 
     const addRow = () => setItems((prev) => [...prev, newItemRow()]);
     const removeRow = (key) => setItems((prev) => (prev.length <= 1 ? prev : prev.filter((r) => r.key !== key)));
+
+    const uploadPackageImage = async (file) => {
+        const url = getRestaurantUploadImageUrl();
+        const body = new FormData();
+        body.append('file', file);
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+            },
+            body,
+        });
+        const contentType = res.headers.get('content-type');
+        const data = contentType?.includes('application/json') ? await res.json() : await res.text();
+        if (!res.ok) {
+            const message =
+                data && typeof data === 'object'
+                    ? data.message || data.error || 'Image upload failed'
+                    : typeof data === 'string' && data.trim()
+                        ? data.trim()
+                        : 'Image upload failed';
+            throw new Error(typeof message === 'string' ? message : 'Image upload failed');
+        }
+        const uploadedUrl = extractUploadedImageUrl(data);
+        if (!uploadedUrl) throw new Error('Image upload did not return a URL');
+        return uploadedUrl;
+    };
 
     const handleSubmit = async () => {
         if (!name.trim()) {
@@ -210,6 +304,16 @@ export default function CreateCateringPackageModal({
                 return;
             }
         }
+        let resolvedImage = '';
+        if (imageFile) {
+            /* upload first, then send URL in catering package payload */
+        } else if (existingImageUrl.trim()) {
+            resolvedImage = existingImageUrl.trim();
+        } else {
+            setError('Please upload a catering image');
+            return;
+        }
+
         if (saving) return;
         setSaving(true);
         setError('');
@@ -217,10 +321,15 @@ export default function CreateCateringPackageModal({
             const baseUrl = getBackendBaseUrl();
             if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
 
+            if (imageFile) {
+                resolvedImage = await uploadPackageImage(imageFile);
+            }
+
             const payload = {
                 name: name.trim(),
                 serves: parseServesNumber(serves),
                 price: priceNum,
+                image: resolvedImage,
                 items: validItems.map((row) => ({
                     dish_id: row.dish_id,
                     tray_size: String(row.tray_size).trim(),
@@ -297,6 +406,80 @@ export default function CreateCateringPackageModal({
 
                     <div className="p-5 space-y-6 max-h-[min(70vh,720px)] overflow-y-auto custom-scrollbar">
                         {!!error && <div className="bg-[#FEE2E2] text-[#991B1B] text-[12px] px-3 py-2 rounded-[8px]">{error}</div>}
+
+                        <section>
+                            <h3 className="text-[15px] font-bold text-[#111827] mb-3">Catering Image</h3>
+                            <div className="flex flex-col sm:flex-row gap-4 items-start">
+                                <div className="w-full sm:w-[140px] h-[140px] rounded-[12px] border border-[#E5E7EB] bg-[#F9FAFB] overflow-hidden flex items-center justify-center shrink-0">
+                                    {imagePreviewUrl ? (
+                                        <img
+                                            src={imagePreviewUrl}
+                                            alt="Catering preview"
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <Image size={32} className="text-[#D1D5DB]" aria-hidden />
+                                    )}
+                                </div>
+                                <div className="flex-1 space-y-2">
+                                    <p className="text-[12px] text-[#6B7280]">
+                                        Upload the package cover image. It is uploaded first, then saved on the package as{' '}
+                                        <span className="font-mono text-[11px]">image</span>.
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => fileInputRef.current?.click()}
+                                            disabled={saving}
+                                            className="h-9 px-3 rounded-[8px] border border-[#E5E7EB] text-[13px] font-[600] text-[#374151] bg-white hover:bg-gray-50 disabled:opacity-50"
+                                        >
+                                            {imagePreviewUrl ? 'Change image' : 'Upload image'}
+                                        </button>
+                                        {imagePreviewUrl ? (
+                                            <button
+                                                type="button"
+                                                disabled={saving}
+                                                onClick={() => {
+                                                    if (objectUrlRef.current) {
+                                                        URL.revokeObjectURL(objectUrlRef.current);
+                                                        objectUrlRef.current = '';
+                                                    }
+                                                    setImageFile(null);
+                                                    setExistingImageUrl('');
+                                                    setImagePreviewUrl('');
+                                                    if (fileInputRef.current) fileInputRef.current.value = '';
+                                                }}
+                                                className="h-9 px-3 rounded-[8px] text-[13px] font-[600] text-[#EF4444] hover:bg-red-50 disabled:opacity-50"
+                                            >
+                                                Remove
+                                            </button>
+                                        ) : null}
+                                    </div>
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0] || null;
+                                            if (objectUrlRef.current) {
+                                                URL.revokeObjectURL(objectUrlRef.current);
+                                                objectUrlRef.current = '';
+                                            }
+                                            setImageFile(file);
+                                            if (file) {
+                                                const blobUrl = URL.createObjectURL(file);
+                                                objectUrlRef.current = blobUrl;
+                                                setImagePreviewUrl(blobUrl);
+                                                setExistingImageUrl('');
+                                            } else {
+                                                setImagePreviewUrl(existingImageUrl);
+                                            }
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        </section>
 
                         <section>
                             <h3 className="text-[15px] font-bold text-[#111827] mb-3">Basic Information</h3>

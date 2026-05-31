@@ -23,6 +23,7 @@ import toast from 'react-hot-toast';
 import Toggle from './Toggle';
 import { setOnboardingStep } from '../../redux/store';
 import { mergeOpeningHours as mergeOpeningHoursRecord } from '../../utils/restaurantOperatingHours';
+import { getRestaurantUploadImageUrl } from '../../utils/backendUrl';
 
 const steps = [
     { id: 1, name: 'Account Setup', icon: User },
@@ -249,9 +250,9 @@ export default function OnboardingStep() {
         return normalizeUrl(direct || nested || nested2);
     };
 
-    const uploadImage = async (file, baseUrl) => {
+    const uploadImage = async (file) => {
         if (!file) throw new Error('Image file is missing');
-        const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/upload/image`;
+        const url = getRestaurantUploadImageUrl();
         const body = new FormData();
         body.append('file', file);
 
@@ -912,7 +913,7 @@ export default function OnboardingStep() {
             const url = isUpdate
                 ? `${trimmedBaseUrl}/api/v1/rewards/catalog/${editingReward.reward_id}`
                 : `${trimmedBaseUrl}/api/v1/rewards/catalog`;
-            const rewardImageUrl = rewardImageFile ? await uploadImage(rewardImageFile, baseUrl) : rewardForm.rewardImage.trim();
+            const rewardImageUrl = rewardImageFile ? await uploadImage(rewardImageFile) : rewardForm.rewardImage.trim();
             const payload = {
                 title: rewardForm.rewardName.trim(),
                 reward_name: rewardForm.rewardName.trim(), // keep for backward compatibility

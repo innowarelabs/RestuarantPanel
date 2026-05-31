@@ -17,8 +17,7 @@ import RevenueBreakdown from '../../components/Analytics/RevenueBreakdown';
 import PlatformPerformance from '../../components/Analytics/PlatformPerformance';
 import { fetchTopSellingItems, mapTopItemsToExportRows } from '../../components/Analytics/topSellingItemsApi';
 import { buildExportPayload, downloadAnalyticsCsv, downloadAnalyticsPdf } from '../../utils/analyticsExport';
-
-const API_BASE = 'https://api.baaie.com';
+import { getBackendBaseUrl } from '../../utils/backendUrl';
 
 /** Matches GET /api/v1/analytics/restaurant/analytics query: days ∈ {7,30,60} */
 export const ANALYTICS_PERIOD_OPTIONS = [
@@ -257,7 +256,7 @@ export default function Analytics() {
     const fetchRestaurantAnalytics = useCallback(async () => {
         setAnalyticsLoading(true);
         try {
-            const baseUrl = (import.meta.env.VITE_BACKEND_URL || API_BASE).replace(/\/$/, '');
+            const baseUrl = getBackendBaseUrl();
             const restaurantId = user?.restaurant_id || localStorage.getItem('restaurant_id') || '';
             const params = new URLSearchParams();
             params.set('days', String(analyticsPeriodDays));

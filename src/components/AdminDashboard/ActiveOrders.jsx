@@ -4,8 +4,7 @@ import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import AcceptOrderModal from '../OrderManagement/AcceptOrderModal';
 import RejectOrderModal from '../OrderManagement/RejectOrderModal';
-
-const API_BASE = 'https://api.baaie.com';
+import { getBackendBaseUrl } from '../../utils/backendUrl';
 
 /** Same rule as Orders → New Orders list (pending only). */
 function isPendingOrder(order) {
@@ -54,7 +53,7 @@ export default function ActiveOrders({ orders = [], loading = false, onOrdersCha
             if (!orderId) return false;
             const restaurantId = getRestaurantId();
             try {
-                const baseUrl = (import.meta.env.VITE_BACKEND_URL || API_BASE).replace(/\/$/, '');
+                const baseUrl = getBackendBaseUrl();
                 const url = `${baseUrl}/api/v1/orders/${encodeURIComponent(orderId)}/status`;
                 const res = await fetch(url, {
                     method: 'PATCH',

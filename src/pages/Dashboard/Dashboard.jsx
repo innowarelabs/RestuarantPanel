@@ -10,8 +10,7 @@ import SupportTicketsWidget from '../../components/AdminDashboard/SupportTickets
 import MarketingSnapshot from '../../components/AdminDashboard/MarketingSnapshot';
 
 import { ShoppingBag, Clock, CheckCircle, XCircle, Banknote } from 'lucide-react';
-
-const API_BASE = 'https://api.baaie.com';
+import { getBackendBaseUrl } from '../../utils/backendUrl';
 
 function numOrZero(v) {
     const n = Number(v);
@@ -45,7 +44,7 @@ export default function AdminDashboard() {
 
     const loadHighlights = useCallback(async () => {
         try {
-            const baseUrl = (import.meta.env.VITE_BACKEND_URL || API_BASE).replace(/\/$/, '');
+            const baseUrl = getBackendBaseUrl();
             const restaurantId = user?.restaurant_id || localStorage.getItem('restaurant_id') || '';
             const url = `${baseUrl}/api/v1/restaurants/dashboard/highlights`;
             const res = await fetch(url, {
@@ -73,7 +72,7 @@ export default function AdminDashboard() {
         async (showLoading = true) => {
             if (showLoading) setLoading(true);
             try {
-                const baseUrl = (import.meta.env.VITE_BACKEND_URL || API_BASE).replace(/\/$/, '');
+                const baseUrl = getBackendBaseUrl();
                 const restaurantId = user?.restaurant_id || localStorage.getItem('restaurant_id') || '';
                 const url = `${baseUrl}/api/v1/restaurants/dashboard`;
                 const res = await fetch(url, {
@@ -114,7 +113,7 @@ export default function AdminDashboard() {
         }
         setDismissingRecentActivities(true);
         try {
-            const baseUrl = (import.meta.env.VITE_BACKEND_URL || API_BASE).replace(/\/$/, '');
+            const baseUrl = getBackendBaseUrl();
             const restaurantId = user?.restaurant_id || localStorage.getItem('restaurant_id') || '';
             const url = `${baseUrl}/api/v1/restaurants/dashboard/recent-activities/dismiss-all`;
             const res = await fetch(url, {

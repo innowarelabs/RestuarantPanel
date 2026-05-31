@@ -12,7 +12,7 @@ import AddTopSellerModal from '../../components/MenuManagement/AddTopSellerModal
 import { useSelector } from 'react-redux';
 import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
-import { getBackendBaseUrl } from '../../utils/backendUrl';
+import { getBackendBaseUrl, getRestaurantUploadImageUrl } from '../../utils/backendUrl';
 
 const normalizeUrl = (value) => {
     if (typeof value !== 'string') return '';
@@ -1228,10 +1228,15 @@ export default function MenuManagement() {
             return;
         }
 
+        const pkgImage =
+            (typeof pkg.image === 'string' && pkg.image.trim()) ||
+            (typeof pkg.image_url === 'string' && pkg.image_url.trim()) ||
+            '';
         const payload = {
             name,
             serves: parseCateringPackageServes(pkg),
             price: priceNum,
+            ...(pkgImage ? { image: pkgImage.trim() } : {}),
             items: remaining.map((line) => ({
                 dish_id: typeof line.dish_id === 'string' ? line.dish_id : String(line.dish_id ?? ''),
                 tray_size: String(line.tray_size ?? '').trim(),
@@ -1593,9 +1598,7 @@ export default function MenuManagement() {
 
     const uploadImage = async (file) => {
         if (!file) throw new Error('Image file is missing');
-        const baseUrl = import.meta.env.VITE_BACKEND_URL;
-        if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
-        const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/upload/image`;
+        const url = getRestaurantUploadImageUrl();
         const body = new FormData();
         body.append('file', file);
 
@@ -1963,8 +1966,18 @@ export default function MenuManagement() {
                 const id = typeof pkg.id === 'string' ? pkg.id : pkg.id != null ? String(pkg.id) : '';
                 if (!id) return null;
                 const name = typeof pkg.name === 'string' ? pkg.name : '—';
-                const itemCount = Array.isArray(pkg.items) ? pkg.items.length : 0;
-                return { id, name, itemCount };
+                const itemCount =
+                    typeof pkg.items_count === 'number' && Number.isFinite(pkg.items_count)
+                        ? pkg.items_count
+                        : Array.isArray(pkg.items)
+                          ? pkg.items.length
+                          : 0;
+                const imageRaw =
+                    (typeof pkg.image === 'string' && pkg.image) ||
+                    (typeof pkg.image_url === 'string' && pkg.image_url) ||
+                    '';
+                const imageUrl = imageRaw ? normalizeUrl(imageRaw) : '';
+                return { id, name, itemCount, imageUrl };
             })
             .filter(Boolean);
     }, [cateringPackages]);
@@ -2138,17 +2151,31 @@ export default function MenuManagement() {
                                                         : 'bg-white border-transparent hover:bg-gray-50'
                                                 }`}
                                             >
-                                                <div>
-                                                    <h3
-                                                        className={`text-[16px] font-[400] flex items-center gap-2 ${
-                                                            selected ? 'text-[#111827]' : 'text-[#374151]'
-                                                        }`}
-                                                    >
-                                                        {cat.name}
-                                                    </h3>
-                                                    <p className="text-[12px] text-gray-500">
-                                                        {cat.itemCount} item{cat.itemCount === 1 ? '' : 's'}
-                                                    </p>
+                                                <div className="flex items-start gap-3 min-w-0 flex-1">
+                                                    {typeof cat.imageUrl === 'string' && cat.imageUrl.trim() ? (
+                                                        <img
+                                                            src={cat.imageUrl}
+                                                            alt=""
+                                                            className="w-10 h-10 shrink-0 rounded-[8px] object-cover border border-gray-100"
+                                                        />
+                                                    ) : (
+                                                        <div
+                                                            className="w-10 h-10 shrink-0 rounded-[8px] bg-[#F3F4F6] border border-gray-100"
+                                                            aria-hidden
+                                                        />
+                                                    )}
+                                                    <div className="min-w-0">
+                                                        <h3
+                                                            className={`text-[16px] font-[400] flex items-center gap-2 truncate ${
+                                                                selected ? 'text-[#111827]' : 'text-[#374151]'
+                                                            }`}
+                                                        >
+                                                            {cat.name}
+                                                        </h3>
+                                                        <p className="text-[12px] text-gray-500">
+                                                            {cat.itemCount} item{cat.itemCount === 1 ? '' : 's'}
+                                                        </p>
+                                                    </div>
                                                 </div>
                                                 <div className="flex items-center gap-1 shrink-0">
                                                     <button
@@ -2412,10 +2439,11 @@ export default function MenuManagement() {
                                                     typeof line.quantity === 'number' && Number.isFinite(line.quantity)
                                                         ? line.quantity
                                                         : null;
-                                                const imgUrl =
-                                                    typeof line.dish_image === 'string' && line.dish_image.trim()
-                                                        ? normalizeUrl(line.dish_image.trim())
-                                                        : '';
+                                                const lineImageRaw =
+                                                    (typeof line.image === 'string' && line.image.trim()) ||
+                                                    (typeof line.dish_image === 'string' && line.dish_image.trim()) ||
+                                                    '';
+                                                const imgUrl = lineImageRaw ? normalizeUrl(lineImageRaw) : '';
 
                                                 return (
                                                     <tr key={lineId} className="hover:bg-gray-50 group transition-colors">
@@ -3298,7 +3326,24 @@ export default function MenuManagement() {
                         onMouseDown={(e) => e.stopPropagation()}
                     >
                         <div className="px-6 py-4 border-b border-gray-100 flex items-start justify-between gap-3 shrink-0">
-                            <div className="min-w-0">
+                            {(() => {
+                                const cover =
+                                    (typeof viewingCateringPackage.image === 'string' &&
+                                        viewingCateringPackage.image.trim()) ||
+                                    (typeof viewingCateringPackage.image_url === 'string' &&
+                                        viewingCateringPackage.image_url.trim()) ||
+                                    '';
+                                const coverUrl = cover ? normalizeUrl(cover) : '';
+                                if (!coverUrl) return null;
+                                return (
+                                    <img
+                                        src={coverUrl}
+                                        alt=""
+                                        className="w-16 h-16 rounded-[10px] object-cover border border-gray-100 shrink-0"
+                                    />
+                                );
+                            })()}
+                            <div className="min-w-0 flex-1">
                                 <h2 className="text-[18px] font-bold text-[#111827] truncate">
                                     {typeof viewingCateringPackage.name === 'string' && viewingCateringPackage.name.trim()
                                         ? viewingCateringPackage.name.trim()
@@ -3397,10 +3442,11 @@ export default function MenuManagement() {
                                                         typeof line.quantity === 'number' && Number.isFinite(line.quantity)
                                                             ? line.quantity
                                                             : '—';
-                                                    const imgUrl =
-                                                        typeof line.dish_image === 'string' && line.dish_image.trim()
-                                                            ? normalizeUrl(line.dish_image.trim())
-                                                            : '';
+                                                    const lineImageRaw =
+                                                        (typeof line.image === 'string' && line.image.trim()) ||
+                                                        (typeof line.dish_image === 'string' && line.dish_image.trim()) ||
+                                                        '';
+                                                    const imgUrl = lineImageRaw ? normalizeUrl(lineImageRaw) : '';
                                                     const lineTotal =
                                                         typeof line.line_total === 'number' && Number.isFinite(line.line_total)
                                                             ? formatMoney(line.line_total)

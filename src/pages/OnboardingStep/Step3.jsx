@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSelector } from 'react-redux';
 import Toggle from './Toggle';
+import { getRestaurantUploadImageUrl } from '../../utils/backendUrl';
 
 const normalizeUrl = (value) => {
     if (typeof value !== 'string') return '';
@@ -318,9 +319,9 @@ export default function Step3({
         setEditingItemExistingImages([]);
         closeAddItemModal();
     };
-    const uploadImage = async (file, baseUrl) => {
+    const uploadImage = async (file) => {
         if (!file) throw new Error('Image file is missing');
-        const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/upload/image`;
+        const url = getRestaurantUploadImageUrl();
         const body = new FormData();
         body.append('file', file);
 
@@ -616,7 +617,7 @@ export default function Step3({
             if (editingCategoryId) {
                 let imageUrl = (editingCategory?.imageUrl || '').trim();
                 if (categoryImage) {
-                    imageUrl = await uploadImage(categoryImage, baseUrl);
+                    imageUrl = await uploadImage(categoryImage);
                 }
                 if (!imageUrl && typeof categoryImagePreviewUrl === 'string') {
                     const prev = categoryImagePreviewUrl.trim();
@@ -708,7 +709,7 @@ export default function Step3({
                 return;
             }
 
-            const imageUrl = await uploadImage(categoryImage, baseUrl);
+            const imageUrl = await uploadImage(categoryImage);
             const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step3/category`;
 
             const res = await fetch(url, {
@@ -861,7 +862,7 @@ export default function Step3({
 
             const images = [];
             if (itemImage) {
-                const uploadedUrl = await uploadImage(itemImage, baseUrl);
+                const uploadedUrl = await uploadImage(itemImage);
                 if (uploadedUrl) images.push(uploadedUrl);
             } else if (editingItemId && Array.isArray(editingItemExistingImages) && editingItemExistingImages.length) {
                 images.push(...editingItemExistingImages);

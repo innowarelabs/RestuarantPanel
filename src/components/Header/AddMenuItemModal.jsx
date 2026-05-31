@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { X, Upload, Plus } from 'lucide-react';
 import { useSelector } from 'react-redux';
+import { getRestaurantUploadImageUrl } from '../../utils/backendUrl';
 
 export default function AddMenuItemModal({ isOpen, onClose }) {
     const accessToken = useSelector((state) => state.auth.accessToken);
@@ -133,9 +134,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
 
     const uploadImage = async (file) => {
         if (!file) throw new Error('Image file is missing');
-        const baseUrl = import.meta.env.VITE_BACKEND_URL;
-        if (!baseUrl) throw new Error('VITE_BACKEND_URL is missing');
-        const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/upload/image`;
+        const url = getRestaurantUploadImageUrl();
         const body = new FormData();
         body.append('file', file);
 

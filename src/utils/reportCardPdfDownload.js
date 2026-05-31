@@ -5,12 +5,12 @@ import {
     buildSalesReportQuery,
     DEFAULT_SALES_FILTERS,
     PDF_PRIMARY,
-    REPORTS_API_BASE,
 } from './salesReportPdf';
 import { drawTrendLineChart } from './reportPdfCharts';
+import { getBackendBaseUrl } from './backendUrl';
 
 function baseUrl() {
-    return (import.meta.env.VITE_BACKEND_URL || REPORTS_API_BASE).replace(/\/$/, '');
+    return getBackendBaseUrl();
 }
 
 function jsonHeaders(accessToken, restaurantId) {
