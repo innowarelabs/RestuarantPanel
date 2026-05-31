@@ -127,8 +127,14 @@ const RewardModalInner = ({
             }
 
             if (isRewardValueRequired) {
-                const valueNum = Number(formData.reward_value);
-                if (!Number.isFinite(valueNum) || valueNum <= 0) {
+                const rawValue = formData.reward_value;
+                if (rawValue === '' || rawValue === null || rawValue === undefined) {
+                    alert('Please enter a valid reward value for this reward type.');
+                    setSubmitting(false);
+                    return;
+                }
+                const valueNum = Number(rawValue);
+                if (!Number.isFinite(valueNum) || valueNum < 0) {
                     alert('Please enter a valid reward value for this reward type.');
                     setSubmitting(false);
                     return;
@@ -388,9 +394,16 @@ const RewardModalInner = ({
                             <label className="block text-sm font-semibold text-gray-700 mb-1.5">Reward Value</label>
                             <input
                                 type="number"
+                                min="0"
+                                step="any"
                                 placeholder="e.g., 10"
                                 value={formData.reward_value}
-                                onChange={(e) => setFormData({ ...formData, reward_value: e.target.value })}
+                                onChange={(e) => {
+                                    const next = e.target.value;
+                                    if (next.includes('-')) return;
+                                    if (next !== '' && Number(next) < 0) return;
+                                    setFormData({ ...formData, reward_value: next });
+                                }}
                                 className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                             />
                             <p className="mt-1 text-xs text-gray-500">
