@@ -9,6 +9,8 @@ import { getRestaurantUploadImageUrl } from '../../../utils/backendUrl';
 const WEBSITE_HEADER_REQUIRED_PX = { width: 1440, height: 495 };
 const WEBSITE_FOOTER_LEFT_REQUIRED_PX = { width: 648, height: 425 };
 const WEBSITE_FOOTER_RIGHT_REQUIRED_PX = { width: 648, height: 425 };
+/** SCV Hub storefront menu footer (`website_footer_images[0]`). */
+const WEBSITE_FOOTER_SCV_HUB_REQUIRED_PX = { width: 1320, height: 493 };
 const CATERING_POSTER_PX = { width: 464, height: 300 };
 
 const defaultOpeningHours = () => ({
@@ -25,6 +27,37 @@ const normalizeUrl = (value) => {
     if (typeof value !== 'string') return '';
     return value.trim().replace(/^["'`]+|["'`]+$/g, '').trim();
 };
+
+const coercePostalCode = (value) => {
+    if (value == null) return '';
+    const text = String(value).trim();
+    return text;
+};
+
+/** Preview frame locked to design aspect ratio; image fills frame (does not resize the box). */
+function FixedAspectImagePreview({ src, alt, width, height, maxWidth }) {
+    if (!src) return null;
+    const w = Math.max(1, Number(width) || 1);
+    const h = Math.max(1, Number(height) || 1);
+    return (
+        <div
+            className="relative w-full overflow-hidden rounded-[16px] border border-[#E5E7EB] bg-[#F5F5F5]"
+            style={{
+                maxWidth: maxWidth != null ? maxWidth : undefined,
+                aspectRatio: `${w} / ${h}`,
+            }}
+        >
+            <img
+                src={src}
+                alt={alt}
+                width={w}
+                height={h}
+                decoding="async"
+                className="absolute inset-0 block h-full w-full object-cover object-center"
+            />
+        </div>
+    );
+}
 
 const normalizeBool = (value) => {
     if (typeof value === 'boolean') return value;
@@ -117,6 +150,7 @@ const BusinessProfile = () => {
 
     const [loadingProfile, setLoadingProfile] = useState(true);
     const [restaurantId, setRestaurantId] = useState('');
+    const [isScvHubLinked, setIsScvHubLinked] = useState(false);
 
     const initialStep1Ref = useRef(null);
     const prefilledStep1Ref = useRef(false);
@@ -203,6 +237,7 @@ const BusinessProfile = () => {
     const headerOk = !!websiteHeaderUrl?.trim() || !!brandingFiles.websiteHeader;
     const footerLeftOk = !!websiteFooterLeftUrl?.trim() || !!brandingFiles.websiteFooterLeft;
     const footerRightOk = !!websiteFooterRightUrl?.trim() || !!brandingFiles.websiteFooterRight;
+    const footerScvHubOk = footerLeftOk;
 
     /** Step 2 onboarding: address-only fields (matches Step2.jsx labels). */
     const addressFieldsValid =
@@ -213,7 +248,7 @@ const BusinessProfile = () => {
         !!address?.trim();
 
     /** Website images required for step 2 PUT; hours/prep/delivery flags stay in state from GET / defaults. */
-    const brandingImagesValid = headerOk && footerLeftOk && footerRightOk;
+    const brandingImagesValid = headerOk && (isScvHubLinked ? footerScvHubOk : footerLeftOk && footerRightOk);
 
     /** Full step 2 PUT (address + branding + hidden fields from API). */
     const step2PutValid = addressFieldsValid && brandingImagesValid;
@@ -338,7 +373,8 @@ const BusinessProfile = () => {
         if (typeof step2.street_address === 'string') setAddress(step2.street_address);
         if (typeof step2.city === 'string') setCompanyLocation(step2.city);
         if (typeof step2.state === 'string') setStateRegion(step2.state);
-        if (typeof step2.postal_code === 'string') setPostalCode(step2.postal_code);
+        const step2Postal = coercePostalCode(step2.postal_code);
+        if (step2Postal) setPostalCode(step2Postal);
         if (typeof step2.country === 'string') setCountry(step2.country);
         if (typeof step2.alternate_contact === 'string') setAltPhone(step2.alternate_contact);
         if (typeof step2.average_preparation_time === 'string') setPrepTime(step2.average_preparation_time);
@@ -346,10 +382,14 @@ const BusinessProfile = () => {
         if (normalizeBool(step2.enable_pickup) !== null) setEnablePickup(!!normalizeBool(step2.enable_pickup));
         const hdr = step2.website_header_images;
         if (Array.isArray(hdr) && typeof hdr[0] === 'string') setWebsiteHeaderUrl(normalizeUrl(hdr[0]));
+        const step2ScvLinked = normalizeBool(step2.is_scv_hub_linked);
+        if (step2ScvLinked !== null) setIsScvHubLinked(!!step2ScvLinked);
+        const step2ScvHubFooterMode = step2ScvLinked === true;
         const ftr = step2.website_footer_images;
         if (Array.isArray(ftr)) {
             if (typeof ftr[0] === 'string') setWebsiteFooterLeftUrl(normalizeUrl(ftr[0]));
-            if (typeof ftr[1] === 'string') setWebsiteFooterRightUrl(normalizeUrl(ftr[1]));
+            if (!step2ScvHubFooterMode && typeof ftr[1] === 'string') setWebsiteFooterRightUrl(normalizeUrl(ftr[1]));
+            else if (step2ScvHubFooterMode) setWebsiteFooterRightUrl('');
         }
         if (step2.opening_hours && typeof step2.opening_hours === 'object') {
             setOpeningHours(mergeOpeningHours(step2.opening_hours));
@@ -376,7 +416,11 @@ const BusinessProfile = () => {
         if (typeof r.street_address === 'string') setAddress(r.street_address);
         if (typeof r.city === 'string') setCompanyLocation(r.city);
         if (typeof r.state === 'string') setStateRegion(r.state);
-        if (typeof r.postal_code === 'string') setPostalCode(r.postal_code);
+        const postal = coercePostalCode(r.postal_code);
+        if (postal) setPostalCode(postal);
+
+        const scvLinked = normalizeBool(r.is_scv_hub_linked);
+        if (scvLinked !== null) setIsScvHubLinked(!!scvLinked);
         if (typeof r.country === 'string') setCountry(r.country);
 
         if (typeof r.alternate_contact === 'string') setAltPhone(r.alternate_contact);
@@ -385,9 +429,14 @@ const BusinessProfile = () => {
         const hdr = r.website_header_images;
         if (Array.isArray(hdr) && typeof hdr[0] === 'string') setWebsiteHeaderUrl(normalizeUrl(hdr[0]));
         const ftr = r.website_footer_images;
+        const scvHubFooterMode = scvLinked === true;
         if (Array.isArray(ftr)) {
             if (typeof ftr[0] === 'string') setWebsiteFooterLeftUrl(normalizeUrl(ftr[0]));
-            if (typeof ftr[1] === 'string') setWebsiteFooterRightUrl(normalizeUrl(ftr[1]));
+            if (!scvHubFooterMode && typeof ftr[1] === 'string') setWebsiteFooterRightUrl(normalizeUrl(ftr[1]));
+            else if (scvHubFooterMode) setWebsiteFooterRightUrl('');
+        } else if (scvHubFooterMode) {
+            setWebsiteFooterLeftUrl('');
+            setWebsiteFooterRightUrl('');
         }
 
         if (typeof r.average_preparation_time === 'string') setPrepTime(r.average_preparation_time);
@@ -498,6 +547,7 @@ const BusinessProfile = () => {
                     getRestaurantIdFromUser(authUser);
 
                 let populatedFromRestaurant = false;
+                let restaurantDetail = null;
 
                 if (resolvedRestaurantIdForDetail) {
                     const restaurantDetailUrl = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/${encodeURIComponent(resolvedRestaurantIdForDetail)}`;
@@ -510,27 +560,31 @@ const BusinessProfile = () => {
                     });
                     const ctDetail = resDetail.headers.get('content-type');
                     const rawDetail = ctDetail?.includes('application/json') ? await resDetail.json() : await resDetail.text();
-                    const detail = extractPayload(rawDetail);
+                    restaurantDetail = extractPayload(rawDetail);
 
                     if (
                         resDetail.ok &&
-                        detail &&
-                        typeof detail === 'object' &&
-                        typeof detail.id === 'string'
+                        restaurantDetail &&
+                        typeof restaurantDetail === 'object' &&
+                        typeof restaurantDetail.id === 'string'
                     ) {
-                        applyRestaurantDetailPayload(detail);
+                        applyRestaurantDetailPayload(restaurantDetail);
 
                         const nextCompanyName =
-                            typeof detail.name === 'string'
-                                ? detail.name.trim()
-                                : typeof detail.legal_business_name === 'string'
-                                  ? detail.legal_business_name.trim()
+                            typeof restaurantDetail.name === 'string'
+                                ? restaurantDetail.name.trim()
+                                : typeof restaurantDetail.legal_business_name === 'string'
+                                  ? restaurantDetail.legal_business_name.trim()
                                   : '';
-                        const nextLogo = normalizeUrl(detail.company_logo);
+                        const nextLogo = normalizeUrl(restaurantDetail.company_logo);
                         const nextPhone =
-                            typeof detail.phone_number === 'string' ? detail.phone_number.trim() : '';
+                            typeof restaurantDetail.phone_number === 'string'
+                                ? restaurantDetail.phone_number.trim()
+                                : '';
                         const nextOwnerFn =
-                            typeof detail.owner_full_name === 'string' ? detail.owner_full_name : null;
+                            typeof restaurantDetail.owner_full_name === 'string'
+                                ? restaurantDetail.owner_full_name
+                                : null;
 
                         prefilledStep1Ref.current = true;
                         initialStep1Ref.current = {
@@ -573,20 +627,28 @@ const BusinessProfile = () => {
                     }
                 }
 
-                if (!populatedFromRestaurant) {
-                    const step2Url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step2`;
-                    const res2 = await fetch(step2Url, {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-                        },
-                    });
-                    if (res2.ok) {
-                        const ct2 = res2.headers.get('content-type');
-                        const raw2 = ct2?.includes('application/json') ? await res2.json() : await res2.text();
-                        const step2 = extractPayload(raw2);
-                        applyStep2Payload(step2);
+                const step2Url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step2`;
+                const res2 = await fetch(step2Url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    },
+                });
+                let step2 = null;
+                if (res2.ok) {
+                    const ct2 = res2.headers.get('content-type');
+                    const raw2 = ct2?.includes('application/json') ? await res2.json() : await res2.text();
+                    step2 = extractPayload(raw2);
+                }
+
+                if (!populatedFromRestaurant && step2) {
+                    applyStep2Payload(step2);
+                } else if (populatedFromRestaurant && step2) {
+                    const postalFromDetail = coercePostalCode(restaurantDetail?.postal_code);
+                    const postalFromStep2 = coercePostalCode(step2.postal_code);
+                    if (!postalFromDetail && postalFromStep2) {
+                        setPostalCode(postalFromStep2);
                     }
                 }
             } catch (e) {
@@ -723,12 +785,15 @@ const BusinessProfile = () => {
             websiteHeaderUrl?.trim() || (await uploadImage(brandingFiles.websiteHeader));
         const footerLeftUrl =
             websiteFooterLeftUrl?.trim() || (await uploadImage(brandingFiles.websiteFooterLeft));
-        const footerRightUrl =
-            websiteFooterRightUrl?.trim() || (await uploadImage(brandingFiles.websiteFooterRight));
+        let footerRightUrl = '';
+        if (!isScvHubLinked) {
+            footerRightUrl =
+                websiteFooterRightUrl?.trim() || (await uploadImage(brandingFiles.websiteFooterRight));
+        }
 
         setWebsiteHeaderUrl(headerUrl);
         setWebsiteFooterLeftUrl(footerLeftUrl);
-        setWebsiteFooterRightUrl(footerRightUrl);
+        setWebsiteFooterRightUrl(isScvHubLinked ? '' : footerRightUrl);
 
         let resolvedPosterUrl = posterImageUrl?.trim() || '';
         if (posterFile) {
@@ -767,7 +832,9 @@ const BusinessProfile = () => {
                 postal_code: postalCode || '',
                 country: country || 'USA',
                 website_header_images: [headerUrl],
-                website_footer_images: [footerLeftUrl, footerRightUrl],
+                website_footer_images: isScvHubLinked
+                    ? [footerLeftUrl].filter(Boolean)
+                    : [footerLeftUrl, footerRightUrl],
                 alternate_contact: altPhone,
                 opening_hours: openingHours,
                 average_preparation_time: prepTime,
@@ -1267,33 +1334,39 @@ const BusinessProfile = () => {
                                 }}
                             />
                         </div>
-                        {websiteHeaderPreviewUrl && (
-                            <div className="w-full rounded-[16px] overflow-hidden border border-[#E5E7EB] bg-white">
-                                <img
-                                    src={websiteHeaderPreviewUrl}
-                                    alt="Header"
-                                    className="w-full h-auto block"
-                                />
-                            </div>
-                        )}
+                        <FixedAspectImagePreview
+                            src={websiteHeaderPreviewUrl}
+                            alt="Header"
+                            width={WEBSITE_HEADER_REQUIRED_PX.width}
+                            height={WEBSITE_HEADER_REQUIRED_PX.height}
+                            maxWidth={WEBSITE_HEADER_REQUIRED_PX.width}
+                        />
                     </div>
 
                     <div className="space-y-3 pt-2">
                         <label className="block text-[14px] font-medium text-[#4B5563]">
                             Website footer <span className="text-red-500">*</span>
                         </label>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {isScvHubLinked ? (
                             <div className="space-y-2">
                                 <div className="flex items-end justify-between gap-3">
-                                    <span className="text-[13px] font-medium text-[#4B5563]">Footer image 1</span>
+                                    <span className="text-[13px] font-medium text-[#4B5563]">
+                                        Website footer image 1
+                                    </span>
                                     <span className="text-[11px] text-[#6B7280]">
-                                        {WEBSITE_FOOTER_LEFT_REQUIRED_PX.width}×{WEBSITE_FOOTER_LEFT_REQUIRED_PX.height}px
+                                        {WEBSITE_FOOTER_SCV_HUB_REQUIRED_PX.width}×
+                                        {WEBSITE_FOOTER_SCV_HUB_REQUIRED_PX.height}px
                                     </span>
                                 </div>
                                 <div className="w-full bg-white border border-[#E5E7EB] rounded-[14px] h-[52px] flex items-center px-4 justify-between">
-                                    <label htmlFor="bpFooterLeft" className="flex items-center gap-2 text-[13px] font-[500] text-[#6B7280] cursor-pointer">
+                                    <label
+                                        htmlFor="bpFooterLeft"
+                                        className="flex items-center gap-2 text-[13px] font-[500] text-[#6B7280] cursor-pointer"
+                                    >
                                         <Image size={18} />
-                                        {brandingFiles.websiteFooterLeft || websiteFooterLeftPreviewUrl ? 'Change' : 'Upload'}
+                                        {brandingFiles.websiteFooterLeft || websiteFooterLeftPreviewUrl
+                                            ? 'Change'
+                                            : 'Upload'}
                                     </label>
                                     <input
                                         id="bpFooterLeft"
@@ -1307,51 +1380,94 @@ const BusinessProfile = () => {
                                         }}
                                     />
                                 </div>
-                                {websiteFooterLeftPreviewUrl && (
-                                    <div className="w-full rounded-[16px] overflow-hidden border border-[#E5E7EB] bg-white">
-                                        <img
-                                            src={websiteFooterLeftPreviewUrl}
-                                            alt="Footer 1"
-                                            className="w-full h-auto block"
+                                <FixedAspectImagePreview
+                                    src={websiteFooterLeftPreviewUrl}
+                                    alt="SCV Hub footer"
+                                    width={WEBSITE_FOOTER_SCV_HUB_REQUIRED_PX.width}
+                                    height={WEBSITE_FOOTER_SCV_HUB_REQUIRED_PX.height}
+                                    maxWidth={WEBSITE_FOOTER_SCV_HUB_REQUIRED_PX.width}
+                                />
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <div className="flex items-end justify-between gap-3">
+                                        <span className="text-[13px] font-medium text-[#4B5563]">Footer image 1</span>
+                                        <span className="text-[11px] text-[#6B7280]">
+                                            {WEBSITE_FOOTER_LEFT_REQUIRED_PX.width}×
+                                            {WEBSITE_FOOTER_LEFT_REQUIRED_PX.height}px
+                                        </span>
+                                    </div>
+                                    <div className="w-full bg-white border border-[#E5E7EB] rounded-[14px] h-[52px] flex items-center px-4 justify-between">
+                                        <label
+                                            htmlFor="bpFooterLeft"
+                                            className="flex items-center gap-2 text-[13px] font-[500] text-[#6B7280] cursor-pointer"
+                                        >
+                                            <Image size={18} />
+                                            {brandingFiles.websiteFooterLeft || websiteFooterLeftPreviewUrl
+                                                ? 'Change'
+                                                : 'Upload'}
+                                        </label>
+                                        <input
+                                            id="bpFooterLeft"
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0] ?? null;
+                                                setBrandingFile('websiteFooterLeft', file);
+                                                setWebsiteFooterLeftUrl('');
+                                            }}
                                         />
                                     </div>
-                                )}
-                            </div>
-                            <div className="space-y-2">
-                                <div className="flex items-end justify-between gap-3">
-                                    <span className="text-[13px] font-medium text-[#4B5563]">Footer image 2</span>
-                                    <span className="text-[11px] text-[#6B7280]">
-                                        {WEBSITE_FOOTER_RIGHT_REQUIRED_PX.width}×{WEBSITE_FOOTER_RIGHT_REQUIRED_PX.height}px
-                                    </span>
-                                </div>
-                                <div className="w-full bg-white border border-[#E5E7EB] rounded-[14px] h-[52px] flex items-center px-4 justify-between">
-                                    <label htmlFor="bpFooterRight" className="flex items-center gap-2 text-[13px] font-[500] text-[#6B7280] cursor-pointer">
-                                        <Image size={18} />
-                                        {brandingFiles.websiteFooterRight || websiteFooterRightPreviewUrl ? 'Change' : 'Upload'}
-                                    </label>
-                                    <input
-                                        id="bpFooterRight"
-                                        type="file"
-                                        accept="image/*"
-                                        className="hidden"
-                                        onChange={(e) => {
-                                            const file = e.target.files?.[0] ?? null;
-                                            setBrandingFile('websiteFooterRight', file);
-                                            setWebsiteFooterRightUrl('');
-                                        }}
+                                    <FixedAspectImagePreview
+                                        src={websiteFooterLeftPreviewUrl}
+                                        alt="Footer 1"
+                                        width={WEBSITE_FOOTER_LEFT_REQUIRED_PX.width}
+                                        height={WEBSITE_FOOTER_LEFT_REQUIRED_PX.height}
+                                        maxWidth={WEBSITE_FOOTER_LEFT_REQUIRED_PX.width}
                                     />
                                 </div>
-                                {websiteFooterRightPreviewUrl && (
-                                    <div className="w-full rounded-[16px] overflow-hidden border border-[#E5E7EB] bg-white">
-                                        <img
-                                            src={websiteFooterRightPreviewUrl}
-                                            alt="Footer 2"
-                                            className="w-full h-auto block"
+                                <div className="space-y-2">
+                                    <div className="flex items-end justify-between gap-3">
+                                        <span className="text-[13px] font-medium text-[#4B5563]">Footer image 2</span>
+                                        <span className="text-[11px] text-[#6B7280]">
+                                            {WEBSITE_FOOTER_RIGHT_REQUIRED_PX.width}×
+                                            {WEBSITE_FOOTER_RIGHT_REQUIRED_PX.height}px
+                                        </span>
+                                    </div>
+                                    <div className="w-full bg-white border border-[#E5E7EB] rounded-[14px] h-[52px] flex items-center px-4 justify-between">
+                                        <label
+                                            htmlFor="bpFooterRight"
+                                            className="flex items-center gap-2 text-[13px] font-[500] text-[#6B7280] cursor-pointer"
+                                        >
+                                            <Image size={18} />
+                                            {brandingFiles.websiteFooterRight || websiteFooterRightPreviewUrl
+                                                ? 'Change'
+                                                : 'Upload'}
+                                        </label>
+                                        <input
+                                            id="bpFooterRight"
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0] ?? null;
+                                                setBrandingFile('websiteFooterRight', file);
+                                                setWebsiteFooterRightUrl('');
+                                            }}
                                         />
                                     </div>
-                                )}
+                                    <FixedAspectImagePreview
+                                        src={websiteFooterRightPreviewUrl}
+                                        alt="Footer 2"
+                                        width={WEBSITE_FOOTER_RIGHT_REQUIRED_PX.width}
+                                        height={WEBSITE_FOOTER_RIGHT_REQUIRED_PX.height}
+                                        maxWidth={WEBSITE_FOOTER_RIGHT_REQUIRED_PX.width}
+                                    />
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
 
                     <div className="space-y-4 border-t border-[#E8E8E8] pt-8 mt-2">
@@ -1446,22 +1562,14 @@ const BusinessProfile = () => {
                             />
                         </div>
                         {cateringPosterDisplayUrl && (
-                            <div
-                                className="relative w-full"
-                                style={{ maxWidth: CATERING_POSTER_PX.width }}
-                            >
-                                <div
-                                    className="w-full rounded-[16px] overflow-hidden border border-[#E5E7EB] bg-[#FAFAFA]"
-                                    style={{
-                                        aspectRatio: `${CATERING_POSTER_PX.width} / ${CATERING_POSTER_PX.height}`,
-                                    }}
-                                >
-                                    <img
-                                        src={cateringPosterDisplayUrl}
-                                        alt="Catering poster preview"
-                                        className="h-full w-full object-contain block"
-                                    />
-                                </div>
+                            <div className="relative w-full">
+                                <FixedAspectImagePreview
+                                    src={cateringPosterDisplayUrl}
+                                    alt="Catering poster preview"
+                                    width={CATERING_POSTER_PX.width}
+                                    height={CATERING_POSTER_PX.height}
+                                    maxWidth={CATERING_POSTER_PX.width}
+                                />
                                 <button
                                     type="button"
                                     disabled={savingCateringPoster || !resolvedRestaurantId}
