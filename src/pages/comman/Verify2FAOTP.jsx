@@ -7,6 +7,7 @@ import googleAuthAppLogo from "../../assets/General/googleAuthApp.svg";
 import OTPInput from "../../elements/OTPInput";
 import { setSession } from "../../redux/store";
 import { getApiV1Url } from "../../utils/backendUrl";
+import { extractRestaurantNameFromSession, resolveRestaurantName } from "../../utils/fetchRestaurantName";
 
 const extractPayload = (raw) => {
   if (!raw) return null;
@@ -38,7 +39,6 @@ function Verify2FAOTP() {
 
   const accessToken = useSelector((state) => state.auth.accessToken);
   const onboardingStep = useSelector((state) => state.auth.onboardingStep);
-  const restaurantName = useSelector((state) => state.auth.restaurantName);
   const userFromState = useSelector((state) => state.auth.user);
 
   const routeEmail = location.state?.email;
@@ -123,17 +123,6 @@ function Verify2FAOTP() {
 
       if (!access_token || !refresh_token) throw new Error("Verification failed. Please try again.");
 
-      dispatch(
-        setSession({
-          user: updatedUser,
-          accessToken: access_token,
-          refreshToken: refresh_token,
-          onboardingStep: nextGoto,
-          accessTokenExpiresIn: nextExpiresIn,
-          ...(restaurantName ? { restaurantName } : {}),
-          ...(typeof restaurantIsOpen === "boolean" ? { restaurantIsOpen } : {}),
-        })
-      );
       const restaurantId =
         typeof sessionData?.user?.restaurant_id === "string"
           ? sessionData.user.restaurant_id
@@ -142,6 +131,23 @@ function Verify2FAOTP() {
             : typeof updatedUser?.id === "string"
               ? updatedUser.id
               : "";
+
+      let resolvedRestaurantName = extractRestaurantNameFromSession(sessionData);
+      if (!resolvedRestaurantName) {
+        resolvedRestaurantName = await resolveRestaurantName(access_token, restaurantId);
+      }
+
+      dispatch(
+        setSession({
+          user: updatedUser,
+          accessToken: access_token,
+          refreshToken: refresh_token,
+          onboardingStep: nextGoto,
+          accessTokenExpiresIn: nextExpiresIn,
+          ...(resolvedRestaurantName ? { restaurantName: resolvedRestaurantName } : {}),
+          ...(typeof restaurantIsOpen === "boolean" ? { restaurantIsOpen } : {}),
+        })
+      );
       if (restaurantId) localStorage.setItem("restaurant_id", restaurantId);
 
       hasRedirectedRef.current = true;

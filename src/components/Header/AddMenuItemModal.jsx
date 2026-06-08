@@ -486,7 +486,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                                     </div>
                                 </div>
                             ))}
-                            <button onClick={addVariant} className="flex items-center gap-1 text-[13px] font-medium text-[#DD2F26] hover:text-[#249A88] active:scale-95 transition-transform">
+                            <button onClick={addVariant} className="flex items-center gap-1 text-[13px] font-medium text-[#DD2F26] hover:opacity-80 active:scale-95 transition-all">
                                 <Plus size={14} /> Add variant
                             </button>
                         </div>
@@ -508,7 +508,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
 
                     <div>
                         <label className="block text-[14px] font-[500] text-[#374151] mb-1.5">Add-ons (Modifiers)</label>
-                        <button type="button" onClick={addAddOn} className="flex items-center gap-1 text-[13px] font-medium text-[#DD2F26] hover:text-[#249A88] active:scale-95 transition-transform">
+                        <button type="button" onClick={addAddOn} className="flex items-center gap-1 text-[13px] font-medium text-[#DD2F26] hover:opacity-80 active:scale-95 transition-all">
                             <Plus size={14} /> Add an add-on
                         </button>
                         {!!addons.length && (

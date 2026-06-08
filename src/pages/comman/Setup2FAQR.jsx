@@ -6,6 +6,7 @@ import AuthSidebar from "../../components/Auth/AuthSidebar";
 import restaurantLogo from "../../assets/restaurant_logo.png";
 import OTPInput from "../../elements/OTPInput";
 import { setSession } from "../../redux/store";
+import { resolveRestaurantName } from "../../utils/fetchRestaurantName";
 
 const extractPayload = (raw) => {
   if (!raw) return null;
@@ -30,7 +31,6 @@ function Setup2FAQR() {
   const location = useLocation();
   const accessToken = useSelector((state) => state.auth.accessToken);
   const onboardingStep = useSelector((state) => state.auth.onboardingStep);
-  const restaurantName = useSelector((state) => state.auth.restaurantName);
   const userFromState = useSelector((state) => state.auth.user);
 
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
@@ -144,14 +144,25 @@ function Setup2FAQR() {
         throw new Error(message);
       }
 
+      const restaurantId =
+        typeof userFromState?.restaurant_id === "string"
+          ? userFromState.restaurant_id
+          : typeof userFromState?.id === "string"
+            ? userFromState.id
+            : "";
+
       if (payload?.code === "2FA_409_ENABLED") {
         const updatedUser = userFromState ? { ...userFromState, is_2fa_enabled: true, is_2fa_setup: true } : null;
+        let resolvedRestaurantName = "";
+        if (accessToken) {
+          resolvedRestaurantName = await resolveRestaurantName(accessToken, restaurantId);
+        }
         dispatch(
           setSession({
             user: updatedUser,
             accessToken,
             onboardingStep,
-            ...(restaurantName ? { restaurantName } : {}),
+            ...(resolvedRestaurantName ? { restaurantName: resolvedRestaurantName } : {}),
           })
         );
         navigateAfter2FA();
@@ -163,13 +174,14 @@ function Setup2FAQR() {
       if (!access_token || !refresh_token) throw new Error("Verification failed. Please try again.");
 
       const updatedUser = userFromState ? { ...userFromState, is_2fa_enabled: true, is_2fa_setup: true } : null;
+      const resolvedRestaurantName = await resolveRestaurantName(access_token, restaurantId);
       dispatch(
         setSession({
           user: updatedUser,
           accessToken: access_token,
           refreshToken: refresh_token,
           onboardingStep,
-          ...(restaurantName ? { restaurantName } : {}),
+          ...(resolvedRestaurantName ? { restaurantName: resolvedRestaurantName } : {}),
         })
       );
       navigateAfter2FA();

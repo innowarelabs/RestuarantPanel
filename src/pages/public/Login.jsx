@@ -10,6 +10,7 @@ import alertIcon from "../../assets/General/alert.svg";
 import AuthSidebar from "../../components/Auth/AuthSidebar";
 import { setSession } from "../../redux/store";
 import { getApiV1Url } from "../../utils/backendUrl";
+import { extractRestaurantNameFromSession, resolveRestaurantName } from "../../utils/fetchRestaurantName";
 
 function Login() {
     const dispatch = useDispatch();
@@ -72,19 +73,7 @@ function Login() {
             const user = sessionData?.user || null;
             const is2FAEnabled = user?.is_2fa_enabled === true;
             const is2FASetup = user?.is_2fa_setup === true;
-            const restaurantNameCandidates = [
-                sessionData?.restaurant?.company_name,
-                sessionData?.restaurant?.name,
-                sessionData?.company_name,
-                sessionData?.companyName,
-                sessionData?.user?.restaurant?.company_name,
-                sessionData?.user?.company_name,
-                sessionData?.user?.companyName,
-                sessionData?.user?.restaurant_name,
-                sessionData?.user?.restaurantName,
-            ];
-            const restaurantName =
-                restaurantNameCandidates.find((v) => typeof v === "string" && v.trim())?.trim() || "";
+            const accessToken = sessionData?.access_token || null;
             const restaurantId =
                 typeof sessionData?.user?.restaurant_id === "string"
                     ? sessionData.user.restaurant_id
@@ -93,10 +82,15 @@ function Login() {
                       : "";
             const restaurantIsOpen = typeof sessionData?.is_open === "boolean" ? sessionData.is_open : undefined;
 
+            let restaurantName = extractRestaurantNameFromSession(sessionData);
+            if (!restaurantName && accessToken) {
+                restaurantName = await resolveRestaurantName(accessToken, restaurantId);
+            }
+
             dispatch(
                 setSession({
                     user,
-                    accessToken: sessionData?.access_token || null,
+                    accessToken,
                     refreshToken: sessionData?.refresh_token || null,
                     onboardingStep,
                     accessTokenExpiresIn: sessionData?.expires_in,
