@@ -1,5 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { X, ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { buildAddonCategoriesPayload, mapApiAddonCategoriesToForm } from '../../utils/addonCategories';
+import AddonCategoriesSection from './AddonCategoriesSection';
 
 const cleanUrl = (value) => {
     if (typeof value !== 'string') return '';
@@ -25,7 +27,6 @@ const toNumberOrNull = (value) => {
 const buildInitialFromItem = (item) => {
     const raw = item && typeof item === 'object' ? item : {};
     const rawVariants = Array.isArray(raw.variants) ? raw.variants : [];
-    const rawAddons = Array.isArray(raw.addons) ? raw.addons : [];
     const rawTags = Array.isArray(raw.tags) ? raw.tags : [];
     const rawImages = Array.isArray(raw.images) ? raw.images : [];
     const rawCategoryId = typeof raw.categoryId === 'string' ? raw.categoryId : typeof raw.category_id === 'string' ? raw.category_id : '';
@@ -64,13 +65,7 @@ const buildInitialFromItem = (item) => {
             name: typeof variant?.name === 'string' ? variant.name : '',
             price: variant?.price === 0 || variant?.price ? String(variant.price) : '',
         })),
-        addons: rawAddons.map((addon) => ({
-            clientId: makeClientId(),
-            serverId: typeof addon?.id === 'string' ? addon.id : '',
-            name: typeof addon?.name === 'string' ? addon.name : '',
-            price: addon?.price === 0 || addon?.price ? String(addon.price) : '',
-            image: typeof addon?.image === 'string' ? addon.image : '',
-        })),
+        addonCategories: mapApiAddonCategoriesToForm(raw),
         tags: rawTags.filter((t) => typeof t === 'string' && t.trim()).map((t) => t.trim()),
         imagesText: rawImages.map(cleanUrl).filter(Boolean).join('\n'),
     };
@@ -81,7 +76,7 @@ export default function EditMenuItemModal({ isOpen, onClose, item, categories, o
     const [openSections, setOpenSections] = useState(initial.openSections);
     const [form, setForm] = useState(initial.form);
     const [variants, setVariants] = useState(initial.variants);
-    const [addons, setAddons] = useState(initial.addons);
+    const [addonCategories, setAddonCategories] = useState(initial.addonCategories);
     const [tags, setTags] = useState(initial.tags);
     const [tagInput, setTagInput] = useState('');
     const [imagesText, setImagesText] = useState(initial.imagesText);
@@ -157,16 +152,6 @@ export default function EditMenuItemModal({ isOpen, onClose, item, categories, o
                 .map((variant) => ({ ...variant, price: Number(variant.price) }))
             : [];
 
-        const cleanedAddons = addons
-            .map((addon) => ({
-                ...(addon.serverId ? { id: addon.serverId } : {}),
-                name: addon.name?.trim() || '',
-                price: toNumberOrNull(addon.price),
-                image: cleanUrl(addon.image),
-            }))
-            .filter((addon) => addon.name && addon.price !== null)
-            .map((addon) => ({ ...addon, price: Number(addon.price) }));
-
         const images = imagesText
             .split('\n')
             .map(cleanUrl)
@@ -194,7 +179,7 @@ export default function EditMenuItemModal({ isOpen, onClose, item, categories, o
                 catering: !!form.catering,
                 catering_minimum_order: cateringMinValue === null ? 0 : Math.trunc(cateringMinValue),
                 variants: cleanedVariants,
-                addons: cleanedAddons,
+                addon_categories: buildAddonCategoriesPayload(addonCategories),
             },
         });
     };
@@ -393,54 +378,12 @@ export default function EditMenuItemModal({ isOpen, onClose, item, categories, o
                             {openSections.addons ? <ChevronDown size={16} className="text-gray-400" /> : <ChevronRight size={16} className="text-gray-400" />}
                         </button>
                         {openSections.addons && (
-                            <div className="p-4 bg-white border-t border-gray-100 space-y-3">
-                                <div className="space-y-3">
-                                    {addons.map((addon) => (
-                                        <div key={addon.clientId} className="grid grid-cols-12 gap-2 items-center">
-                                            <input
-                                                type="text"
-                                                value={addon.name}
-                                                onChange={(e) => setAddons((prev) => prev.map((a) => (a.clientId === addon.clientId ? { ...a, name: e.target.value } : a)))}
-                                                placeholder="Add-on name"
-                                                className="col-span-6 h-[40px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#DD2F26]"
-                                                disabled={saving}
-                                            />
-                                            <input
-                                                type="text"
-                                                value={addon.price}
-                                                onChange={(e) => setAddons((prev) => prev.map((a) => (a.clientId === addon.clientId ? { ...a, price: e.target.value } : a)))}
-                                                placeholder="Price"
-                                                className="col-span-3 h-[40px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#DD2F26]"
-                                                disabled={saving}
-                                            />
-                                            <input
-                                                type="text"
-                                                value={addon.image}
-                                                onChange={(e) => setAddons((prev) => prev.map((a) => (a.clientId === addon.clientId ? { ...a, image: e.target.value } : a)))}
-                                                placeholder="Image URL"
-                                                className="col-span-2 h-[40px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#DD2F26]"
-                                                disabled={saving}
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => setAddons((prev) => prev.filter((a) => a.clientId !== addon.clientId))}
-                                                className={`col-span-1 h-[40px] rounded-[8px] border border-red-200 text-red-600 hover:bg-red-50 transition-colors flex items-center justify-center ${saving ? 'opacity-60 cursor-not-allowed' : ''}`}
-                                                disabled={saving}
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <button
-                                    type="button"
-                                    onClick={() => setAddons((prev) => [...prev, { clientId: makeClientId(), serverId: '', name: '', price: '', image: '' }])}
-                                    className={`w-full h-[40px] rounded-[10px] border border-[#E5E7EB] text-[13px] font-[600] text-[#374151] hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 ${saving ? 'opacity-60 cursor-not-allowed' : ''}`}
+                            <div className="p-4 bg-white border-t border-gray-100">
+                                <AddonCategoriesSection
+                                    addonCategories={addonCategories}
+                                    onChange={setAddonCategories}
                                     disabled={saving}
-                                >
-                                    <Plus size={16} /> Add Add-on
-                                </button>
+                                />
                             </div>
                         )}
                     </div>

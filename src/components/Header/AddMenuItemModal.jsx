@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { X, Upload, Plus } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { getRestaurantUploadImageUrl } from '../../utils/backendUrl';
+import { buildAddonCategoriesPayload } from '../../utils/addonCategories';
+import AddonCategoriesSection from '../MenuManagement/AddonCategoriesSection';
 
 export default function AddMenuItemModal({ isOpen, onClose }) {
     const accessToken = useSelector((state) => state.auth.accessToken);
@@ -34,7 +36,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
         cateringMinimumOrder: '0',
     });
     const [variants, setVariants] = useState([{ name: '', price: '' }]);
-    const [addons, setAddons] = useState([]);
+    const [addonCategories, setAddonCategories] = useState([]);
     const [selectedTags, setSelectedTags] = useState([]);
     const [tagInput, setTagInput] = useState('');
     const [imageFiles, setImageFiles] = useState([]);
@@ -60,7 +62,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
             cateringMinimumOrder: '0',
         });
         setVariants([{ name: '', price: '' }]);
-        setAddons([]);
+        setAddonCategories([]);
         setSelectedTags([]);
         setTagInput('');
         setImageFiles([]);
@@ -160,14 +162,6 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
 
     const updateVariant = (index, key, value) => {
         setVariants((prev) => prev.map((variant, idx) => (idx === index ? { ...variant, [key]: value } : variant)));
-    };
-
-    const addAddOn = () => {
-        setAddons((prev) => [...prev, { id: `addon-${Date.now()}`, name: '', price: '' }]);
-    };
-
-    const updateAddOn = (id, key, value) => {
-        setAddons((prev) => prev.map((addon) => (addon.id === id ? { ...addon, [key]: value } : addon)));
     };
 
     const addTag = (value) => {
@@ -298,12 +292,7 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                         }))
                         .filter((variant) => variant.name && Number.isFinite(variant.price))
                     : [],
-                addons: addons
-                    .map((addon) => ({
-                        name: addon.name?.trim() || '',
-                        price: Number(addon.price),
-                    }))
-                    .filter((addon) => addon.name && Number.isFinite(addon.price)),
+                addon_categories: buildAddonCategoriesPayload(addonCategories),
             };
 
             const url = `${baseUrl.replace(/\/$/, '')}/api/v1/restaurants/onboarding/step3/item`;
@@ -506,37 +495,12 @@ export default function AddMenuItemModal({ isOpen, onClose }) {
                         </div>
                     )}
 
-                    <div>
-                        <label className="block text-[14px] font-[500] text-[#374151] mb-1.5">Add-ons (Modifiers)</label>
-                        <button type="button" onClick={addAddOn} className="flex items-center gap-1 text-[13px] font-medium text-[#DD2F26] hover:opacity-80 active:scale-95 transition-all">
-                            <Plus size={14} /> Add an add-on
-                        </button>
-                        {!!addons.length && (
-                            <div className="space-y-3 mt-3">
-                                {addons.map((addon) => (
-                                    <div key={addon.id} className="flex gap-3">
-                                        <input
-                                            type="text"
-                                            placeholder="Add-on name"
-                                            value={addon.name}
-                                            onChange={(e) => updateAddOn(addon.id, 'name', e.target.value)}
-                                            className="flex-1 h-[42px] px-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#DD2F26] shadow-sm"
-                                        />
-                                        <div className="relative w-[120px]">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-[14px]">$</span>
-                                            <input
-                                                type="text"
-                                                placeholder="0.00"
-                                                value={addon.price}
-                                                onChange={(e) => updateAddOn(addon.id, 'price', e.target.value)}
-                                                className="w-full h-[42px] pl-7 pr-3 bg-white border border-[#E5E7EB] rounded-[8px] text-[14px] outline-none focus:border-[#DD2F26] shadow-sm"
-                                            />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                    <AddonCategoriesSection
+                        addonCategories={addonCategories}
+                        onChange={setAddonCategories}
+                        disabled={saving}
+                        onUploadImage={uploadImage}
+                    />
 
                     <div>
                         <label className="block text-[14px] font-[500] text-[#374151] mb-1.5">Prep Time (minutes)</label>
