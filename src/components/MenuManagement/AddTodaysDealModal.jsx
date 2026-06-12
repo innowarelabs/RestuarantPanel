@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const formatMoney = (value) => {
     if (typeof value === 'number' && Number.isFinite(value)) return `$${value.toFixed(2)}`;
@@ -96,6 +97,16 @@ export default function AddTodaysDealModal({ isOpen, onClose, categories, access
                 setError('Variant discounted prices are required');
                 return;
             }
+            const priceViolation = variants.some((variant) => {
+                const input = variantDiscounts[String(variant.id)];
+                const discountVal = Number(input);
+                const actualVal = Number(variant.price);
+                return Number.isFinite(discountVal) && Number.isFinite(actualVal) && discountVal >= actualVal;
+            });
+            if (priceViolation) {
+                toast.error('Discounted price must be less than the actual variant price');
+                return;
+            }
         } else {
             if (!discountedPrice.trim()) {
                 setError('Discounted price is required');
@@ -104,6 +115,11 @@ export default function AddTodaysDealModal({ isOpen, onClose, categories, access
             const priceValue = Number(discountedPrice);
             if (!Number.isFinite(priceValue)) {
                 setError('Discounted price must be a number');
+                return;
+            }
+            const actualPrice = Number(selectedItem?.price);
+            if (Number.isFinite(actualPrice) && priceValue >= actualPrice) {
+                toast.error('Discounted price must be less than the actual price');
                 return;
             }
         }
@@ -230,7 +246,9 @@ export default function AddTodaysDealModal({ isOpen, onClose, categories, access
                         {selectedItem && (
                             <div className="bg-[#F6F8F9] rounded-[12px] p-4 space-y-1">
                                 <div className="text-[14px] font-[600] text-[#1A1A1A]">{selectedItem.name}</div>
-                                <div className="text-[12px] text-[#6B7280]">Price: {formatMoney(selectedItem.price)}</div>
+                                {!(selectedItem.has_variants || (Array.isArray(selectedItem.variants) && selectedItem.variants.length > 0)) && (
+                                    <div className="text-[12px] text-[#6B7280]">Price: {formatMoney(selectedItem.price)}</div>
+                                )}
                             </div>
                         )}
 
