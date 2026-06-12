@@ -75,6 +75,15 @@ export default function EditTodaysDealModal({ isOpen, onClose, deal, categories,
                 setError('Variant discounted prices are required');
                 return;
             }
+            const zeroVariant = variants.some((variant) => {
+                const input = variantDiscounts[String(variant.id)];
+                const val = Number(input);
+                return Number.isFinite(val) && val <= 0;
+            });
+            if (zeroVariant) {
+                toast.error('Discounted price cannot be 0');
+                return;
+            }
             const priceViolation = variants.some((variant) => {
                 const input = variantDiscounts[String(variant.id)];
                 const discountVal = Number(input);
@@ -93,6 +102,10 @@ export default function EditTodaysDealModal({ isOpen, onClose, deal, categories,
             const priceValue = Number(discountedPrice);
             if (!Number.isFinite(priceValue)) {
                 setError('Discounted price must be a number');
+                return;
+            }
+            if (priceValue <= 0) {
+                toast.error('Discounted price cannot be 0');
                 return;
             }
             const actualPrice = Number(deal?.price);
